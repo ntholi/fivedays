@@ -10,8 +10,14 @@ import { useState } from 'react';
 import { getCookie, setCookie } from 'cookies-next';
 import { ModalsProvider } from '@mantine/modals';
 import '@/styles/globals.css';
+import { SessionProvider } from 'next-auth/react';
+import { Session } from 'next-auth';
 
-export default function App(props: AppProps & { colorScheme: ColorScheme }) {
+export default function App(
+  props: AppProps & { colorScheme: ColorScheme } & {
+    session: Session;
+  }
+) {
   const { Component, pageProps } = props;
   const [colorScheme, setColorScheme] = useState<ColorScheme>(
     props.colorScheme
@@ -53,7 +59,9 @@ export default function App(props: AppProps & { colorScheme: ColorScheme }) {
         >
           <Notifications />
           <ModalsProvider>
-            <Component {...pageProps} />
+            <SessionProvider session={props.session}>
+              <Component {...pageProps} />
+            </SessionProvider>
           </ModalsProvider>
         </MantineProvider>
       </ColorSchemeProvider>
