@@ -53,7 +53,9 @@ echo "JWT_SECRET=your-jwt-secret" >> .env
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
+```bash
 openssl rand -hex 32
 ```
 
