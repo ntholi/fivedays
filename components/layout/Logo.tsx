@@ -17,7 +17,8 @@ export default function Logo() {
 
 const useStyles = createStyles((theme) => ({
   title: {
-    fontWeight: 500,
+    fontWeight: 700,
+    fontSize: rem(20),
     letterSpacing: rem(-1),
     paddingLeft: theme.spacing.md,
     paddingRight: theme.spacing.md,
