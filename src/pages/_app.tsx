@@ -65,6 +65,6 @@ App.getInitialProps = async (appContext: AppContext) => {
   const appProps = await NextApp.getInitialProps(appContext);
   return {
     ...appProps,
-    colorScheme: getCookie('mantine-color-scheme', appContext.ctx) || 'light',
+    colorScheme: getCookie('mantine-color-scheme', appContext.ctx) || 'dark',
   };
 };
