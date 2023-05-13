@@ -31,8 +31,12 @@
     "googleapis": "^118.0.0",
     "next": "13.4.1",
     "next-auth": "^4.22.1",
+    "nprogress": "^0.2.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "typescript": "5.0.4"
+  },
+  "devDependencies": {
+    "@types/nprogress": "^0.2.0"
   }
 }

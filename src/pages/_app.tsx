@@ -12,6 +12,7 @@ import { ModalsProvider } from '@mantine/modals';
 import '@/styles/globals.css';
 import { SessionProvider } from 'next-auth/react';
 import { Session } from 'next-auth';
+import ProgressBar from '@/components/common/ProgressBar';
 
 export default function App(
   props: AppProps & { colorScheme: ColorScheme } & {
@@ -60,6 +61,7 @@ export default function App(
           <Notifications />
           <ModalsProvider>
             <SessionProvider session={props.session}>
+              <ProgressBar />
               <Component {...pageProps} />
             </SessionProvider>
           </ModalsProvider>
