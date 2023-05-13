@@ -1,7 +1,7 @@
 import ClassCard from '@/components/classes/ClassCard';
 import Layout from '@/components/layout/Layout';
 import googleClassroom from '@/lib/helpers/googleClassroom';
-import { SimpleGrid } from '@mantine/core';
+import { SimpleGrid, Title } from '@mantine/core';
 import { classroom_v1, google } from 'googleapis';
 import { GetServerSideProps } from 'next';
 import { getSession, useSession } from 'next-auth/react';
@@ -14,6 +14,9 @@ interface ClassesPageProps {
 const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
   return (
     <Layout>
+      <Title order={2} mt='md' mb='xl'>
+        My Classes
+      </Title>
       <SimpleGrid
         cols={4}
         breakpoints={[

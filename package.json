@@ -19,6 +19,7 @@
     "@mantine/next": "^6.0.10",
     "@mantine/notifications": "^6.0.10",
     "@mantine/prism": "^6.0.10",
+    "@tabler/icons-react": "^2.18.0",
     "@types/node": "20.1.2",
     "@types/react": "18.2.6",
     "@types/react-dom": "18.2.4",

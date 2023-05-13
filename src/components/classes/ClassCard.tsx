@@ -7,8 +7,10 @@ type Props = {
 };
 export default function ClassCard({ item }: Props) {
   return (
-    <Card>
-      <Title>{item.name}</Title>
+    <Card withBorder radius='md' mih={120}>
+      <Title order={3} fw='normal'>
+        {item.name}
+      </Title>
     </Card>
   );
 }
