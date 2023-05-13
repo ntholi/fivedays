@@ -1,6 +1,6 @@
+import Layout from '@/components/layout/Layout';
 import { Button, Center, Flex, useMantineColorScheme } from '@mantine/core';
 import { useSession } from 'next-auth/react';
-import Layout from '../../components/layout/Layout';
 
 export default function Home() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
