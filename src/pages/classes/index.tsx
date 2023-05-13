@@ -1,5 +1,7 @@
+import ClassCard from '@/components/classes/ClassCard';
 import Layout from '@/components/layout/Layout';
 import googleClassroom from '@/lib/helpers/googleClassroom';
+import { SimpleGrid } from '@mantine/core';
 import { classroom_v1, google } from 'googleapis';
 import { GetServerSideProps } from 'next';
 import { getSession, useSession } from 'next-auth/react';
@@ -12,14 +14,17 @@ interface ClassesPageProps {
 const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
   return (
     <Layout>
-      <h1>Your Classes</h1>
-
-      {classes.map((course) => (
-        <div key={course.id}>
-          <h2>{course.name}</h2>
-          <p>{course.description}</p>
-        </div>
-      ))}
+      <SimpleGrid
+        cols={4}
+        breakpoints={[
+          { maxWidth: 'sm', cols: 2 },
+          { maxWidth: 'xs', cols: 1 },
+        ]}
+      >
+        {classes.map((item) => (
+          <ClassCard key={item.id} item={item} />
+        ))}
+      </SimpleGrid>
     </Layout>
   );
 };

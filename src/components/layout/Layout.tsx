@@ -18,7 +18,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       })}
     >
       <main>
-        <Container>{children}</Container>
+        <Container size='xl'>{children}</Container>
       </main>
     </AppShell>
   );
