@@ -7,11 +7,11 @@ import { GetServerSideProps } from 'next';
 import { getSession, useSession } from 'next-auth/react';
 import { FC } from 'react';
 
-interface ClassesPageProps {
+type Props = {
   classes: classroom_v1.Schema$Course[];
-}
+};
 
-const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
+const ClassesPage: FC<Props> = ({ classes }) => {
   return (
     <Layout>
       <Title order={2} mt='md' mb='xl'>
@@ -20,7 +20,7 @@ const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
       <SimpleGrid
         cols={4}
         breakpoints={[
-          { maxWidth: 'sm', cols: 2 },
+          { maxWidth: 'md', cols: 2 },
           { maxWidth: 'xs', cols: 1 },
         ]}
       >
