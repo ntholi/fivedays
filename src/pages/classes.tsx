@@ -1,5 +1,5 @@
-// pages/Classes.tsx
 import Layout from '@/components/layout/Layout';
+import googleClassroom from '@/lib/helpers/googleClassroom';
 import { classroom_v1, google } from 'googleapis';
 import { GetServerSideProps } from 'next';
 import { getSession, useSession } from 'next-auth/react';
@@ -36,12 +36,16 @@ const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await getSession(context);
-  const accessToken = session.accessToken;
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: accessToken });
+  if (!session) {
+    return {
+      props: {
+        classes: ['Login'],
+      },
+    };
+  }
 
-  const classroom = google.classroom({ version: 'v1', auth: oauth2Client });
+  const classroom = googleClassroom(session);
 
   try {
     const response = await classroom.courses.list();
