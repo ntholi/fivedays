@@ -10,16 +10,6 @@ interface ClassesPageProps {
 }
 
 const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
-  const { data: session } = useSession();
-
-  if (!session) {
-    return (
-      <div>
-        <h1>Please sign in</h1>
-      </div>
-    );
-  }
-
   return (
     <Layout>
       <h1>Your Classes</h1>
@@ -36,21 +26,10 @@ const ClassesPage: FC<ClassesPageProps> = ({ classes }) => {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await getSession(context);
-
-  if (!session) {
-    return {
-      props: {
-        classes: ['Login'],
-      },
-    };
-  }
-
   const classroom = googleClassroom(session);
 
   try {
     const response = await classroom.courses.list();
-
-    // The list of classes will be in response.data.courses
     const classes = response.data.courses || [];
 
     return {
@@ -59,9 +38,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       },
     };
   } catch (err) {
-    // Handle error
     console.error('Error: ', err);
-
     return {
       props: {
         classes: [],
