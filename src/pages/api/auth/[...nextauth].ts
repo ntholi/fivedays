@@ -12,8 +12,9 @@ const authOptions: NextAuthOptions = {
           prompt: 'consent',
           access_type: 'offline',
           response_type: 'code',
+
           scope:
-            'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/classroom.courses.readonly',
+            'email openid profile https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.me https://www.googleapis.com/auth/classroom.coursework.students https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/classroom.profile.photos https://www.googleapis.com/auth/classroom.student-submissions.me.readonly https://www.googleapis.com/auth/classroom.student-submissions.students.readonly https://www.googleapis.com/auth/classroom.topics',
         },
       },
     }),
