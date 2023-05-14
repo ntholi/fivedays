@@ -1,7 +1,7 @@
 import { Card, Title, createStyles } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
-import React, { use } from 'react';
+import React from 'react';
 
 type Props = {
   item: classroom_v1.Schema$Course;
@@ -14,7 +14,6 @@ export default function ClassCard({ item }: Props) {
     <Link
       style={{ textDecoration: 'none', color: 'inherit' }}
       href={{ pathname: `/classes/${item.id}`, query: { name: item.name } }}
-      passHref
     >
       <Card withBorder radius='md' mih={150} className={classes.card}>
         <Title order={3} fw='normal'>
