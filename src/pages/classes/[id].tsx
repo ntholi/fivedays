@@ -1,14 +1,16 @@
+import AssessmentCard from '@/components/classes/AssessmentCard';
 import Layout from '@/components/layout/Layout';
 import googleClassroom from '@/lib/helpers/googleClassroom';
 import {
   Text,
   Container,
   Divider,
-  Paper,
+  Accordion,
   Title,
   createStyles,
   rem,
   Group,
+  Paper,
 } from '@mantine/core';
 import { IconBook, IconBook2 } from '@tabler/icons-react';
 import { classroom_v1 } from 'googleapis';
@@ -23,7 +25,6 @@ type Props = {
 
 export default function ClassPage({ assessments }: Props) {
   const router = useRouter();
-  const { classes } = useStyles();
 
   return (
     <Layout>
@@ -31,34 +32,12 @@ export default function ClassPage({ assessments }: Props) {
       <Divider my='lg' />
       <Container>
         {assessments.map((it) => (
-          <Paper className={classes.paper} p='lg' key={it.id}>
-            <Group>
-              <IconBook2 />
-              <Text fw={500} color=''>
-                {it.title}
-              </Text>
-            </Group>
-          </Paper>
+          <AssessmentCard key={it.id} courseWork={it} />
         ))}
       </Container>
     </Layout>
   );
 }
-
-const useStyles = createStyles((theme) => ({
-  paper: {
-    transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
-    '&:hover': {
-      borderColor: theme.colors.blue[5],
-      boxShadow: `${rem(0)} ${rem(2)} ${rem(4)} ${
-        theme.colorScheme === 'dark'
-          ? theme.colors.dark[4]
-          : theme.colors.gray[6]
-      }`,
-      cursor: 'pointer',
-    },
-  },
-}));
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await getSession(context);

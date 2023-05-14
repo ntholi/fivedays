@@ -1,4 +1,4 @@
-import { Card, Title, createStyles } from '@mantine/core';
+import { Card, Title, createStyles, rem } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
 import React from 'react';
@@ -26,14 +26,14 @@ export default function ClassCard({ item }: Props) {
 
 const useStyles = createStyles((theme) => ({
   card: {
-    cursor: 'pointer',
-
+    transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
     '&:hover': {
-      boxShadow: `0 0 5px ${
+      boxShadow: `${rem(0)} ${rem(2)} ${rem(4)} ${
         theme.colorScheme === 'dark'
           ? theme.colors.dark[4]
-          : theme.colors.gray[4]
+          : theme.colors.gray[6]
       }`,
+      cursor: 'pointer',
     },
   },
 }));
