@@ -1,32 +1,40 @@
-import { Card, Title } from '@mantine/core';
+import { Card, Title, createStyles } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
-import { useRouter } from 'next/router';
+import Link from 'next/link';
 import React, { use } from 'react';
 
 type Props = {
   item: classroom_v1.Schema$Course;
 };
-export default function ClassCard({ item }: Props) {
-  const router = useRouter();
 
-  function openClassroom() {
-    router.push({
-      pathname: `/classes/${item.id}`,
-      query: { name: item.name },
-    });
-  }
+export default function ClassCard({ item }: Props) {
+  const { classes } = useStyles();
 
   return (
-    <Card
-      withBorder
-      radius='md'
-      mih={150}
-      onClick={openClassroom}
-      sx={{ cursor: 'pointer' }}
+    <Link
+      style={{ textDecoration: 'none', color: 'inherit' }}
+      href={{ pathname: `/classes/${item.id}`, query: { name: item.name } }}
+      passHref
     >
-      <Title order={3} fw='normal'>
-        {item.name}
-      </Title>
-    </Card>
+      <Card withBorder radius='md' mih={150} className={classes.card}>
+        <Title order={3} fw='normal'>
+          {item.name}
+        </Title>
+      </Card>
+    </Link>
   );
 }
+
+const useStyles = createStyles((theme) => ({
+  card: {
+    cursor: 'pointer',
+
+    '&:hover': {
+      boxShadow: `0 0 5px ${
+        theme.colorScheme === 'dark'
+          ? theme.colors.dark[4]
+          : theme.colors.gray[4]
+      }`,
+    },
+  },
+}));
