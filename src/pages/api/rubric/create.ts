@@ -1,14 +1,16 @@
-import { createRubricPrompt } from '@/lib/helpers/prompts/rubric';
-import { classroom_v1 } from 'googleapis';
+import { saveRubric } from '@/lib/services/rubricService';
 import { NextApiRequest, NextApiResponse } from 'next';
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   const { questionId, data } = req.body;
 
-  console.log(questionId);
-  console.log(data);
+  data.forEach((rubric: Rubric) => {
+    rubric.questionId = questionId;
+    saveRubric(rubric);
+  });
 
   res.status(200);
 }
