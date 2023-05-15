@@ -45,7 +45,7 @@ const GradePage: NextPage<Props> = ({ studentSubmissions }) => {
             <IconArrowBack />
           </ActionIcon>
           <Text w={300} ta='center'>
-            <GoogleDocViewer url={selectedItem?.userId} />
+            {selectedItem?.userId}
           </Text>
           <ActionIcon>
             <IconArrowForward />
@@ -55,6 +55,7 @@ const GradePage: NextPage<Props> = ({ studentSubmissions }) => {
       <Divider mt='sm' mb='xl' />
       <Grid>
         <Grid.Col span={2}>
+          {/* TODO: Use tabs to display all the files */}
           <ScrollArea h='90vh'>
             {studentSubmissions.map((it) => (
               <NavLink
@@ -66,16 +67,9 @@ const GradePage: NextPage<Props> = ({ studentSubmissions }) => {
           </ScrollArea>
         </Grid.Col>
         <Grid.Col span={10}>
-          <iframe
-            src={
-              'https://docs.google.com/viewer?url=' +
-              selectedItem?.attachments[0].driveFile?.alternateLink +
-              '&embedded=true'
-            }
-            title='file'
-            width='100%'
-            height='600'
-          ></iframe>
+          <GoogleDocViewer
+            url={selectedItem?.attachments[0].driveFile?.alternateLink}
+          />
         </Grid.Col>
       </Grid>
     </Layout>

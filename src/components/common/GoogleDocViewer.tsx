@@ -1,7 +1,7 @@
 import React from 'react';
 
 type Props = {
-  url?: string;
+  url?: string | null;
 };
 
 const GoogleDocViewer = ({ url }: Props) => {
@@ -12,8 +12,8 @@ const GoogleDocViewer = ({ url }: Props) => {
 
   return (
     <iframe
-      src={`https://docs.google.com/viewer?url=${directLink}&embedded=true`}
-      style={{ width: '100%', height: '1000px' }}
+      src={`https://drive.google.com/file/d/${fileId}/preview`}
+      style={{ width: '100%', height: '100%' }}
       frameBorder='0'
     ></iframe>
   );
