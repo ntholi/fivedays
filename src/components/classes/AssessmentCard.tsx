@@ -14,6 +14,7 @@ import { classroom_v1 } from 'googleapis';
 import React, { useState } from 'react';
 import RubricDisplay from '../assessments/RubricDisplay';
 import { useDisclosure } from '@mantine/hooks';
+import Link from 'next/link';
 
 type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
@@ -46,10 +47,15 @@ export default function AssessmentCard({ courseWork }: Props) {
             <Accordion.Panel>
               <Stack>
                 <Text>{courseWork.description}</Text>
-                <Flex>
+                <Flex justify='space-between' w='100%'>
                   <Button color='dark' onClick={open}>
                     Rubric
                   </Button>
+                  <Link
+                    href={`/grade/${courseWork.id}?courseId=${courseWork.courseId}`}
+                  >
+                    <Button>Grade</Button>
+                  </Link>
                 </Flex>
               </Stack>
             </Accordion.Panel>
