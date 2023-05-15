@@ -30,7 +30,7 @@ export default function AssessmentCard({ courseWork }: Props) {
         fullScreen
         transitionProps={{ transition: 'fade', duration: 200 }}
       >
-        <RubricDisplay questionId={courseWork.id} />
+        <RubricDisplay assessment={courseWork} close={close} />
       </Modal>
       <Paper>
         <Accordion>

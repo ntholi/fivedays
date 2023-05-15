@@ -16,42 +16,29 @@ import { useForm } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import React from 'react';
 import axios from 'axios';
+import RubricForm from './RubricForm';
+import { classroom_v1 } from 'googleapis';
 
 type Props = {
-  questionId?: string | null;
+  assessment: classroom_v1.Schema$CourseWork;
+  close: () => void;
 };
 
-export default function RubricDisplay({ questionId }: Props) {
+export default function RubricDisplay({ assessment, close }: Props) {
   const [data, setData] = React.useState<Rubric[]>([]);
 
   // TODO: handle null or undefined questionId
 
   const submitRubric = async () => {
     const response = await axios.post('/api/rubric/create', {
-      questionId: questionId,
+      questionId: assessment.id,
       data: data,
     });
-    console.log(response);
+    close();
   };
-
-  const form = useForm<Rubric>({
-    initialValues: {
-      questionId: questionId,
-      title: '',
-      description: '',
-      points: 0,
-    },
-  });
 
   function deleteItem(rubric: Rubric) {
     setData(data.filter((it) => it.title !== rubric.title));
-  }
-
-  function addItem(rubric: Rubric) {
-    if (rubric.points > 0) {
-      setData([rubric, ...data]);
-      form.reset();
-    }
   }
 
   return (
@@ -64,31 +51,7 @@ export default function RubricDisplay({ questionId }: Props) {
       </Title>
       <Divider my='sm' />
       <Container size='md'>
-        <form onSubmit={form.onSubmit(addItem)}>
-          <Stack spacing='sm'>
-            <Group grow>
-              <TextInput
-                required
-                label='Title'
-                {...form.getInputProps('title')}
-              />
-              <NumberInput
-                required
-                label='Points'
-                {...form.getInputProps('points')}
-              />
-            </Group>
-            <TextInput
-              label='Description'
-              {...form.getInputProps('description')}
-            />
-            <Flex justify='flex-end'>
-              <Button type='submit' variant='outline'>
-                Add
-              </Button>
-            </Flex>
-          </Stack>
-        </form>
+        <RubricForm assessment={assessment} setData={setData} data={data} />
         <Table>
           <thead>
             <tr>
