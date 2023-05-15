@@ -1,3 +1,4 @@
+import { createRubricPrompt } from '@/lib/helpers/prompts/rubric';
 import { classroom_v1 } from 'googleapis';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Configuration, OpenAIApi } from 'openai';
@@ -22,7 +23,7 @@ export default async function handler(
     messages: [
       {
         role: 'user',
-        content: `Create a marking rubric based on the following question: "${courseWork.description}"`,
+        content: createRubricPrompt(courseWork.description, 30),
       },
     ],
   });
