@@ -1,5 +1,13 @@
 import db from '../config/database';
 
+interface RowData {
+  id: number;
+  questionId: string | null;
+  title: string;
+  description: string;
+  points: number;
+}
+
 export function saveRubric(rubric: Rubric) {
   const { questionId, title, description, points } = rubric;
 
@@ -13,10 +21,28 @@ export function saveRubric(rubric: Rubric) {
   return info.lastInsertRowid;
 }
 
-export function getRubric(questionId: number) {
+export function getRubric(questionId: string): Rubric[] {
   const stmt = db.prepare(`
-      SELECT * FROM rubrics WHERE questionId = ?
-    `);
+    SELECT * FROM rubrics WHERE questionId = ?
+  `);
 
-  return stmt.all(questionId);
+  const rows = stmt.all(questionId) as RowData[];
+
+  return rows.map((row) => {
+    const { id, questionId, title, description, points } = row;
+    return {
+      id,
+      questionId,
+      title,
+      description,
+      points,
+    } as Rubric;
+  });
+}
+
+export function deleteRubric(questionId: number): void {
+  const stmt = db.prepare(`
+    DELETE FROM rubrics WHERE questionId = ?
+  `);
+  stmt.run(questionId);
 }

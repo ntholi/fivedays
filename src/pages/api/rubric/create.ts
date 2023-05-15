@@ -1,4 +1,4 @@
-import { saveRubric } from '@/lib/services/rubricService';
+import { deleteRubric, saveRubric } from '@/lib/services/rubricService';
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(
@@ -7,10 +7,13 @@ export default async function handler(
 ) {
   const { questionId, data } = req.body;
 
-  data.forEach((rubric: Rubric) => {
+  //clear rubric first
+  deleteRubric(questionId);
+
+  data.forEach(async (rubric: Rubric) => {
     rubric.questionId = questionId;
     saveRubric(rubric);
   });
 
-  res.status(200);
+  res.status(200).json({ message: 'Rubrics saved successfully' });
 }

@@ -11,10 +11,10 @@ import {
   Title,
   Table,
   Text,
+  LoadingOverlay,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
-import React from 'react';
+import React, { useEffect } from 'react';
 import axios from 'axios';
 import RubricForm from './RubricForm';
 import { classroom_v1 } from 'googleapis';
@@ -26,15 +26,42 @@ type Props = {
 
 export default function RubricDisplay({ assessment, close }: Props) {
   const [data, setData] = React.useState<Rubric[]>([]);
+  const [saving, setSaving] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
   // TODO: handle null or undefined questionId
 
+  useEffect(() => {
+    async function getRubric() {
+      try {
+        setLoading(true);
+        const response = await axios.get('/api/rubric/read', {
+          params: { questionId: assessment.id },
+        });
+        console.log('Response', response.data);
+        setData(response.data);
+      } catch (ex) {
+        console.log(ex);
+      } finally {
+        setLoading(false);
+      }
+    }
+    getRubric();
+  }, []);
+
   const submitRubric = async () => {
-    const response = await axios.post('/api/rubric/create', {
-      questionId: assessment.id,
-      data: data,
-    });
-    close();
+    try {
+      setSaving(true);
+      const response = await axios.post('/api/rubric/create', {
+        questionId: assessment.id,
+        data: data,
+      });
+      close();
+    } catch (ex) {
+      console.log(ex);
+    } finally {
+      setSaving(false);
+    }
   };
 
   function deleteItem(rubric: Rubric) {
@@ -43,14 +70,17 @@ export default function RubricDisplay({ assessment, close }: Props) {
 
   return (
     <>
+      <LoadingOverlay visible={loading} overlayBlur={2} />
       <Title order={3} fw='normal'>
         <Flex justify='space-between'>
           <Text>Rubric</Text>
-          <Button onClick={submitRubric}>Save</Button>
+          <Button onClick={submitRubric} loading={saving}>
+            Save
+          </Button>
         </Flex>
       </Title>
       <Divider my='sm' />
-      <Container size='md'>
+      <Container size='lg'>
         <RubricForm assessment={assessment} setData={setData} data={data} />
         <Table>
           <thead>

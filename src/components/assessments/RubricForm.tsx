@@ -1,17 +1,11 @@
 import {
   Tabs,
-  ActionIcon,
   Button,
-  Container,
-  Divider,
   Flex,
   Group,
   NumberInput,
   Stack,
   TextInput,
-  Title,
-  Table,
-  Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import axios from 'axios';
