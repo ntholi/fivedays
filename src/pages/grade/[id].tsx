@@ -1,4 +1,5 @@
 import AssessmentCard from '@/components/classes/AssessmentCard';
+import GoogleDocViewer from '@/components/common/GoogleDocViewer';
 import Layout from '@/components/layout/Layout';
 import googleClassroom from '@/lib/helpers/googleClassroom';
 import {
@@ -11,30 +12,73 @@ import {
   rem,
   Group,
   Paper,
+  Grid,
+  NavLink,
+  ScrollArea,
+  Flex,
+  ActionIcon,
 } from '@mantine/core';
+import { IconArrowBack, IconArrowForward } from '@tabler/icons-react';
 import { classroom_v1 } from 'googleapis';
 import { GetServerSideProps, NextPage } from 'next';
 import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import React from 'react';
 
+interface Submission {
+  id: string;
+  userId: string;
+  attachments: classroom_v1.Schema$Attachment[];
+}
+
 type Props = {
-  studentSubmissions: {
-    id: string;
-    userId: string;
-    attachments: classroom_v1.Schema$Attachment[];
-  }[];
+  studentSubmissions: Submission[];
 };
 
 const GradePage: NextPage<Props> = ({ studentSubmissions }) => {
+  const [selectedItem, setSelectedItem] = React.useState<Submission>();
   return (
-    <>
-      {studentSubmissions.map((submission) => (
-        <div key={submission.id}>
-          {submission.attachments[0]?.driveFile?.alternateLink ?? null}
-        </div>
-      ))}
-    </>
+    <Layout>
+      <Flex justify='center'>
+        <Group>
+          <ActionIcon>
+            <IconArrowBack />
+          </ActionIcon>
+          <Text w={300} ta='center'>
+            <GoogleDocViewer url={selectedItem?.userId} />
+          </Text>
+          <ActionIcon>
+            <IconArrowForward />
+          </ActionIcon>
+        </Group>
+      </Flex>
+      <Divider mt='sm' mb='xl' />
+      <Grid>
+        <Grid.Col span={2}>
+          <ScrollArea h='90vh'>
+            {studentSubmissions.map((it) => (
+              <NavLink
+                key={it.id}
+                label={it.userId}
+                onClick={() => setSelectedItem(it)}
+              />
+            ))}
+          </ScrollArea>
+        </Grid.Col>
+        <Grid.Col span={10}>
+          <iframe
+            src={
+              'https://docs.google.com/viewer?url=' +
+              selectedItem?.attachments[0].driveFile?.alternateLink +
+              '&embedded=true'
+            }
+            title='file'
+            width='100%'
+            height='600'
+          ></iframe>
+        </Grid.Col>
+      </Grid>
+    </Layout>
   );
 };
 
@@ -54,7 +98,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       id: submission.id,
       userId: submission.userId,
       attachments: submission.assignmentSubmission?.attachments || [],
-      // Map more properties as needed
     };
   });
 
