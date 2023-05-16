@@ -60,8 +60,9 @@ function Item({
   setGrades: (value: Grade[] | ((prevVar: Grade[]) => Grade[])) => void;
   setTotalPoints: (value: number | ((prevVar: number) => number)) => void;
 }) {
-  const [value, setValue] = React.useState(0);
-  const [comment, setComment] = React.useState('');
+  const grade = grades.find((it) => it.title == rubric.title);
+  const [value, setValue] = React.useState(grade?.points || 0);
+  const [comment, setComment] = React.useState(grade?.comment || '');
 
   function updatePoints(value: number) {
     setValue(value);
