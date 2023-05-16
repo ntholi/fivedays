@@ -17,7 +17,7 @@ type Props = {
 };
 
 interface Grade {
-  label: string;
+  title: string;
   points: number;
   comment: string;
 }
@@ -38,10 +38,10 @@ export default function Grader({ rubric, attachments }: Props) {
         {rubric.map((it) => (
           <Item
             grades={grades}
+            setGrades={setGrades}
             key={it.title}
             rubric={it}
             setTotalPoints={setTotalPoints}
-            setGrades={setGrades}
           />
         ))}
       </ScrollArea>
@@ -57,7 +57,7 @@ function Item({
 }: {
   rubric: Rubric;
   grades: Grade[];
-  setGrades: (value: any) => void;
+  setGrades: (value: Grade[] | ((prevVar: Grade[]) => Grade[])) => void;
   setTotalPoints: (value: number | ((prevVar: number) => number)) => void;
 }) {
   const [value, setValue] = React.useState(0);
@@ -65,21 +65,33 @@ function Item({
 
   function updatePoints(value: number) {
     setValue(value);
-    setGrades((prev: Grade[]) => {
-      const index = prev.findIndex((it) => it.label === rubric.title);
-      if (index === -1) {
-        return [...prev, { label: rubric.title, points: value, comment }];
+
+    setGrades((prevGrades) => {
+      const updatedGrades = [...prevGrades];
+      const gradeIndex = updatedGrades.findIndex(
+        (grade) => grade.title === rubric.title
+      );
+
+      if (gradeIndex !== -1) {
+        updatedGrades[gradeIndex] = {
+          ...updatedGrades[gradeIndex],
+          points: value,
+          comment,
+        };
       } else {
-        prev[index].points = value;
-        return prev;
+        updatedGrades.push({
+          title: rubric.title,
+          points: value,
+          comment,
+        });
       }
-    });
-    setTotalPoints((prev) => {
-      let total = 0;
-      for (const it of grades) {
-        total += it.points;
-      }
-      return total;
+
+      const totalPoints = updatedGrades.reduce(
+        (sum, grade) => sum + grade.points,
+        0
+      );
+      setTotalPoints(totalPoints);
+      return updatedGrades;
     });
   }
 
@@ -105,7 +117,11 @@ function Item({
       >
         {rubric.title}
       </Slider>
-      <Textarea mt='sm'></Textarea>
+      <Textarea
+        mt='sm'
+        value={comment}
+        onChange={(it) => setComment(it.currentTarget.value)}
+      ></Textarea>
       <Divider mb='sm' />
     </Stack>
   );
