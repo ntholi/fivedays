@@ -1,14 +1,11 @@
 import React from 'react';
 
 type Props = {
-  url?: string | null;
+  fileId?: string | null;
 };
 
-const GoogleDocViewer = ({ url }: Props) => {
-  if (!url) return null;
-
-  const fileId = url.split('/d/')[1].split('/view')[0];
-  const directLink = `https://drive.google.com/uc?export=download&id=${fileId}`;
+const GoogleDocViewer = ({ fileId }: Props) => {
+  if (!fileId) return null;
 
   return (
     <iframe

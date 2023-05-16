@@ -1,7 +1,9 @@
 import AssessmentCard from '@/components/classes/AssessmentCard';
 import GoogleDocViewer from '@/components/common/GoogleDocViewer';
+import Grader from '@/components/grade/Grader';
 import Layout from '@/components/layout/Layout';
 import googleClassroom from '@/lib/helpers/googleClassroom';
+import { getRubric } from '@/lib/services/rubricService';
 import {
   Text,
   Container,
@@ -19,6 +21,7 @@ import {
   ActionIcon,
 } from '@mantine/core';
 import { IconArrowBack, IconArrowForward } from '@tabler/icons-react';
+import axios from 'axios';
 import { classroom_v1 } from 'googleapis';
 import { GetServerSideProps, NextPage } from 'next';
 import { getSession } from 'next-auth/react';
@@ -33,9 +36,10 @@ interface Submission {
 
 type Props = {
   studentSubmissions: Submission[];
+  rubric: Rubric[];
 };
 
-const GradePage: NextPage<Props> = ({ studentSubmissions }) => {
+const GradePage: NextPage<Props> = ({ studentSubmissions, rubric }) => {
   const [selectedItem, setSelectedItem] = React.useState<Submission>();
   return (
     <Layout>
@@ -66,10 +70,15 @@ const GradePage: NextPage<Props> = ({ studentSubmissions }) => {
             ))}
           </ScrollArea>
         </Grid.Col>
-        <Grid.Col span={10}>
-          <GoogleDocViewer
-            url={selectedItem?.attachments[0].driveFile?.alternateLink}
-          />
+        <Grid.Col span={7}>
+          <Paper withBorder h='100%'>
+            <GoogleDocViewer
+              fileId={selectedItem?.attachments[0].driveFile?.id}
+            />
+          </Paper>
+        </Grid.Col>
+        <Grid.Col span={3}>
+          <Grader rubric={rubric} attachments={selectedItem?.attachments} />
         </Grid.Col>
       </Grid>
     </Layout>
@@ -81,9 +90,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const classroom = googleClassroom(session);
 
   const { courseId } = context.query;
+  const courseWorkId = context.params?.id as string;
+
+  const rubric = getRubric(courseWorkId);
 
   const res = await classroom.courses.courseWork.studentSubmissions.list({
-    courseWorkId: context.params?.id as string,
+    courseWorkId: courseWorkId,
     courseId: courseId as string,
   });
 
@@ -95,7 +107,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     };
   });
 
-  return { props: { studentSubmissions: studentSubmissions || [] } };
+  return {
+    props: {
+      studentSubmissions: studentSubmissions || [],
+      rubric: rubric || [],
+    },
+  };
 };
 
 export default GradePage;
