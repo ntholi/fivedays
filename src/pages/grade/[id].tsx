@@ -37,9 +37,14 @@ interface Submission {
 type Props = {
   studentSubmissions: Submission[];
   rubric: Rubric[];
+  assessment: classroom_v1.Schema$CourseWork;
 };
 
-const GradePage: NextPage<Props> = ({ studentSubmissions, rubric }) => {
+const GradePage: NextPage<Props> = ({
+  studentSubmissions,
+  assessment,
+  rubric,
+}) => {
   const [selectedItem, setSelectedItem] = React.useState<Submission>();
   return (
     <Layout>
@@ -78,7 +83,11 @@ const GradePage: NextPage<Props> = ({ studentSubmissions, rubric }) => {
           </Paper>
         </Grid.Col>
         <Grid.Col span={3}>
-          <Grader rubric={rubric} attachments={selectedItem?.attachments} />
+          <Grader
+            rubric={rubric}
+            assessment={assessment}
+            attachments={selectedItem?.attachments}
+          />
         </Grid.Col>
       </Grid>
     </Layout>
@@ -94,23 +103,33 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   const rubric = getRubric(courseWorkId);
 
-  const res = await classroom.courses.courseWork.studentSubmissions.list({
-    courseWorkId: courseWorkId,
+  const submissionRes =
+    await classroom.courses.courseWork.studentSubmissions.list({
+      courseWorkId: courseWorkId,
+      courseId: courseId as string,
+    });
+
+  //TODO: Combine this Promises
+  const courseWorkRes = await classroom.courses.courseWork.get({
     courseId: courseId as string,
+    id: courseWorkId,
   });
 
-  const studentSubmissions = res.data.studentSubmissions?.map((submission) => {
-    return {
-      id: submission.id,
-      userId: submission.userId,
-      attachments: submission.assignmentSubmission?.attachments || [],
-    };
-  });
+  const studentSubmissions = submissionRes.data.studentSubmissions?.map(
+    (submission) => {
+      return {
+        id: submission.id,
+        userId: submission.userId,
+        attachments: submission.assignmentSubmission?.attachments || [],
+      };
+    }
+  );
 
   return {
     props: {
       studentSubmissions: studentSubmissions || [],
       rubric: rubric || [],
+      assessment: courseWorkRes.data,
     },
   };
 };

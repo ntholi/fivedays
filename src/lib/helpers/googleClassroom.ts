@@ -14,17 +14,4 @@ const googleClassroom = (session: Session | null) => {
   return google.classroom({ version: 'v1', auth: oauth2Client });
 };
 
-/**
- * A helper function to create a Google Drive API instance
- *
- * @param session - NextAuth session
- * @returns Google Drive API instance
- */
-export const googleDrive = (session: Session | null) => {
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: session?.accessToken });
-
-  return google.drive({ version: 'v3', auth: oauth2Client });
-};
-
 export default googleClassroom;

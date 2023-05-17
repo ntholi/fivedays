@@ -15,6 +15,7 @@ import axios from 'axios';
 
 type Props = {
   rubric: Rubric[];
+  assessment: classroom_v1.Schema$CourseWork;
   attachments?: classroom_v1.Schema$Attachment[];
 };
 
@@ -24,14 +25,18 @@ interface Grade {
   comment: string;
 }
 
-export default function Grader({ rubric, attachments }: Props) {
+export default function Grader({ rubric, assessment, attachments }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
 
   async function doAutoGrading() {
     const file = attachments?.at(0)?.driveFile;
-    const response = await axios.get('/api/filereader', {
-      params: { fileId: file?.id },
+    const response = await axios.get('/api/grader', {
+      params: {
+        fileId: file?.id,
+        questionId: assessment.id,
+        question: assessment.description,
+      },
     });
     const { data } = response;
     console.log(data);
