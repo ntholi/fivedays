@@ -1,4 +1,4 @@
-import { Card, Title, createStyles, rem } from '@mantine/core';
+import { Card, Image, Title, Text, createStyles, rem } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
 import React from 'react';
@@ -10,13 +10,23 @@ type Props = {
 export default function ClassCard({ item }: Props) {
   const { classes } = useStyles();
 
+  const imageId = String(item.id).charAt(0);
+
   return (
     <Link
       style={{ textDecoration: 'none', color: 'inherit' }}
       href={{ pathname: `/classes/${item.id}`, query: { name: item.name } }}
     >
-      <Card withBorder radius='md' mih={150} className={classes.card}>
-        <Title order={3} fw='normal'>
+      <Card withBorder radius='md' mih={230} className={classes.card}>
+        <Card.Section>
+          <Image
+            src={`/images/${imageId}.png`}
+            height={100}
+            alt=''
+            fit='cover'
+          />
+        </Card.Section>
+        <Title order={4} fw={500} mt='md'>
           {item.name}
         </Title>
       </Card>
