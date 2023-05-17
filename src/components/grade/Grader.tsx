@@ -92,6 +92,13 @@ function Item({
   const [value, setValue] = React.useState(grade?.points || 0);
   const [comment, setComment] = React.useState(grade?.comment || '');
 
+  React.useEffect(() => {
+    setValue(grade?.points || 0);
+    setComment(grade?.comment || '');
+    const totalPoints = grades.reduce((sum, grade) => sum + grade.points, 0);
+    setTotalPoints(totalPoints);
+  }, [grade]);
+
   function updatePoints(value: number) {
     setValue(value);
 
