@@ -8,8 +8,10 @@ import {
   ScrollArea,
   Flex,
   Card,
+  Button,
 } from '@mantine/core';
 import React from 'react';
+import axios from 'axios';
 
 type Props = {
   rubric: Rubric[];
@@ -26,8 +28,22 @@ export default function Grader({ rubric, attachments }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
 
+  async function doAutoGrading() {
+    const file = attachments?.at(0)?.driveFile;
+    const response = await axios.get('/api/filereader', {
+      params: { fileId: file?.id },
+    });
+    const { data } = response;
+    console.log(data);
+  }
+
   return (
     <>
+      <Flex justify='flex-end' mr='md'>
+        <Button mb='sm' onClick={doAutoGrading}>
+          Auto Grade
+        </Button>
+      </Flex>
       <Card withBorder mb='md' mr='md' shadow='xs'>
         <Flex justify='space-between'>
           <Text fw='bold'>Points</Text>
