@@ -28,24 +28,31 @@ interface Grade {
 export default function Grader({ rubric, assessment, attachments }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
+  const [loading, setLoading] = React.useState(false);
 
   async function doAutoGrading() {
     const file = attachments?.at(0)?.driveFile;
-    const response = await axios.get('/api/grader', {
-      params: {
-        fileId: file?.id,
-        questionId: assessment.id,
-        question: assessment.description,
-      },
-    });
-    const { data } = response;
-    console.log(data);
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/grader', {
+        params: {
+          fileId: file?.id,
+          questionId: assessment.id,
+          question: assessment.description,
+        },
+      });
+      console.log(response.data);
+      setGrades(response.data);
+    } catch (e) {
+      console.log(e);
+    }
+    setLoading(false);
   }
 
   return (
     <>
       <Flex justify='flex-end' mr='md'>
-        <Button mb='sm' onClick={doAutoGrading}>
+        <Button mb='sm' onClick={doAutoGrading} loading={loading}>
           Auto Grade
         </Button>
       </Flex>

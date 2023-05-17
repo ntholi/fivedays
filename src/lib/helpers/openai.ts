@@ -17,7 +17,7 @@ export async function createCompletion(prompt: string) {
     ],
   });
 
-  console.log(response);
+  console.log(response.data);
 
   return response.data;
 }

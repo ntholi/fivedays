@@ -20,11 +20,13 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing "fileId" query parameter.' });
   }
 
-  console.log('fileId', fileId);
-  console.log('questionId', questionId);
-  console.log('question', question);
-
-  const rubrics = getRubric(String(questionId));
+  const rubrics = getRubric(String(questionId)).map((it) => {
+    return {
+      title: it.title,
+      totalPointsObtainable: it.points,
+      description: it.description,
+    };
+  });
 
   const fileContent = await readFile(fileId, session);
   const prompt = createGradingPrompt(
