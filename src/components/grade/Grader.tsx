@@ -12,11 +12,12 @@ import {
 } from '@mantine/core';
 import React from 'react';
 import axios from 'axios';
+import { Submission } from '@/pages/grade/[id]';
 
 type Props = {
   rubric: Rubric[];
   assessment: classroom_v1.Schema$CourseWork;
-  attachments?: classroom_v1.Schema$Attachment[];
+  submission?: Submission;
 };
 
 interface Grade {
@@ -25,13 +26,13 @@ interface Grade {
   comment: string;
 }
 
-export default function Grader({ rubric, assessment, attachments }: Props) {
+export default function Grader({ rubric, assessment, submission }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   async function doAutoGrading() {
-    const file = attachments?.at(0)?.driveFile;
+    const file = submission?.submission.attachments?.at(0)?.driveFile;
     try {
       setLoading(true);
       const response = await axios.get('/api/grader', {
@@ -49,12 +50,24 @@ export default function Grader({ rubric, assessment, attachments }: Props) {
     setLoading(false);
   }
 
+  async function assignGrade() {
+    const response = await axios.get('/api/assigngrades', {
+      params: {
+        courseId: submission?.courseId,
+        courseWorkId: submission?.courseWorkId,
+        studentSubmissionId: submission?.id,
+        grade: totalPoints,
+      },
+    });
+  }
+
   return (
     <>
-      <Flex justify='flex-end' mr='md'>
-        <Button mb='sm' onClick={doAutoGrading} loading={loading}>
+      <Flex justify='space-between' mr='md' mb='sm'>
+        <Button onClick={doAutoGrading} variant='outline' loading={loading}>
           Auto Grade
         </Button>
+        <Button onClick={assignGrade}>Assign</Button>
       </Flex>
       <Card withBorder mb='md' mr='md' shadow='xs'>
         <Flex justify='space-between'>

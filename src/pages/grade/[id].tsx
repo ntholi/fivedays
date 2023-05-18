@@ -28,10 +28,12 @@ import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import React from 'react';
 
-interface Submission {
+export interface Submission {
   id: string;
   userId: string;
-  attachments: classroom_v1.Schema$Attachment[];
+  courseId: string;
+  courseWorkId: string;
+  submission: classroom_v1.Schema$AssignmentSubmission;
 }
 
 type Props = {
@@ -78,7 +80,9 @@ const GradePage: NextPage<Props> = ({
         <Grid.Col span={7}>
           <Paper withBorder h='100%'>
             <GoogleDocViewer
-              fileId={selectedItem?.attachments[0].driveFile?.id}
+              fileId={
+                selectedItem?.submission?.attachments?.at(0)?.driveFile?.id
+              }
             />
           </Paper>
         </Grid.Col>
@@ -86,7 +90,7 @@ const GradePage: NextPage<Props> = ({
           <Grader
             rubric={rubric}
             assessment={assessment}
-            attachments={selectedItem?.attachments}
+            submission={selectedItem}
           />
         </Grid.Col>
       </Grid>
@@ -120,7 +124,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       return {
         id: submission.id,
         userId: submission.userId,
-        attachments: submission.assignmentSubmission?.attachments || [],
+        courseId: courseId as string,
+        courseWorkId: courseWorkId,
+        submission: submission.assignmentSubmission,
       };
     }
   );
