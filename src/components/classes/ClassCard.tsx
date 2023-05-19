@@ -26,7 +26,7 @@ export default function ClassCard({ item }: Props) {
   return (
     <Link
       style={{ textDecoration: 'none', color: 'inherit' }}
-      href={{ pathname: `/classes/${item.id}`, query: { name: item.name } }}
+      href={{ pathname: `/assessments/${item.id}`, query: { name: item.name } }}
     >
       <Card withBorder radius="md" mih={230} className={classes.card}>
         <Card.Section>
