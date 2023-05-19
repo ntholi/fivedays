@@ -1,18 +1,5 @@
-import { classroom_v1 } from 'googleapis';
-import {
-  Slider,
-  Text,
-  Stack,
-  Divider,
-  Textarea,
-  ScrollArea,
-  Flex,
-  Card,
-  Button,
-} from '@mantine/core';
+import { Slider, Text, Stack, Divider, Textarea, Flex } from '@mantine/core';
 import React from 'react';
-import axios from 'axios';
-import { IconCalculator, IconSchoolBell } from '@tabler/icons-react';
 import { Grade } from './GraderPanel';
 
 export default function GraderItem({
@@ -83,6 +70,7 @@ export default function GraderItem({
         </Text>
       </Flex>
       <Slider
+        size="sm"
         min={0}
         max={rubric.points}
         marks={points}

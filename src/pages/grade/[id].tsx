@@ -24,9 +24,10 @@ import { GetServerSideProps, NextPage } from 'next';
 
 type Props = {
   rubric: Rubric[];
+  maxPoints: number;
 };
 
-const GradePage: NextPage<Props> = ({ rubric }) => {
+const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
   const [openNav, setOpenNav] = useState(false);
   const theme = useMantineTheme();
   const router = useRouter();
@@ -79,13 +80,14 @@ const GradePage: NextPage<Props> = ({ rubric }) => {
       asideOffsetBreakpoint="sm"
       navbar={
         <Navbar
-          p="md"
+          p="sm"
           hiddenBreakpoint="sm"
           hidden={!openNav}
-          width={{ sm: 230 }}
+          width={{ sm: 250 }}
         >
           <StudentList
             submissions={submissions}
+            maxPoints={maxPoints}
             setActive={setActive}
             active={active}
           />
@@ -99,6 +101,7 @@ const GradePage: NextPage<Props> = ({ rubric }) => {
               submission={active}
               courseId={courseId as string}
               rubric={rubric}
+              setSubmissions={setSubmissions}
             />
           )}
         </Aside>
@@ -123,9 +126,12 @@ const GradePage: NextPage<Props> = ({ rubric }) => {
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const courseWorkId = context.params?.id as string;
   const rubric = getRubric(courseWorkId);
+  const maxPoints = rubric.reduce((acc, it) => acc + it.points, 0);
+
   return {
     props: {
       rubric: rubric || [],
+      maxPoints,
     },
   };
 };

@@ -10,7 +10,7 @@ import {
   Card,
   Button,
 } from '@mantine/core';
-import React from 'react';
+import React, { useEffect } from 'react';
 import axios from 'axios';
 import { IconCalculator, IconSchoolBell } from '@tabler/icons-react';
 import GraderItem from './GraderItem';
@@ -20,6 +20,11 @@ type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
   submission: StudentSubmission;
   courseId: string;
+  setSubmissions: (
+    value:
+      | StudentSubmission[]
+      | ((prevVar: StudentSubmission[]) => StudentSubmission[])
+  ) => void;
 };
 
 export interface Grade {
@@ -28,11 +33,31 @@ export interface Grade {
   comment: string;
 }
 
-export default function GraderPanel({ rubric, courseWork, submission }: Props) {
+export default function GraderPanel({
+  rubric,
+  courseWork,
+  submission,
+  setSubmissions,
+}: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
   const [loading, setLoading] = React.useState(false);
   const maxPoints = rubric.reduce((sum, it) => sum + it.points, 0);
+
+  useEffect(() => {
+    const newGrade = grades.reduce((sum, grade) => sum + grade.points, 0);
+    setSubmissions((prev) => {
+      const update = [...prev];
+      const index = update.findIndex((it) => it.id === it.id);
+      if (index !== -1) {
+        update[index] = {
+          ...update[index],
+          draftGrade: newGrade,
+        };
+      }
+      return update;
+    });
+  }, [grades]);
 
   async function doAutoGrading() {
     const fileId = submission?.attachments?.at(0)?.id;
