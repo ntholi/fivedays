@@ -15,7 +15,7 @@ export default function ClassPage() {
   >([]);
 
   useEffect(() => {
-    async function getClasses() {
+    async function getData() {
       const courseId = router.query.id;
       const response = await axiosInstance(session)?.get(
         `/courses/${courseId}/courseWork?courseWorkStates=PUBLISHED`
@@ -23,7 +23,7 @@ export default function ClassPage() {
       setAssessments(response?.data.courseWork ?? []);
     }
     if (session) {
-      getClasses();
+      getData();
     }
   }, [session]);
 

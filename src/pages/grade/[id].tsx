@@ -1,143 +1,113 @@
-import AssessmentCard from '@/components/classes/AssessmentCard';
-import GoogleDocViewer from '@/components/common/GoogleDocViewer';
-import Grader from '@/components/grade/Grader';
-import Layout from '@/components/layout/Layout';
-import googleClassroom from '@/lib/helpers/googleClassroom';
-import { getRubric } from '@/lib/services/rubricService';
+import { useEffect, useState } from 'react';
 import {
+  AppShell as Shell,
+  Navbar,
+  Footer,
+  Aside,
   Text,
-  Container,
-  Divider,
-  Accordion,
-  Title,
-  createStyles,
-  rem,
-  Group,
+  MediaQuery,
+  Burger,
+  useMantineTheme,
   Paper,
-  Grid,
-  NavLink,
-  ScrollArea,
-  Flex,
-  ActionIcon,
 } from '@mantine/core';
-import { IconArrowBack, IconArrowForward } from '@tabler/icons-react';
-import axios from 'axios';
-import { classroom_v1 } from 'googleapis';
-import { GetServerSideProps, NextPage } from 'next';
-import { getSession } from 'next-auth/react';
+import Header from '@/components/layout/Header';
 import { useRouter } from 'next/router';
-import React from 'react';
-
-export interface Submission {
-  id: string;
-  userId: string;
-  courseId: string;
-  courseWorkId: string;
-  submission: classroom_v1.Schema$AssignmentSubmission;
-}
+import { classroom_v1 } from 'googleapis';
+import { axiosInstance } from '@/lib/config/axios';
+import { useSession } from 'next-auth/react';
 
 type Props = {
-  studentSubmissions: Submission[];
-  rubric: Rubric[];
-  assessment: classroom_v1.Schema$CourseWork;
+  children: React.ReactNode;
 };
 
-const GradePage: NextPage<Props> = ({
-  studentSubmissions,
-  assessment,
-  rubric,
-}) => {
-  const [selectedItem, setSelectedItem] = React.useState<Submission>();
-  return (
-    <Layout>
-      <Flex justify='center'>
-        <Group>
-          <ActionIcon>
-            <IconArrowBack />
-          </ActionIcon>
-          <Text w={300} ta='center'>
-            {selectedItem?.userId}
-          </Text>
-          <ActionIcon>
-            <IconArrowForward />
-          </ActionIcon>
-        </Group>
-      </Flex>
-      <Divider mt='sm' mb='xl' />
-      <Grid>
-        <Grid.Col span={2}>
-          {/* TODO: Use tabs to display all the files */}
-          <ScrollArea h='90vh'>
-            {studentSubmissions.map((it) => (
-              <NavLink
-                key={it.id}
-                label={it.userId}
-                onClick={() => setSelectedItem(it)}
-              />
-            ))}
-          </ScrollArea>
-        </Grid.Col>
-        <Grid.Col span={7}>
-          <Paper withBorder h='100%'>
-            <GoogleDocViewer
-              fileId={
-                selectedItem?.submission?.attachments?.at(0)?.driveFile?.id
-              }
-            />
-          </Paper>
-        </Grid.Col>
-        <Grid.Col span={3}>
-          <Grader
-            rubric={rubric}
-            assessment={assessment}
-            submission={selectedItem}
-          />
-        </Grid.Col>
-      </Grid>
-    </Layout>
-  );
-};
+export default function GraderPage({ children }: Props) {
+  const [openNav, setOpenNav] = useState(false);
+  const theme = useMantineTheme();
+  const router = useRouter();
+  const { id: courseWorkId, courseId } = router.query;
+  const { data: session } = useSession();
+  const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const session = await getSession(context);
-  const classroom = googleClassroom(session);
-
-  const { courseId } = context.query;
-  const courseWorkId = context.params?.id as string;
-
-  const rubric = getRubric(courseWorkId);
-
-  const submissionRes =
-    await classroom.courses.courseWork.studentSubmissions.list({
-      courseWorkId: courseWorkId,
-      courseId: courseId as string,
-    });
-
-  //TODO: Combine this Promises
-  const courseWorkRes = await classroom.courses.courseWork.get({
-    courseId: courseId as string,
-    id: courseWorkId,
-  });
-
-  const studentSubmissions = submissionRes.data.studentSubmissions?.map(
-    (submission) => {
-      return {
-        id: submission.id,
-        userId: submission.userId,
-        courseId: courseId as string,
-        courseWorkId: courseWorkId,
-        submission: submission.assignmentSubmission,
-      };
+  useEffect(() => {
+    async function getData() {
+      const response = await axiosInstance(session)?.get(
+        `/courses/${courseId}/courseWork/${courseWorkId}/studentSubmissions`
+      );
+      console.log(response.data.studentSubmissions);
+      let data = response?.data.studentSubmissions ?? [];
+      data = data.map((it: any) => {
+        const submission: StudentSubmission = {
+          id: it.id,
+          userId: it.userId,
+          studentName: it.userId,
+          courseWorkId: it.courseWorkId,
+          alternateLink: it.alternateLink,
+          draftGrade: it.draftGrade,
+          late: it.late,
+          updateTime: it.updateTime,
+        };
+        let attachments: SubmissionAttachment[] = [];
+        for (const item of it.assignmentSubmission.attachments) {
+          const attachment: SubmissionAttachment = {
+            type: 'driveFile',
+            title: '',
+            url: '',
+          };
+          if (item.driveFile) {
+            attachment.type = 'driveFile';
+            attachment.id = item.driveFile.id;
+            attachment.title = item.driveFile.title;
+            attachment.url = item.driveFile.alternateLink;
+          } else if (item.link) {
+            attachment.type = 'link';
+            attachment.title = item.link.title;
+            attachment.url = item.link.url;
+          }
+          attachments.push(attachment);
+        }
+        submission.attachments = attachments;
+        return submission;
+      });
+      console.log('Transformed data', data);
     }
+    if (session) {
+      getData();
+    }
+  }, [session]);
+
+  return (
+    <Shell
+      styles={{
+        main: {
+          background:
+            theme.colorScheme === 'dark'
+              ? theme.colors.dark[8]
+              : theme.colors.gray[0],
+        },
+      }}
+      navbarOffsetBreakpoint="sm"
+      asideOffsetBreakpoint="sm"
+      navbar={
+        <Navbar
+          p="md"
+          hiddenBreakpoint="sm"
+          hidden={!openNav}
+          width={{ sm: 300 }}
+        >
+          <Text>Nav</Text>
+        </Navbar>
+      }
+      aside={
+        <Aside hiddenBreakpoint="sm" width={{ sm: 200, lg: 300 }}>
+          <Text>Aside</Text>
+        </Aside>
+      }
+      header={<Header />}
+    >
+      <Paper>
+        {courseWorkId}
+        {courseId}
+      </Paper>
+    </Shell>
   );
-
-  return {
-    props: {
-      studentSubmissions: studentSubmissions || [],
-      rubric: rubric || [],
-      assessment: courseWorkRes.data,
-    },
-  };
-};
-
-export default GradePage;
+}
