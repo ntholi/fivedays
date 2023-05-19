@@ -1,4 +1,4 @@
-import ClassCard from '@/components/classes/ClassCard';
+import ClassCard, { ClassCardSkeletons } from '@/components/classes/ClassCard';
 import Header from '@/components/layout/Header';
 import { axiosInstance } from '@/lib/config/axios';
 import { SimpleGrid, Title, Container } from '@mantine/core';
@@ -36,9 +36,11 @@ const ClassesPage = () => {
             { maxWidth: 'xs', cols: 1 },
           ]}
         >
-          {classes.map((item) => (
-            <ClassCard key={item.id} item={item} />
-          ))}
+          {classes.length > 0 ? (
+            classes.map((item) => <ClassCard key={item.id} item={item} />)
+          ) : (
+            <ClassCardSkeletons />
+          )}
         </SimpleGrid>
       </Container>
     </>

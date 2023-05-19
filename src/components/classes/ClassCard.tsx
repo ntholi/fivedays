@@ -7,6 +7,8 @@ import {
   rem,
   Overlay,
   AspectRatio,
+  Skeleton,
+  Flex,
 } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
@@ -29,7 +31,7 @@ export default function ClassCard({ item }: Props) {
       <Card withBorder radius="md" mih={230} className={classes.card}>
         <Card.Section>
           <AspectRatio ratio={10 / 4} p={0}>
-            <Overlay color="#000" opacity={0.7} />
+            <Overlay color="#000" opacity={0.5} />
             <Image src={`/images/${imageId}.jpg`} alt="" fit="cover" />
           </AspectRatio>
         </Card.Section>
@@ -38,6 +40,16 @@ export default function ClassCard({ item }: Props) {
         </Title>
       </Card>
     </Link>
+  );
+}
+
+export function ClassCardSkeletons() {
+  return (
+    <>
+      <Skeleton radius="md" mih={230} />
+      <Skeleton radius="md" mih={230} />
+      <Skeleton radius="md" mih={230} />
+    </>
   );
 }
 
