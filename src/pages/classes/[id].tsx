@@ -1,22 +1,11 @@
 import AssessmentCard from '@/components/classes/AssessmentCard';
-import Layout from '@/components/layout/Layout';
 import googleClassroom from '@/lib/helpers/googleClassroom';
-import {
-  Text,
-  Container,
-  Divider,
-  Accordion,
-  Title,
-  createStyles,
-  rem,
-  Group,
-  Paper,
-} from '@mantine/core';
-import { IconBook, IconBook2 } from '@tabler/icons-react';
+import { Container, Divider, Title } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import { GetServerSideProps } from 'next';
 import { getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import Header from '@/components/layout/Header';
 import React from 'react';
 
 type Props = {
@@ -29,7 +18,7 @@ export default function ClassPage({ assessments }: Props) {
   return (
     <Layout>
       <Title size={23}>{router.query.name}</Title>
-      <Divider my='lg' />
+      <Divider my="lg" />
       <Container>
         {assessments.map((it) => (
           <AssessmentCard key={it.id} courseWork={it} />

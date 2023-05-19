@@ -1,58 +1,48 @@
 import ClassCard from '@/components/classes/ClassCard';
-import Layout from '@/components/layout/Layout';
-import googleClassroom from '@/lib/helpers/googleClassroom';
-import { SimpleGrid, Title } from '@mantine/core';
-import { classroom_v1, google } from 'googleapis';
-import { GetServerSideProps } from 'next';
-import { getSession, useSession } from 'next-auth/react';
-import { FC } from 'react';
+import Header from '@/components/layout/Header';
+import { axiosInstance } from '@/lib/config/axios';
+import { SimpleGrid, Title, Container } from '@mantine/core';
+import { classroom_v1 } from 'googleapis';
+import { useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
 
-type Props = {
-  classes: classroom_v1.Schema$Course[];
-};
+const ClassesPage = () => {
+  const [classes, setClasses] = useState<classroom_v1.Schema$Course[]>([]);
+  const { data: session } = useSession();
 
-const ClassesPage: FC<Props> = ({ classes }) => {
+  useEffect(() => {
+    async function getClasses() {
+      const response = await axiosInstance(session)?.get(
+        '/courses?courseStates=ACTIVE'
+      );
+      setClasses(response?.data.courses ?? []);
+    }
+    if (session) {
+      getClasses();
+    }
+  }, [session]);
+
   return (
-    <Layout>
-      <Title order={2} mt='md' mb='xl'>
-        My Classes
-      </Title>
-      <SimpleGrid
-        cols={4}
-        breakpoints={[
-          { maxWidth: 'md', cols: 2 },
-          { maxWidth: 'xs', cols: 1 },
-        ]}
-      >
-        {classes.map((item) => (
-          <ClassCard key={item.id} item={item} />
-        ))}
-      </SimpleGrid>
-    </Layout>
+    <>
+      <Header />
+      <Container size="xl">
+        <Title order={1} fw={100} mt="md" mb="xl">
+          My Classes
+        </Title>
+        <SimpleGrid
+          cols={4}
+          breakpoints={[
+            { maxWidth: 'md', cols: 2 },
+            { maxWidth: 'xs', cols: 1 },
+          ]}
+        >
+          {classes.map((item) => (
+            <ClassCard key={item.id} item={item} />
+          ))}
+        </SimpleGrid>
+      </Container>
+    </>
   );
-};
-
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const session = await getSession(context);
-  const classroom = googleClassroom(session);
-
-  try {
-    const response = await classroom.courses.list();
-    const classes = response.data.courses || [];
-
-    return {
-      props: {
-        classes,
-      },
-    };
-  } catch (err) {
-    console.error('Error: ', err);
-    return {
-      props: {
-        classes: [],
-      },
-    };
-  }
 };
 
 export default ClassesPage;

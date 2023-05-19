@@ -1,16 +1,22 @@
-import Layout from '@/components/layout/Layout';
-import { Button, Center, Flex, useMantineColorScheme } from '@mantine/core';
-import { useSession } from 'next-auth/react';
+import {
+  Button,
+  Center,
+  Container,
+  Flex,
+  useMantineColorScheme,
+} from '@mantine/core';
+import Header from '@/components/layout/Header';
 
 export default function Home() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   return (
     <>
-      <Layout>
-        <Flex h='100vh' justify='center' align='center'>
+      <Header requireLogin={false} />
+      <Container size="lg">
+        <Flex h="100vh" justify="center" align="center">
           <Button onClick={() => toggleColorScheme()}>FiveDays</Button>
         </Flex>
-      </Layout>
+      </Container>
     </>
   );
 }
