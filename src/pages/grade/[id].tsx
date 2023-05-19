@@ -18,7 +18,7 @@ import { axiosInstance } from '@/lib/config/axios';
 import { useSession } from 'next-auth/react';
 import StudentList from '@/components/grade/StudentList';
 import CourseWorkDisplay from '@/components/grade/CourseWorkDisplay';
-import Grader from '@/components/grade/Grader';
+import GraderPanel from '@/components/grade/GraderPanel';
 import { getRubric } from '@/lib/services/rubricService';
 import { GetServerSideProps, NextPage } from 'next';
 
@@ -94,7 +94,7 @@ const GradePage: NextPage<Props> = ({ rubric }) => {
       aside={
         <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 350 }} p="sm">
           {active && (
-            <Grader
+            <GraderPanel
               courseWork={courseWork as classroom_v1.Schema$CourseWork}
               submission={active}
               courseId={courseId as string}
