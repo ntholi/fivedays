@@ -21,13 +21,13 @@ import { signOut, signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { IconSchool } from '@tabler/icons-react';
 
-export default function Header({
-  requireLogin = true,
-}: {
-  requireLogin: boolean;
-}) {
+type Props = {
+  loginRequired?: boolean;
+};
+
+export default function Header({ loginRequired }: Props) {
   const { data: session, status } = useSession({
-    required: requireLogin,
+    required: loginRequired ?? true,
   });
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   return (
@@ -39,7 +39,7 @@ export default function Header({
           </Link>
           <Link href="/classes">
             <Button leftIcon={<IconSchool />} variant="default" color="dark">
-              My Classes
+              Classes
             </Button>
           </Link>
         </Group>
