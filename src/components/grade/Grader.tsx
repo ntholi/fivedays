@@ -12,12 +12,12 @@ import {
 } from '@mantine/core';
 import React from 'react';
 import axios from 'axios';
-import { Submission } from '@/pages/grade/[id]';
 
 type Props = {
   rubric: Rubric[];
-  assessment: classroom_v1.Schema$CourseWork;
-  submission?: Submission;
+  courseWork: classroom_v1.Schema$CourseWork;
+  submission: StudentSubmission;
+  courseId: string;
 };
 
 interface Grade {
@@ -26,20 +26,25 @@ interface Grade {
   comment: string;
 }
 
-export default function Grader({ rubric, assessment, submission }: Props) {
+export default function Grader({
+  rubric,
+  courseWork,
+  submission,
+  courseId,
+}: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   async function doAutoGrading() {
-    const file = submission?.submission.attachments?.at(0)?.driveFile;
+    const fileId = submission?.attachments?.at(0)?.id;
     try {
       setLoading(true);
       const response = await axios.get('/api/grader', {
         params: {
-          fileId: file?.id,
-          questionId: assessment.id,
-          question: assessment.description,
+          fileId: fileId,
+          questionId: courseWork.id,
+          question: courseWork.description,
         },
       });
       console.log(response.data);
@@ -53,7 +58,7 @@ export default function Grader({ rubric, assessment, submission }: Props) {
   async function assignGrade() {
     const response = await axios.get('/api/assigngrades', {
       params: {
-        courseId: submission?.courseId,
+        courseId: courseId,
         courseWorkId: submission?.courseWorkId,
         studentSubmissionId: submission?.id,
         grade: totalPoints,
@@ -63,19 +68,19 @@ export default function Grader({ rubric, assessment, submission }: Props) {
 
   return (
     <>
-      <Flex justify='space-between' mr='md' mb='sm'>
-        <Button onClick={doAutoGrading} variant='outline' loading={loading}>
+      <Flex justify="space-between" mr="md" mb="sm">
+        <Button onClick={doAutoGrading} variant="outline" loading={loading}>
           Auto Grade
         </Button>
         <Button onClick={assignGrade}>Assign</Button>
       </Flex>
-      <Card withBorder mb='md' mr='md' shadow='xs'>
-        <Flex justify='space-between'>
-          <Text fw='bold'>Points</Text>
-          <Text fw='bold'>{totalPoints}</Text>
+      <Card withBorder mb="md" mr="md" shadow="xs">
+        <Flex justify="space-between">
+          <Text fw="bold">Points</Text>
+          <Text fw="bold">{totalPoints}</Text>
         </Flex>
       </Card>
-      <ScrollArea h='90vh' pr='md'>
+      <ScrollArea h="90vh" pr="md">
         {rubric.map((it) => (
           <Item
             grades={grades}
@@ -153,7 +158,7 @@ function Item({
     <Stack>
       <Flex>
         <Text>{rubric.title}</Text>
-        <Text ml='auto'>
+        <Text ml="auto">
           {value}/{rubric.points}
         </Text>
       </Flex>
@@ -167,11 +172,11 @@ function Item({
         {rubric.title}
       </Slider>
       <Textarea
-        mt='sm'
+        mt="sm"
         value={comment}
         onChange={(it) => setComment(it.currentTarget.value)}
       ></Textarea>
-      <Divider mb='sm' />
+      <Divider mb="sm" />
     </Stack>
   );
 }

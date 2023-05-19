@@ -1,4 +1,4 @@
-import AssessmentCard from '@/components/classes/AssessmentCard';
+import CourseWorkCard from '@/components/classes/CourseWorkCard';
 import Header from '@/components/layout/Header';
 import { axiosInstance } from '@/lib/config/axios';
 import { Container, Divider, Title } from '@mantine/core';
@@ -35,7 +35,7 @@ export default function ClassPage() {
         <Divider my="lg" />
         <Container>
           {assessments.map((it) => (
-            <AssessmentCard key={it.id} courseWork={it} />
+            <CourseWorkCard key={it.id} courseWork={it} />
           ))}
         </Container>
       </Container>

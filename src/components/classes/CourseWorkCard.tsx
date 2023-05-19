@@ -20,7 +20,7 @@ type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
 };
 
-export default function AssessmentCard({ courseWork }: Props) {
+export default function CourseWorkCard({ courseWork }: Props) {
   const [opened, { open, close }] = useDisclosure(false);
 
   return (
@@ -39,7 +39,7 @@ export default function AssessmentCard({ courseWork }: Props) {
             <Accordion.Control>
               <Group>
                 <IconBook2 />
-                <Text fw={500} color=''>
+                <Text fw={500} color="">
                   {courseWork.title}
                 </Text>
               </Group>
@@ -47,8 +47,8 @@ export default function AssessmentCard({ courseWork }: Props) {
             <Accordion.Panel>
               <Stack>
                 <Text>{courseWork.description}</Text>
-                <Flex justify='space-between' w='100%'>
-                  <Button color='dark' onClick={open}>
+                <Flex justify="space-between" w="100%">
+                  <Button color="dark" onClick={open}>
                     Rubric
                   </Button>
                   <Link

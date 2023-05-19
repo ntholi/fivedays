@@ -18,12 +18,15 @@ import { axiosInstance } from '@/lib/config/axios';
 import { useSession } from 'next-auth/react';
 import StudentList from '@/components/grade/StudentList';
 import CourseWorkDisplay from '@/components/grade/CourseWorkDisplay';
+import Grader from '@/components/grade/Grader';
+import { getRubric } from '@/lib/services/rubricService';
+import { GetServerSideProps, NextPage } from 'next';
 
 type Props = {
-  children: React.ReactNode;
+  rubric: Rubric[];
 };
 
-export default function GraderPage({ children }: Props) {
+const GradePage: NextPage<Props> = ({ rubric }) => {
   const [openNav, setOpenNav] = useState(false);
   const theme = useMantineTheme();
   const router = useRouter();
@@ -31,6 +34,8 @@ export default function GraderPage({ children }: Props) {
   const { data: session } = useSession();
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [active, setActive] = useState<StudentSubmission | null>(null);
+  const [courseWork, setCourseWork] =
+    useState<classroom_v1.Schema$CourseWork>();
 
   useEffect(() => {
     async function getData() {
@@ -40,15 +45,20 @@ export default function GraderPage({ children }: Props) {
       const studentPromise = axiosInstance(session)?.get(
         `/courses/${courseId}/students`
       );
-      const [submitRes, studentRes] = await Promise.all([
+      const courseWPromise = await axiosInstance(session)?.get(
+        `/courses/${courseId}/courseWork/${courseWorkId}`
+      );
+      const [submitRes, studentRes, courseWorkRes] = await Promise.all([
         submitPromise,
         studentPromise,
+        courseWPromise,
       ]);
       const data = mapStudentSubmission(
         submitRes.data.studentSubmissions,
         studentRes.data.students
       );
       setSubmissions(data);
+      setCourseWork(courseWorkRes.data);
     }
     if (session) {
       getData();
@@ -82,8 +92,15 @@ export default function GraderPage({ children }: Props) {
         </Navbar>
       }
       aside={
-        <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 400 }}>
-          <Text>Aside</Text>
+        <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 400 }} p="sm">
+          {active && (
+            <Grader
+              courseWork={courseWork as classroom_v1.Schema$CourseWork}
+              submission={active}
+              courseId={courseId as string}
+              rubric={rubric}
+            />
+          )}
         </Aside>
       }
       header={<Header />}
@@ -101,7 +118,17 @@ export default function GraderPage({ children }: Props) {
       </Paper>
     </Shell>
   );
-}
+};
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const courseWorkId = context.params?.id as string;
+  const rubric = getRubric(courseWorkId);
+  return {
+    props: {
+      rubric: rubric || [],
+    },
+  };
+};
 
 function mapStudentSubmission(
   submissions: classroom_v1.Schema$StudentSubmission[],
@@ -150,3 +177,5 @@ function mapStudentSubmission(
 
   return data;
 }
+
+export default GradePage;
