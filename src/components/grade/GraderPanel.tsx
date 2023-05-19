@@ -48,7 +48,7 @@ export default function GraderPanel({
     const newGrade = grades.reduce((sum, grade) => sum + grade.points, 0);
     setSubmissions((prev) => {
       const update = [...prev];
-      const index = update.findIndex((it) => it.id === it.id);
+      const index = update.findIndex((it) => it.id === submission.id);
       if (index !== -1) {
         update[index] = {
           ...update[index],
