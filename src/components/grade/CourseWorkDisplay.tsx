@@ -8,9 +8,8 @@ type Props = {
 };
 
 export default function CourseWorkDisplay({ submission }: Props) {
-  const first = submission?.attachments?.[0];
-  const [activeTab, setActiveTab] = useState<string | null>(first?.id!);
-  const [content, setContent] = useState<string>('Hello World');
+  const [content, setContent] = useState<string>('');
+  //   const first = submission?.attachments?.at(0)?.id;
 
   useEffect(() => {
     async function getData() {
@@ -24,20 +23,26 @@ export default function CourseWorkDisplay({ submission }: Props) {
 
   return (
     <>
-      <Tabs value={activeTab} onTabChange={setActiveTab}>
-        <Tabs.List>
+      {!content ? (
+        <>Loading...</>
+      ) : (
+        <Tabs variant="outline" defaultValue="one">
+          <Tabs.List>
+            {submission?.attachments?.map((it) => (
+              <Tabs.Tab key={it.id} value="one">
+                {it.title}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
           {submission?.attachments?.map((it) => (
-            <Tabs.Tab value={it.id!}>{it.title}</Tabs.Tab>
+            <Tabs.Panel key={it.id} value="one">
+              <Prism withLineNumbers language="tsx">
+                {content}
+              </Prism>
+            </Tabs.Panel>
           ))}
-        </Tabs.List>
-        {submission?.attachments?.map((it) => (
-          <Tabs.Panel value={it.id!}>
-            <Prism withLineNumbers language="tsx">
-              {content}
-            </Prism>
-          </Tabs.Panel>
-        ))}
-      </Tabs>
+        </Tabs>
+      )}
     </>
   );
 }
