@@ -11,6 +11,7 @@ const scopes = [
   'https://www.googleapis.com/auth/classroom.coursework.students',
   'https://www.googleapis.com/auth/classroom.rosters',
 ];
+
 const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({

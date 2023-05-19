@@ -30,44 +30,16 @@ export default function GraderPage({ children }: Props) {
 
   useEffect(() => {
     async function getData() {
-      const response = await axiosInstance(session)?.get(
+      const submitRes = await axiosInstance(session)?.get(
         `/courses/${courseId}/courseWork/${courseWorkId}/studentSubmissions`
       );
-      console.log(response.data.studentSubmissions);
-      let data = response?.data.studentSubmissions ?? [];
-      data = data.map((it: any) => {
-        const submission: StudentSubmission = {
-          id: it.id,
-          userId: it.userId,
-          studentName: it.userId,
-          courseWorkId: it.courseWorkId,
-          alternateLink: it.alternateLink,
-          draftGrade: it.draftGrade,
-          late: it.late,
-          updateTime: it.updateTime,
-        };
-        let attachments: SubmissionAttachment[] = [];
-        for (const item of it.assignmentSubmission.attachments) {
-          const attachment: SubmissionAttachment = {
-            type: 'driveFile',
-            title: '',
-            url: '',
-          };
-          if (item.driveFile) {
-            attachment.type = 'driveFile';
-            attachment.id = item.driveFile.id;
-            attachment.title = item.driveFile.title;
-            attachment.url = item.driveFile.alternateLink;
-          } else if (item.link) {
-            attachment.type = 'link';
-            attachment.title = item.link.title;
-            attachment.url = item.link.url;
-          }
-          attachments.push(attachment);
-        }
-        submission.attachments = attachments;
-        return submission;
-      });
+      const studentRes = await axiosInstance(session)?.get(
+        `/courses/${courseId}/students`
+      );
+      const data = mapStudentSubmission(
+        submitRes.data.studentSubmissions,
+        studentRes.data.students
+      );
       console.log('Transformed data', data);
     }
     if (session) {
@@ -110,4 +82,52 @@ export default function GraderPage({ children }: Props) {
       </Paper>
     </Shell>
   );
+}
+
+function mapStudentSubmission(
+  submissions: classroom_v1.Schema$StudentSubmission[],
+  students: classroom_v1.Schema$Student[]
+): StudentSubmission[] {
+  const data = submissions.map((it: any) => {
+    const submission: StudentSubmission = {
+      id: it.id,
+      userId: it.userId,
+      studentName: it.userId,
+      courseWorkId: it.courseWorkId,
+      alternateLink: it.alternateLink,
+      draftGrade: it.draftGrade,
+      late: it.late,
+      updateTime: it.updateTime,
+    };
+    let attachments: SubmissionAttachment[] = [];
+    for (const item of it.assignmentSubmission.attachments) {
+      const attachment: SubmissionAttachment = {
+        type: 'driveFile',
+        title: '',
+        url: '',
+      };
+      if (item.driveFile) {
+        attachment.type = 'driveFile';
+        attachment.id = item.driveFile.id;
+        attachment.title = item.driveFile.title;
+        attachment.url = item.driveFile.alternateLink;
+      } else if (item.link) {
+        attachment.type = 'link';
+        attachment.title = item.link.title;
+        attachment.url = item.link.url;
+      }
+      attachments.push(attachment);
+    }
+    submission.attachments = attachments;
+    return submission;
+  });
+
+  for (const item of data) {
+    const student = students.find((it) => it.userId === item.userId);
+    if (student) {
+      item.studentName = student.profile?.name?.fullName || '';
+    }
+  }
+
+  return data;
 }

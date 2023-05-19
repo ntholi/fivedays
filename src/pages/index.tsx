@@ -11,7 +11,7 @@ export default function Home() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   return (
     <>
-      <Header requireLogin={false} />
+      <Header loginRequired={false} />
       <Container size="lg">
         <Flex h="100vh" justify="center" align="center">
           <Button onClick={() => toggleColorScheme()}>FiveDays</Button>
