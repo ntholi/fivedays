@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import React from 'react';
 import axios from 'axios';
+import { IconCalculator, IconSchoolBell } from '@tabler/icons-react';
 
 type Props = {
   rubric: Rubric[];
@@ -26,15 +27,11 @@ interface Grade {
   comment: string;
 }
 
-export default function Grader({
-  rubric,
-  courseWork,
-  submission,
-  courseId,
-}: Props) {
+export default function Grader({ rubric, courseWork, submission }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const maxPoints = rubric.reduce((sum, it) => sum + it.points, 0);
 
   async function doAutoGrading() {
     const fileId = submission?.attachments?.at(0)?.id;
@@ -55,29 +52,26 @@ export default function Grader({
     setLoading(false);
   }
 
-  async function assignGrade() {
-    const response = await axios.get('/api/assigngrades', {
-      params: {
-        courseId: courseId,
-        courseWorkId: submission?.courseWorkId,
-        studentSubmissionId: submission?.id,
-        grade: totalPoints,
-      },
-    });
-  }
-
   return (
     <>
-      <Flex justify="space-between" mr="md" mb="sm">
-        <Button onClick={doAutoGrading} variant="outline" loading={loading}>
+      <Flex justify="flex-end" mr="md" mb="sm">
+        <Button
+          // w="100%"
+          leftIcon={<IconCalculator />}
+          variant="gradient"
+          gradient={{ from: 'indigo', to: 'cyan' }}
+          onClick={doAutoGrading}
+          loading={loading}
+        >
           Auto Grade
         </Button>
-        <Button onClick={assignGrade}>Assign</Button>
       </Flex>
       <Card withBorder mb="md" mr="md" shadow="xs">
         <Flex justify="space-between">
           <Text fw="bold">Points</Text>
-          <Text fw="bold">{totalPoints}</Text>
+          <Text fw="bold">
+            {totalPoints}/{maxPoints}
+          </Text>
         </Flex>
       </Card>
       <ScrollArea h="90vh" pr="md">

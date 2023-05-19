@@ -92,7 +92,7 @@ const GradePage: NextPage<Props> = ({ rubric }) => {
         </Navbar>
       }
       aside={
-        <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 400 }} p="sm">
+        <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 350 }} p="sm">
           {active && (
             <Grader
               courseWork={courseWork as classroom_v1.Schema$CourseWork}
