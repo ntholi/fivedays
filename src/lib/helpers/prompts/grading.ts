@@ -3,6 +3,13 @@ export function createGradingPrompt(
   answer: string,
   rubric: string
 ) {
-  return `Grade answer to question: "${question}" with answer: "${answer}" and rubric: "${rubric}", keep the comments short
-  return valid JSON in Format: [{title: string, points: number, comment: string}, {...]`;
+  return `Given the following question: "${question}".
+And the rubric:
+${rubric}
+
+Grade this answer:
+
+  ${answer}
+
+return valid JSON in Format: [{title: string, points: number, comment: string}, {...]`;
 }

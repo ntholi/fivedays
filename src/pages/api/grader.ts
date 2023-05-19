@@ -35,6 +35,8 @@ export default async function handler(
     JSON.stringify(rubrics)
   );
 
+  console.log('prompt', prompt);
+
   const response = await createCompletion(prompt);
   res.status(200).json(JSON.parse(response.choices[0].message?.content || ''));
 }
