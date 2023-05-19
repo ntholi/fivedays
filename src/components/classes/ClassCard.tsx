@@ -1,4 +1,13 @@
-import { Card, Image, Title, Text, createStyles, rem } from '@mantine/core';
+import {
+  Card,
+  Image,
+  Title,
+  Text,
+  createStyles,
+  rem,
+  Overlay,
+  AspectRatio,
+} from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
 import React from 'react';
@@ -17,16 +26,14 @@ export default function ClassCard({ item }: Props) {
       style={{ textDecoration: 'none', color: 'inherit' }}
       href={{ pathname: `/classes/${item.id}`, query: { name: item.name } }}
     >
-      <Card withBorder radius='md' mih={230} className={classes.card}>
+      <Card withBorder radius="md" mih={230} className={classes.card}>
         <Card.Section>
-          <Image
-            src={`/images/${imageId}.png`}
-            height={100}
-            alt=''
-            fit='cover'
-          />
+          <AspectRatio ratio={10 / 4} p={0}>
+            <Overlay color="#000" opacity={0.7} />
+            <Image src={`/images/${imageId}.jpg`} alt="" fit="cover" />
+          </AspectRatio>
         </Card.Section>
-        <Title order={4} fw={500} mt='md'>
+        <Title order={4} fw={500} mt="md">
           {item.name}
         </Title>
       </Card>
@@ -36,14 +43,14 @@ export default function ClassCard({ item }: Props) {
 
 const useStyles = createStyles((theme) => ({
   card: {
-    transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
-    '&:hover': {
-      boxShadow: `${rem(0)} ${rem(2)} ${rem(4)} ${
-        theme.colorScheme === 'dark'
-          ? theme.colors.dark[4]
-          : theme.colors.gray[6]
-      }`,
-      cursor: 'pointer',
-    },
+    // transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
+    // '&:hover': {
+    //   boxShadow: `${rem(0)} ${rem(2)} ${rem(4)} ${
+    //     theme.colorScheme === 'dark'
+    //       ? theme.colors.dark[4]
+    //       : theme.colors.gray[6]
+    //   }`,
+    //   cursor: 'pointer',
+    // },
   },
 }));
