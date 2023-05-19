@@ -88,7 +88,7 @@ export default function GraderPage({ children }: Props) {
       }
       header={<Header />}
     >
-      <Paper h="100%">
+      <Paper h="100%" withBorder>
         {active ? (
           <CourseWorkDisplay submission={active} />
         ) : (

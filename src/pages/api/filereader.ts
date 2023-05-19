@@ -16,7 +16,7 @@ export default async function handler(
   }
 
   const fileContent = await readFile(fileId, session);
-  res.status(200).json({ fileContent });
+  res.status(200).send(fileContent);
 }
 
 export async function readFile(fileId: string | string[], session: any) {
