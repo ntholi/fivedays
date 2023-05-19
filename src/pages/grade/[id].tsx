@@ -15,6 +15,7 @@ import { useRouter } from 'next/router';
 import { classroom_v1 } from 'googleapis';
 import { axiosInstance } from '@/lib/config/axios';
 import { useSession } from 'next-auth/react';
+import StudentList from '@/components/grade/StudentList';
 
 type Props = {
   children: React.ReactNode;
@@ -27,6 +28,7 @@ export default function GraderPage({ children }: Props) {
   const { id: courseWorkId, courseId } = router.query;
   const { data: session } = useSession();
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
+  const [active, setActive] = useState<StudentSubmission | null>(null);
 
   useEffect(() => {
     async function getData() {
@@ -40,7 +42,7 @@ export default function GraderPage({ children }: Props) {
         submitRes.data.studentSubmissions,
         studentRes.data.students
       );
-      console.log('Transformed data', data);
+      setSubmissions(data);
     }
     if (session) {
       getData();
@@ -66,7 +68,11 @@ export default function GraderPage({ children }: Props) {
           hidden={!openNav}
           width={{ sm: 300 }}
         >
-          <Text>Nav</Text>
+          <StudentList
+            submissions={submissions}
+            setActive={setActive}
+            active={active}
+          />
         </Navbar>
       }
       aside={
