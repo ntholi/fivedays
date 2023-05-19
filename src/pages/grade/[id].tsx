@@ -9,6 +9,7 @@ import {
   Burger,
   useMantineTheme,
   Paper,
+  Flex,
 } from '@mantine/core';
 import Header from '@/components/layout/Header';
 import { useRouter } from 'next/router';
@@ -16,6 +17,7 @@ import { classroom_v1 } from 'googleapis';
 import { axiosInstance } from '@/lib/config/axios';
 import { useSession } from 'next-auth/react';
 import StudentList from '@/components/grade/StudentList';
+import CourseWorkDisplay from '@/components/grade/CourseWorkDisplay';
 
 type Props = {
   children: React.ReactNode;
@@ -70,7 +72,7 @@ export default function GraderPage({ children }: Props) {
           p="md"
           hiddenBreakpoint="sm"
           hidden={!openNav}
-          width={{ sm: 300 }}
+          width={{ sm: 230 }}
         >
           <StudentList
             submissions={submissions}
@@ -80,15 +82,22 @@ export default function GraderPage({ children }: Props) {
         </Navbar>
       }
       aside={
-        <Aside hiddenBreakpoint="sm" width={{ sm: 200, lg: 300 }}>
+        <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 400 }}>
           <Text>Aside</Text>
         </Aside>
       }
       header={<Header />}
     >
-      <Paper>
-        {courseWorkId}
-        {courseId}
+      <Paper h="100%">
+        {active ? (
+          <CourseWorkDisplay submission={active} />
+        ) : (
+          <Flex justify="center" align="center" h="100%">
+            <Text size={18} color="dimmed">
+              Preview Panel
+            </Text>
+          </Flex>
+        )}
       </Paper>
     </Shell>
   );

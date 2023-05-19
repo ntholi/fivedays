@@ -10,6 +10,7 @@ const scopes = [
   'https://www.googleapis.com/auth/classroom.coursework.me',
   'https://www.googleapis.com/auth/classroom.coursework.students',
   'https://www.googleapis.com/auth/classroom.rosters',
+  'https://www.googleapis.com/auth/drive.readonly',
 ];
 
 const authOptions: NextAuthOptions = {
