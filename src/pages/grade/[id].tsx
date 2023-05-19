@@ -32,12 +32,16 @@ export default function GraderPage({ children }: Props) {
 
   useEffect(() => {
     async function getData() {
-      const submitRes = await axiosInstance(session)?.get(
+      const submitPromise = axiosInstance(session)?.get(
         `/courses/${courseId}/courseWork/${courseWorkId}/studentSubmissions`
       );
-      const studentRes = await axiosInstance(session)?.get(
+      const studentPromise = axiosInstance(session)?.get(
         `/courses/${courseId}/students`
       );
+      const [submitRes, studentRes] = await Promise.all([
+        submitPromise,
+        studentPromise,
+      ]);
       const data = mapStudentSubmission(
         submitRes.data.studentSubmissions,
         studentRes.data.students
