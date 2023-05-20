@@ -11,5 +11,6 @@ Grade this answer:
 
   ${answer}
 
-return valid JSON in Format: [{title: string, points: number, comment: string}, {...]`;
+Strictly adhere to the given rubric.
+Respond in valid JSON in Format: [{title: string, points: number, comment: string}, {...]`;
 }
