@@ -1,18 +1,8 @@
 import { classroom_v1 } from 'googleapis';
-import {
-  Slider,
-  Text,
-  Stack,
-  Divider,
-  Textarea,
-  ScrollArea,
-  Flex,
-  Card,
-  Button,
-} from '@mantine/core';
+import { Text, ScrollArea, Flex, Card, Button } from '@mantine/core';
 import React, { useEffect } from 'react';
 import axios from 'axios';
-import { IconCalculator, IconSchoolBell } from '@tabler/icons-react';
+import { IconWand } from '@tabler/icons-react';
 import GraderItem from './GraderItem';
 
 type Props = {
@@ -80,27 +70,26 @@ export default function GraderPanel({
 
   return (
     <>
-      <Flex justify="flex-end" mr="md" mb="sm">
+      <Flex justify='flex-end' mr='md' mb='sm'>
         <Button
-          // w="100%"
-          leftIcon={<IconCalculator />}
-          variant="gradient"
+          leftIcon={<IconWand size='1.2rem' />}
+          variant='gradient'
           gradient={{ from: 'indigo', to: 'cyan' }}
           onClick={doAutoGrading}
           loading={loading}
         >
-          Auto Grade
+          Grade
         </Button>
       </Flex>
-      <Card withBorder mb="md" mr="md" shadow="xs">
-        <Flex justify="space-between">
-          <Text fw="bold">Points</Text>
-          <Text fw="bold">
+      <Card withBorder mb='md' mr='md' shadow='xs'>
+        <Flex justify='space-between'>
+          <Text fw='bold'>Points</Text>
+          <Text fw='bold'>
             {totalPoints}/{maxPoints}
           </Text>
         </Flex>
       </Card>
-      <ScrollArea h="90vh" pr="md">
+      <ScrollArea h='90vh' pr='md'>
         {rubric.map((it) => (
           <GraderItem
             grades={grades}
