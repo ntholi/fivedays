@@ -8,6 +8,7 @@ interface StudentSubmission {
   late: boolean;
   updateTime: string;
   attachments?: SubmissionAttachment[];
+  rubricGrades?: RubricGrade[];
 }
 
 interface SubmissionAttachment {
@@ -15,4 +16,10 @@ interface SubmissionAttachment {
   id?: string;
   title: string;
   url: string;
+}
+
+interface RubricGrade {
+  title: string;
+  points: number;
+  comments: string;
 }
