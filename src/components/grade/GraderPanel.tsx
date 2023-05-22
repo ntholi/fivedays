@@ -4,6 +4,8 @@ import React, { useEffect } from 'react';
 import axios from 'axios';
 import { IconWand } from '@tabler/icons-react';
 import GraderItem from './GraderItem';
+import { axiosInstance } from '@/lib/config/axios';
+import { useSession } from 'next-auth/react';
 
 type Props = {
   rubric: Rubric[];
@@ -27,12 +29,14 @@ export default function GraderPanel({
   rubric,
   courseWork,
   submission,
+  courseId,
   setSubmissions,
 }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
   const [grades, setGrades] = React.useState<Grade[]>([]);
   const [loading, setLoading] = React.useState(false);
   const maxPoints = rubric.reduce((sum, it) => sum + it.points, 0);
+  const { data: session } = useSession();
 
   useEffect(() => {
     const newGrade = grades.reduce((sum, grade) => sum + grade.points, 0);
@@ -60,7 +64,15 @@ export default function GraderPanel({
           question: courseWork.description,
         },
       });
-      console.log(response.data);
+      const newGradesResponse = await axios.post('/api/assigngrades', {
+        params: {
+          courseId: courseId,
+          courseWorkId: courseWork.id,
+          studentSubmissionId: submission.id,
+          grade: totalPoints,
+        },
+      });
+      console.log(newGradesResponse);
       setGrades(response.data);
     } catch (e) {
       console.log(e);

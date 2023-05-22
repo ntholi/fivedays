@@ -9,9 +9,8 @@ import {
   Modal,
 } from '@mantine/core';
 import { IconBook2 } from '@tabler/icons-react';
-import axios from 'axios';
 import { classroom_v1 } from 'googleapis';
-import React, { useState } from 'react';
+import React from 'react';
 import RubricDisplay from '../assessments/RubricDisplay';
 import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link';
@@ -39,7 +38,7 @@ export default function CourseWorkCard({ courseWork }: Props) {
             <Accordion.Control>
               <Group>
                 <IconBook2 />
-                <Text fw={500} color="">
+                <Text fw={500} color=''>
                   {courseWork.title}
                 </Text>
               </Group>
@@ -47,8 +46,8 @@ export default function CourseWorkCard({ courseWork }: Props) {
             <Accordion.Panel>
               <Stack>
                 <Text>{courseWork.description}</Text>
-                <Flex justify="space-between" w="100%">
-                  <Button color="dark" onClick={open}>
+                <Flex justify='space-between' w='100%'>
+                  <Button color='dark' onClick={open}>
                     Rubric
                   </Button>
                   <Link

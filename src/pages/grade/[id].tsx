@@ -76,12 +76,12 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
               : theme.colors.gray[0],
         },
       }}
-      navbarOffsetBreakpoint="sm"
-      asideOffsetBreakpoint="sm"
+      navbarOffsetBreakpoint='sm'
+      asideOffsetBreakpoint='sm'
       navbar={
         <Navbar
-          p="sm"
-          hiddenBreakpoint="sm"
+          p='sm'
+          hiddenBreakpoint='sm'
           hidden={!openNav}
           width={{ sm: 250 }}
         >
@@ -94,7 +94,7 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
         </Navbar>
       }
       aside={
-        <Aside hiddenBreakpoint="sm" width={{ sm: 100, md: 350 }} p="sm">
+        <Aside hiddenBreakpoint='sm' width={{ sm: 100, md: 350 }} p='sm'>
           {active && (
             <GraderPanel
               courseWork={courseWork as classroom_v1.Schema$CourseWork}
@@ -108,12 +108,12 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
       }
       header={<Header />}
     >
-      <Paper h="100%" withBorder>
+      <Paper h='100%' withBorder>
         {active ? (
           <CourseWorkDisplay submission={active} />
         ) : (
-          <Flex justify="center" align="center" h="100%">
-            <Text size={18} color="dimmed">
+          <Flex justify='center' align='center' h='100%'>
+            <Text size={18} color='dimmed'>
               Preview Panel
             </Text>
           </Flex>
@@ -152,23 +152,25 @@ function mapStudentSubmission(
       updateTime: it.updateTime,
     };
     let attachments: SubmissionAttachment[] = [];
-    for (const item of it.assignmentSubmission.attachments) {
-      const attachment: SubmissionAttachment = {
-        type: 'driveFile',
-        title: '',
-        url: '',
-      };
-      if (item.driveFile) {
-        attachment.type = 'driveFile';
-        attachment.id = item.driveFile.id;
-        attachment.title = item.driveFile.title;
-        attachment.url = item.driveFile.alternateLink;
-      } else if (item.link) {
-        attachment.type = 'link';
-        attachment.title = item.link.title;
-        attachment.url = item.link.url;
+    if (it.assignmentSubmission && it.assignmentSubmission.attachments) {
+      for (const item of it.assignmentSubmission.attachments) {
+        const attachment: SubmissionAttachment = {
+          type: 'driveFile',
+          title: '',
+          url: '',
+        };
+        if (item.driveFile) {
+          attachment.type = 'driveFile';
+          attachment.id = item.driveFile.id;
+          attachment.title = item.driveFile.title;
+          attachment.url = item.driveFile.alternateLink;
+        } else if (item.link) {
+          attachment.type = 'link';
+          attachment.title = item.link.title;
+          attachment.url = item.link.url;
+        }
+        attachments.push(attachment);
       }
-      attachments.push(attachment);
     }
     submission.attachments = attachments;
     return submission;
