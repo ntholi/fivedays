@@ -25,8 +25,8 @@ const ClassesPage = () => {
   return (
     <>
       <Header />
-      <Container size="xl">
-        <Title order={1} fw={100} mt="md" mb="xl">
+      <Container size='xl'>
+        <Title order={1} fw={100} mt='md' mb='xl'>
           My Classes
         </Title>
         <SimpleGrid
