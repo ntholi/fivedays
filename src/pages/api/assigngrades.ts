@@ -8,9 +8,11 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const session = await getSession({ req });
+  console.log('\n\n\n\n xxxxx session', session);
   if (!session) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+  console.log('xxxxx req.query', req.query);
   const { courseId, courseWorkId, studentSubmissionId, grade } = req.query;
   const classroom = googleClassroom(session);
   await updateGrade(

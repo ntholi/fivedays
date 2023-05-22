@@ -18,6 +18,7 @@ export async function createCompletion(prompt: string) {
   });
 
   console.log(response.data);
+  // console.log(response?.data?.choices?.at(0)?.message);
 
   return response.data;
 }

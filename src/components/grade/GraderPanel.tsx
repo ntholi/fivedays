@@ -2,7 +2,7 @@ import { classroom_v1 } from 'googleapis';
 import { Text, ScrollArea, Flex, Card, Button } from '@mantine/core';
 import React, { useEffect } from 'react';
 import axios from 'axios';
-import { IconWand } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconWand } from '@tabler/icons-react';
 import GraderItem from './GraderItem';
 import { axiosInstance } from '@/lib/config/axios';
 import { useSession } from 'next-auth/react';
@@ -53,6 +53,22 @@ export default function GraderPanel({
     });
   }, [grades]);
 
+  async function saveGrade() {
+    try {
+      const newGradesResponse = await axios.get('/api/assigngrades', {
+        params: {
+          courseId: courseId,
+          courseWorkId: courseWork.id,
+          studentSubmissionId: submission.id,
+          grade: totalPoints,
+        },
+      });
+      console.log(newGradesResponse);
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
   async function doAutoGrading() {
     const fileId = submission?.attachments?.at(0)?.id;
     try {
@@ -64,15 +80,6 @@ export default function GraderPanel({
           question: courseWork.description,
         },
       });
-      const newGradesResponse = await axios.post('/api/assigngrades', {
-        params: {
-          courseId: courseId,
-          courseWorkId: courseWork.id,
-          studentSubmissionId: submission.id,
-          grade: totalPoints,
-        },
-      });
-      console.log(newGradesResponse);
       setGrades(response.data);
     } catch (e) {
       console.log(e);
@@ -82,7 +89,10 @@ export default function GraderPanel({
 
   return (
     <>
-      <Flex justify='flex-end' mr='md' mb='sm'>
+      <Flex justify='space-between' mr='md' mb='sm'>
+        <Button leftIcon={<IconDeviceFloppy />} onClick={saveGrade}>
+          Save
+        </Button>
         <Button
           leftIcon={<IconWand size='1.2rem' />}
           variant='gradient'
