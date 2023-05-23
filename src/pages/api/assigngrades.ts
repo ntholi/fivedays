@@ -8,19 +8,28 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const session = await getSession({ req });
-  console.log('\n\n\n\n xxxxx session', session);
   if (!session) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  console.log('xxxxx req.query', req.query);
   const { courseId, courseWorkId, studentSubmissionId, grade } = req.query;
   const classroom = googleClassroom(session);
-  await updateGrade(
+  try {
+    await updateGrade(
+      classroom,
+      courseId as string,
+      courseWorkId as string,
+      studentSubmissionId as string,
+      parseInt(grade as string)
+    );
+  } catch (e) {
+    console.log('Error on updateGrade, ' + e);
+  }
+
+  await addFeedback(
     classroom,
     courseId as string,
     courseWorkId as string,
-    studentSubmissionId as string,
-    parseInt(grade as string)
+    studentSubmissionId as string
   );
 
   res.status(200).send('Hello World!');
@@ -42,6 +51,30 @@ const updateGrade = async (
       draftGrade,
     },
   });
-
-  console.log(`Updated grade: ${res.data.draftGrade}`);
+  console.log(`updateGrade grade: ${res}`);
 };
+
+async function addFeedback(
+  classroom: classroom_v1.Classroom,
+  courseId: string,
+  courseWorkId: string,
+  id: string
+) {
+  console.log('Adding addFeedback...');
+  const res =
+    await classroom.courses.courseWork.studentSubmissions.modifyAttachments({
+      courseId,
+      courseWorkId,
+      id,
+      requestBody: {
+        addAttachments: [
+          {
+            link: {
+              url: process.env.NEXTAUTH_URL + '/feedback/' + id,
+            },
+          },
+        ],
+      },
+    });
+  console.log(`addFeedback grade: ${res}`);
+}
