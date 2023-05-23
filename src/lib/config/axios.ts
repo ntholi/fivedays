@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Session } from 'next-auth';
 
-export function axiosInstance(session: Session | null) {
+export function axiosInstance(session: Session | any) {
   return axios.create({
     baseURL: 'https://classroom.googleapis.com/v1',
     headers: {

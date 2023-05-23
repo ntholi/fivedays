@@ -32,7 +32,7 @@ const authOptions: NextAuthOptions = {
   ],
   secret: process.env.JWT_SECRET,
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account }: any) {
       if (account) {
         token = Object.assign({}, token, {
           accessToken: account.access_token,
@@ -62,7 +62,7 @@ const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (session) {
         session = Object.assign({}, session, {
           accessToken: token.accessToken,
