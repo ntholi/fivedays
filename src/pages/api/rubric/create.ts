@@ -1,4 +1,5 @@
-import { deleteRubric, saveRubric } from '@/lib/services/rubricService';
+import { db } from '@/lib/config/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(
@@ -7,13 +8,7 @@ export default async function handler(
 ) {
   const { questionId, data } = req.body;
 
-  //clear rubric first
-  deleteRubric(questionId);
-
-  data.forEach(async (rubric: Rubric) => {
-    rubric.questionId = questionId;
-    saveRubric(rubric);
-  });
+  await setDoc(doc(db, 'questions', questionId), { rubric: data });
 
   res.status(200).json({ message: 'Rubrics saved successfully' });
 }
