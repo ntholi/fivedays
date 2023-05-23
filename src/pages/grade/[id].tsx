@@ -125,7 +125,7 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const courseWorkId = context.params?.id as string;
-  const rubric = getRubric(courseWorkId);
+  const rubric = await getRubric(courseWorkId);
   const maxPoints = rubric.reduce((acc, it) => acc + it.points, 0);
 
   return {

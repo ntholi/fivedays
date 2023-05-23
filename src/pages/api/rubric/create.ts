@@ -1,6 +1,5 @@
-import { db } from '@/lib/config/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { createRubric } from '@/lib/services/rubricService';
 
 export default async function handler(
   req: NextApiRequest,
@@ -8,7 +7,7 @@ export default async function handler(
 ) {
   const { questionId, data } = req.body;
 
-  await setDoc(doc(db, 'questions', questionId), { rubric: data });
+  await createRubric(questionId, data);
 
   res.status(200).json({ message: 'Rubrics saved successfully' });
 }

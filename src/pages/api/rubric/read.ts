@@ -1,4 +1,5 @@
 import { db } from '@/lib/config/firebase';
+import { getRubric } from '@/lib/services/rubricService';
 import { doc, getDoc } from 'firebase/firestore';
 import { NextApiRequest, NextApiResponse } from 'next';
 
@@ -7,14 +8,7 @@ export default async function handler(
   res: NextApiResponse<Rubric[]>
 ) {
   const { questionId } = req.query;
-
-  let rubric: Rubric[] = [];
-  const docRef = doc(db, `questions/${questionId}`);
-  const docSnap = await getDoc(docRef);
-
-  if (docSnap.exists()) {
-    rubric = docSnap.data().rubric;
-  }
+  const rubric = await getRubric(questionId as string);
 
   res.status(200).json(rubric);
 }

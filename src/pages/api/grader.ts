@@ -20,7 +20,7 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing "fileId" query parameter.' });
   }
 
-  const rubrics = getRubric(String(questionId)).map((it) => {
+  const rubrics = (await getRubric(String(questionId))).map((it) => {
     return {
       title: it.title,
       totalPointsObtainable: it.points,
