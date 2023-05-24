@@ -1,22 +1,12 @@
-import {
-  Button,
-  Center,
-  Container,
-  Flex,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { Container } from '@mantine/core';
 import Header from '@/components/layout/Header';
+import Hero from '@/components/home/Hero';
 
 export default function Home() {
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   return (
     <>
       <Header loginRequired={false} />
-      <Container size="lg">
-        <Flex h="100vh" justify="center" align="center">
-          <Button onClick={() => toggleColorScheme()}>FiveDays</Button>
-        </Flex>
-      </Container>
+      <Hero />
     </>
   );
 }

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Text, createStyles, rem } from '@mantine/core';
+import { MantineNumberSize, Text, createStyles, rem } from '@mantine/core';
 
-export default function Logo() {
+export default function Logo({ size }: { size?: MantineNumberSize }) {
   const { classes } = useStyles();
   return (
     <div>
-      <Text className={classes.title}>
+      <Text className={classes.title} sx={{ fontSize: size }}>
         <Text component='span' className={classes.highlight}>
           Five
         </Text>
@@ -20,10 +20,8 @@ const useStyles = createStyles((theme) => ({
     fontWeight: 700,
     fontSize: rem(20),
     letterSpacing: rem(-1),
-    paddingLeft: theme.spacing.md,
     paddingRight: theme.spacing.md,
     marginBottom: theme.spacing.xs,
-    textAlign: 'center',
     fontFamily: `Greycliff CF, ${theme.fontFamily}`,
 
     [theme.fn.smallerThan('xs')]: {

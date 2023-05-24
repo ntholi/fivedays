@@ -32,22 +32,22 @@ export default function Header({ loginRequired }: Props) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   return (
     <MantineHeader height={60}>
-      <Flex justify="space-between" align="center" h="100%" pr="lg">
-        <Group>
-          <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Flex justify='space-between' align='center' h='100%' pr='lg'>
+        <Group pl='md'>
+          <Link href='/' style={{ textDecoration: 'none', color: 'inherit' }}>
             <Logo />
           </Link>
-          <Link href="/classes">
-            <Button leftIcon={<IconSchool />} variant="default" color="dark">
+          <Link href='/classes'>
+            <Button leftIcon={<IconSchool />} variant='default' color='dark'>
               Classes
             </Button>
           </Link>
         </Group>
 
-        <Menu shadow="md" width={150}>
+        <Menu shadow='md' width={150}>
           <Menu.Target>
             <UnstyledButton>
-              <Avatar src={session?.user?.image} radius="xl" size="sm" />
+              <Avatar src={session?.user?.image} radius='xl' size='sm' />
             </UnstyledButton>
           </Menu.Target>
 
