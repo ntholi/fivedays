@@ -17,6 +17,8 @@ type Props = {
       | StudentSubmission[]
       | ((prevVar: StudentSubmission[]) => StudentSubmission[])
   ) => void;
+  grades: Grade[];
+  setGrades: (value: Grade[] | ((prevVar: Grade[]) => Grade[])) => void;
 };
 
 export interface Grade {
@@ -31,9 +33,11 @@ export default function GraderPanel({
   submission,
   courseId,
   setSubmissions,
+  grades,
+  setGrades,
 }: Props) {
   const [totalPoints, setTotalPoints] = React.useState(0);
-  const [grades, setGrades] = React.useState<Grade[]>([]);
+
   const [loading, setLoading] = React.useState(false);
   const maxPoints = rubric.reduce((sum, it) => sum + it.points, 0);
   const { data: session } = useSession();

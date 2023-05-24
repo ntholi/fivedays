@@ -18,7 +18,7 @@ import { axiosInstance } from '@/lib/config/axios';
 import { useSession } from 'next-auth/react';
 import StudentList from '@/components/grade/StudentList';
 import CourseWorkDisplay from '@/components/grade/CourseWorkDisplay';
-import GraderPanel from '@/components/grade/GraderPanel';
+import GraderPanel, { Grade } from '@/components/grade/GraderPanel';
 import { getRubric } from '@/lib/services/rubricService';
 import { GetServerSideProps, NextPage } from 'next';
 
@@ -35,6 +35,7 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
   const { data: session } = useSession();
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [active, setActive] = useState<StudentSubmission | null>(null);
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [courseWork, setCourseWork] =
     useState<classroom_v1.Schema$CourseWork>();
 
@@ -90,6 +91,7 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
             maxPoints={maxPoints}
             setActive={setActive}
             active={active}
+            setGrades={setGrades}
           />
         </Navbar>
       }
@@ -102,6 +104,8 @@ const GradePage: NextPage<Props> = ({ rubric, maxPoints }) => {
               courseId={courseId as string}
               rubric={rubric}
               setSubmissions={setSubmissions}
+              setGrades={setGrades}
+              grades={grades}
             />
           )}
         </Aside>
