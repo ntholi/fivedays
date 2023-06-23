@@ -85,7 +85,6 @@ export default function Hero() {
   return (
     <div>
       <Container size='lg' mt={120}>
-        {/* <Logo size={40} /> */}
         <div className={classes.inner}>
           <div className={classes.content}>
             <Title className={classes.title}>
