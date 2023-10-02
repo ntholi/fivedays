@@ -1,12 +1,9 @@
 import React from 'react';
 import { classroom_v1 } from 'googleapis';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../api/auth/[...nextauth]/auth';
 import googleClassroom from '@/lib/config/googleClassroom';
 
 export default async function CoursesPage() {
-  const session = await getServerSession(authOptions);
-  const classroom = googleClassroom(session);
+  const classroom = await googleClassroom();
 
   const courses = await classroom.courses.list();
 
