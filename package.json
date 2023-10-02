@@ -17,7 +17,6 @@
     "@mantine/hooks": "^7.1.0",
     "@mantine/modals": "^7.1.0",
     "@mantine/notifications": "^7.1.0",
-    "@mantine/nprogress": "^7.1.0",
     "@mantine/tiptap": "^7.1.0",
     "@tabler/icons-react": "^2.38.0",
     "@tiptap/extension-link": "^2.1.11",
@@ -29,6 +28,7 @@
     "googleapis": "^126.0.1",
     "next": "latest",
     "next-auth": "^4.23.2",
+    "next-nprogress-bar": "^2.1.2",
     "react": "latest",
     "react-dom": "latest"
   },
