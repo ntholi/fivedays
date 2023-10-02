@@ -23,8 +23,10 @@
     "@tiptap/extension-link": "^2.1.11",
     "@tiptap/react": "^2.1.11",
     "@tiptap/starter-kit": "^2.1.11",
+    "axios": "^1.5.1",
     "dayjs": "^1.11.10",
     "next": "latest",
+    "next-auth": "^4.23.2",
     "react": "latest",
     "react-dom": "latest"
   },
