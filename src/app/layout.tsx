@@ -20,10 +20,10 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <head>
-        <ColorSchemeScript defaultColorScheme='auto' />
+        <ColorSchemeScript />
       </head>
       <body>
-        <MantineProvider>
+        <MantineProvider defaultColorScheme='auto'>
           <Navbar />
           {children}
         </MantineProvider>
