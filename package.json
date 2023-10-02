@@ -25,6 +25,7 @@
     "@tiptap/starter-kit": "^2.1.11",
     "axios": "^1.5.1",
     "dayjs": "^1.11.10",
+    "encoding": "^0.1.13",
     "googleapis": "^126.0.1",
     "next": "latest",
     "next-auth": "^4.23.2",
