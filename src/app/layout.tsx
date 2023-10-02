@@ -5,6 +5,7 @@ import '@mantine/core/styles.css';
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { Metadata } from 'next';
 import Navbar from './core/Navbar';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'FiveDays',
@@ -24,8 +25,10 @@ export default function RootLayout({
       </head>
       <body>
         <MantineProvider defaultColorScheme='auto'>
-          <Navbar />
-          {children}
+          <Providers>
+            <Navbar />
+            {children}
+          </Providers>
         </MantineProvider>
       </body>
     </html>

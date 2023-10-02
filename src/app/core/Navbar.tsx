@@ -8,8 +8,11 @@ import {
   useComputedColorScheme,
 } from '@mantine/core';
 import Logo from './Logo';
+import { useSession } from 'next-auth/react';
 
 export default function Navbar() {
+  const { data: session, status } = useSession();
+
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme('light', {
     getInitialValueInEffect: true,
@@ -22,6 +25,7 @@ export default function Navbar() {
         <Avatar
           color='cyan'
           radius='xl'
+          src={session?.user?.image}
           onClick={() =>
             setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')
           }
