@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, Badge, Text } from '@mantine/core';
+import { Avatar } from '@mantine/core';
 import googleClassroom from '@/lib/config/googleClassroom';
 
 async function getSubmissionCount(courseId: string, courseWorkId: string) {
@@ -10,7 +10,7 @@ async function getSubmissionCount(courseId: string, courseWorkId: string) {
     states: ['TURNED_IN'],
   });
 
-  return data.studentSubmissions?.length;
+  return data.studentSubmissions?.length || 0;
 }
 
 async function getStudentsCount(courseId: string) {
