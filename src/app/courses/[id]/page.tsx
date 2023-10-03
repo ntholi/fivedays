@@ -2,6 +2,8 @@ import React from 'react';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { Accordion, Button, Container, Group, Title } from '@mantine/core';
 import CourseWork from './CourseWork';
+import { IconPlus } from '@tabler/icons-react';
+import Body from './Body';
 
 type Props = {
   params: {
@@ -37,14 +39,11 @@ export default async function CoursePage({ params: { id } }: Props) {
     <Container mt='lg' size='xl'>
       <Group justify='space-between'>
         <Title>{course.name}</Title>
-        <Button>Create</Button>
+        <Button variant='light' leftSection={<IconPlus size='1rem' />}>
+          Create
+        </Button>
       </Group>
-
-      <Accordion mt='xl' variant='separated' radius='xs'>
-        {courseWorkList?.map((work) => (
-          <CourseWork key={work.id} courseWork={work} />
-        ))}
-      </Accordion>
+      <Body course={course} courseWorkList={courseWorkList} />
     </Container>
   );
 }
