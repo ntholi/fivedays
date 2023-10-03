@@ -1,13 +1,12 @@
 import React from 'react';
 import googleClassroom from '@/lib/config/googleClassroom';
-import { Accordion, Button, Container, Group, Title } from '@mantine/core';
-import CourseWork from './CourseWork';
+import { Button, Container, Group, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import Body from './Body';
 
 type Props = {
   params: {
-    id: string;
+    courseId: string;
   };
 };
 
@@ -17,25 +16,25 @@ export async function getCourse(id: string) {
   return course;
 }
 
-export async function generateMetadata({ params: { id } }: Props) {
-  const course = await getCourse(id);
+export async function generateMetadata({ params: { courseId } }: Props) {
+  const course = await getCourse(courseId);
   return {
     title: course.name,
   };
 }
 
-export async function getCourseWorkList(id: string) {
+export async function getCourseWorkList(courseId: string) {
   const classroom = await googleClassroom();
   const { data: courseWork } = await classroom.courses.courseWork.list({
-    courseId: id,
+    courseId,
   });
   return courseWork.courseWork;
 }
 
-export default async function CoursePage({ params: { id } }: Props) {
+export default async function CoursePage({ params: { courseId } }: Props) {
   const [course, courseWorkList] = await Promise.all([
-    getCourse(id),
-    getCourseWorkList(id),
+    getCourse(courseId),
+    getCourseWorkList(courseId),
   ]);
 
   return (
