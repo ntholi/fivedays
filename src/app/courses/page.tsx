@@ -8,7 +8,7 @@ export default async function CoursesPage() {
   const courses = await classroom.courses.list();
 
   return (
-    <Container size='xl'>
+    <Container mt='lg' size='xl'>
       <SimpleGrid cols={{ base: 1, sm: 2, md: 3, xl: 4 }}>
         {courses.data.courses?.map((course) => (
           <CourseItem key={course.id} course={course} />
