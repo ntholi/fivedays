@@ -1,19 +1,28 @@
 'use client';
-import { Card, Image, List, Text } from '@mantine/core';
+import { ActionIcon, Card, Flex, Image, Text } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
 import React from 'react';
+import { IconExternalLink } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
+import classes from './CourseItem.module.css';
 
 type Props = {
   course: classroom_v1.Schema$Course;
 };
+
 export default function CourseItem({ course }: Props) {
+  const router = useRouter();
   return (
     <Card
       shadow='sm'
-      padding='xl'
-      component={Link}
-      href={`/courses/${course.id}`}
+      padding='lg'
+      radius='sm'
+      className={classes.card}
+      withBorder
+      onClick={() => {
+        router.push(`/courses/${course.id}`);
+      }}
     >
       <Card.Section>
         <Image
@@ -22,15 +31,31 @@ export default function CourseItem({ course }: Props) {
           alt='No way!'
         />
       </Card.Section>
-
-      <Text fw={500} size='lg' mt='md'>
-        {course.name}
-      </Text>
-
-      <Text mt='xs' c='dimmed' size='sm'>
-        Please click anywhere on this card to claim your reward, this is not a
-        fraud, trust us
-      </Text>
+      <Flex justify='space-between' mt='lg'>
+        <Text fw={500} size='lg'>
+          {course.name}
+        </Text>
+        <ActionIcon
+          variant='subtle'
+          color='gray'
+          component={Link}
+          href={course.alternateLink || ''}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+          target='_blank'
+        >
+          <IconExternalLink size={'1rem'} />
+        </ActionIcon>
+      </Flex>
+      <Flex mt='sm' justify='space-between'>
+        <Text mt='xs' c='dimmed' size='sm'>
+          {course.description}
+        </Text>
+        <Text mt='xs' c='dimmed' size='sm'>
+          {course.section}
+        </Text>
+      </Flex>
     </Card>
   );
 }

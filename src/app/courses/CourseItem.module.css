@@ -1,0 +1,8 @@
+.card {
+  cursor: pointer;
+}
+
+.card:hover {
+  box-shadow: var(--mantine-shadow-md);
+  border-width: 1.5px;
+}
