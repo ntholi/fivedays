@@ -53,6 +53,9 @@ dependencies:
   encoding:
     specifier: ^0.1.13
     version: 0.1.13
+  gaxios:
+    specifier: ^6.1.1
+    version: 6.1.1(encoding@0.1.13)
   googleapis:
     specifier: ^126.0.1
     version: 126.0.1(encoding@0.1.13)
