@@ -20,7 +20,7 @@ export default function Navbar() {
 
   return (
     <Paper shadow='md' withBorder p='sm'>
-      <Flex justify={'space-between'}>
+      <Flex justify={'space-between'} align={'center'}>
         <Logo />
         <Avatar
           color='cyan'
