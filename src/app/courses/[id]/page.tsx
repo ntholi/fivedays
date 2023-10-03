@@ -33,8 +33,11 @@ export async function getCourseWorkList(id: string) {
 }
 
 export default async function CoursePage({ params: { id } }: Props) {
-  const course = await getCourse(id);
-  const courseWorkList = await getCourseWorkList(id);
+  const [course, courseWorkList] = await Promise.all([
+    getCourse(id),
+    getCourseWorkList(id),
+  ]);
+
   return (
     <Container mt='lg' size='xl'>
       <Group justify='space-between'>
