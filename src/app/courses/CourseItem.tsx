@@ -1,6 +1,7 @@
 'use client';
-import { Card, Image, Text } from '@mantine/core';
+import { Card, Image, List, Text } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
+import Link from 'next/link';
 import React from 'react';
 
 type Props = {
@@ -11,9 +12,8 @@ export default function CourseItem({ course }: Props) {
     <Card
       shadow='sm'
       padding='xl'
-      component='a'
-      href='https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-      target='_blank'
+      component={Link}
+      href={`/courses/${course.id}`}
     >
       <Card.Section>
         <Image
