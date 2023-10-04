@@ -32,6 +32,7 @@ export default function RubricModal({ courseWork }: Props) {
   const [opened, { open, close }] = useDisclosure(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [elements, setElements] = useState<Element[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const form = useForm({
     initialValues: {
@@ -51,17 +52,22 @@ export default function RubricModal({ courseWork }: Props) {
   });
 
   const handleSubmit = async (values: typeof form.values) => {
-    const { data } = await axios.post('/api/rubric', {
-      courseId: courseWork.courseId,
-      courseWorkId: courseWork.id,
-      title: values.title,
-      points: values.points,
-      description: values.description,
-    });
-    if (data.success) {
-      setElements((current) => [...current, values]);
+    setLoading(true);
+    try {
+      const { data } = await axios.post('/api/rubric', {
+        courseId: courseWork.courseId,
+        courseWorkId: courseWork.id,
+        title: values.title,
+        points: values.points,
+        description: values.description,
+      });
+      if (data.rubricCriteria) {
+        setElements((current) => [...current, values]);
+      }
+    } finally {
+      setLoading(false);
+      form.reset();
     }
-    form.reset();
   };
 
   return (
@@ -103,7 +109,9 @@ export default function RubricModal({ courseWork }: Props) {
             {...form.getInputProps('description')}
           />
           <Group mt={'lg'} justify='end'>
-            <Button type='submit'>Add</Button>
+            <Button type='submit' loading={loading}>
+              Add
+            </Button>
           </Group>
         </form>
 
