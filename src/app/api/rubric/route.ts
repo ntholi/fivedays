@@ -34,3 +34,19 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ rubricCriteria });
 }
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const courseWorkId = url.searchParams.get('courseWorkId') || '';
+
+  const rubric = await prisma.rubric.findFirst({
+    where: {
+      courseWorkId,
+    },
+    include: {
+      rubricCriteria: true,
+    },
+  });
+
+  return NextResponse.json({ rubric });
+}

@@ -11,28 +11,41 @@ import {
   Divider,
   NumberInput,
   ActionIcon,
+  Stack,
+  LoadingOverlay,
 } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import { useForm } from '@mantine/form';
 import { useMediaQuery } from '@mantine/hooks';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Rubric, RubricCriterion } from '@prisma/client';
 
 type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
 };
 
-interface Element {
-  title: string;
-  points: number;
-  description: string;
-}
-
 export default function RubricModal({ courseWork }: Props) {
   const [opened, { open, close }] = useDisclosure(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const [elements, setElements] = useState<Element[]>([]);
+  const [elements, setElements] = useState<RubricCriterion[]>([]);
+  const [adding, setAdding] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    axios
+      .get(`/api/rubric?courseWorkId=${courseWork.id}`)
+      .then(({ data }) => {
+        const rubric = data.rubric as Rubric & {
+          rubricCriteria: RubricCriterion[];
+        };
+        if (rubric) {
+          setElements(rubric.rubricCriteria);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [courseWork.id]);
 
   const form = useForm({
     initialValues: {
@@ -52,7 +65,7 @@ export default function RubricModal({ courseWork }: Props) {
   });
 
   const handleSubmit = async (values: typeof form.values) => {
-    setLoading(true);
+    setAdding(true);
     try {
       const { data } = await axios.post('/api/rubric', {
         courseId: courseWork.courseId,
@@ -62,10 +75,10 @@ export default function RubricModal({ courseWork }: Props) {
         description: values.description,
       });
       if (data.rubricCriteria) {
-        setElements((current) => [...current, values]);
+        setElements((current) => [...current, data.rubricCriteria]);
       }
     } finally {
-      setLoading(false);
+      setAdding(false);
       form.reset();
     }
   };
@@ -79,6 +92,12 @@ export default function RubricModal({ courseWork }: Props) {
         size={'xl'}
         fullScreen={isMobile}
       >
+        <LoadingOverlay
+          visible={loading}
+          zIndex={1000}
+          overlayProps={{ radius: 'sm', blur: 2 }}
+        />
+
         <Divider mb='xl' />
         <Title fw='normal' order={2}>
           {courseWork.title}
@@ -109,7 +128,7 @@ export default function RubricModal({ courseWork }: Props) {
             {...form.getInputProps('description')}
           />
           <Group mt={'lg'} justify='end'>
-            <Button type='submit' loading={loading}>
+            <Button type='submit' loading={adding}>
               Add
             </Button>
           </Group>
