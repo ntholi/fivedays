@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import React, { Suspense } from 'react';
 import SubmissionCount from './SubmissionCount';
+import RubricModal from './RubricModal';
 
 type Props = {
   params: {
@@ -45,34 +46,32 @@ export default async function CourseWorkPage({
   return (
     <Container mt='lg' size='md'>
       <Title>{courseWork.title}</Title>
-      <Flex justify={'space-between'}>
-        <div>
-          <Text tt='capitalize'>
-            {courseWork.workType?.toLowerCase()}
-            <Text component={'span'} c='dimmed' size='sm'>
-              &nbsp; ({courseWork.maxPoints} Points)
-            </Text>
+      <div>
+        <Text tt='capitalize'>
+          {courseWork.workType?.toLowerCase()}
+          <Text component={'span'} c='dimmed' size='sm'>
+            &nbsp; ({courseWork.maxPoints} Points)
           </Text>
-          <Text size='sm' c='dimmed'>
-            Due: {formatDate(courseWork.dueDate, courseWork.dueTime)}
-          </Text>
-          <Text tt='capitalize' size='sm' c='dimmed'>
-            {courseWork.state?.toLocaleLowerCase()}
-          </Text>
-        </div>
-        <Stack gap={5}>
-          <Button
-            variant='light'
-            size='sm'
-            rightSection={
-              <Suspense fallback={<Loader color='blue' size='1.1rem' />}>
-                <SubmissionCount courseId={courseId} courseWorkId={id} />
-              </Suspense>
-            }
-          >
-            Student Work
-          </Button>
-        </Stack>
+        </Text>
+        <Text size='sm' c='dimmed'>
+          Due: {formatDate(courseWork.dueDate, courseWork.dueTime)}
+        </Text>
+        <Text tt='capitalize' size='sm' c='dimmed'>
+          {courseWork.state?.toLocaleLowerCase()}
+        </Text>
+      </div>
+      <Flex mt='lg' justify={'space-between'} align='flex-end'>
+        <RubricModal courseWork={courseWork} />
+        <Button
+          variant='light'
+          rightSection={
+            <Suspense fallback={<Loader color='blue' size='1.1rem' />}>
+              <SubmissionCount courseId={courseId} courseWorkId={id} />
+            </Suspense>
+          }
+        >
+          Student Work
+        </Button>
       </Flex>
       <Divider my='md' />
       <Text>{courseWork.description}</Text>
