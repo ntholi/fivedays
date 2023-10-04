@@ -16,7 +16,7 @@ import { classroom_v1 } from 'googleapis';
 import { useForm } from '@mantine/form';
 import { useMediaQuery } from '@mantine/hooks';
 import { useState } from 'react';
-import { IconPlus } from '@tabler/icons-react';
+import axios from 'axios';
 
 type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
@@ -41,9 +41,28 @@ export default function RubricModal({ courseWork }: Props) {
     },
 
     validate: {
-      title: (value) => value.trim().length < 1,
+      title: (value) => {
+        if (elements.find((it) => it.title === value)) {
+          return 'Title already exists';
+        }
+        return value.trim().length > 0 ? null : 'Title is required';
+      },
     },
   });
+
+  const handleSubmit = async (values: typeof form.values) => {
+    const { data } = await axios.post('/api/rubric', {
+      courseId: courseWork.courseId,
+      courseWorkId: courseWork.id,
+      title: values.title,
+      points: values.points,
+      description: values.description,
+    });
+    if (data.success) {
+      setElements((current) => [...current, values]);
+    }
+    form.reset();
+  };
 
   return (
     <>
@@ -51,24 +70,23 @@ export default function RubricModal({ courseWork }: Props) {
         opened={opened}
         title='Rubric'
         onClose={close}
-        size={'70%'}
+        size={'xl'}
         fullScreen={isMobile}
       >
         <Divider mb='xl' />
-        <Group justify='space-between'>
-          <Title fw='normal' order={2}>
-            {courseWork.title}
-          </Title>
-          <Button>Save</Button>
-        </Group>
-        <form
-          onSubmit={form.onSubmit((values) => {
-            console.log(values);
-            setElements([...elements, values]);
-            form.reset();
-          })}
-        >
-          <Group mt='lg' grow>
+        <Title fw='normal' order={2}>
+          {courseWork.title}
+        </Title>
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <Group
+            mt='lg'
+            grow
+            styles={{
+              root: {
+                alignItems: 'start',
+              },
+            }}
+          >
             <TextInput
               label='Title'
               {...form.getInputProps('title')}
@@ -84,8 +102,8 @@ export default function RubricModal({ courseWork }: Props) {
             label='Description'
             {...form.getInputProps('description')}
           />
-          <Group justify='end'>
-            <Button type='submit'>Submit</Button>
+          <Group mt={'lg'} justify='end'>
+            <Button type='submit'>Add</Button>
           </Group>
         </form>
 
