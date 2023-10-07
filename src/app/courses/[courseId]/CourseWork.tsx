@@ -20,7 +20,7 @@ export default function CourseWork({ courseWork }: Props) {
             variant='filled'
             color='gray'
             component={Link}
-            href={`/courses/${courseWork.courseId}/course-work/${courseWork.id}`}
+            href={`/courses/${courseWork.courseId}/work/${courseWork.id}`}
           >
             View Course
           </Button>
