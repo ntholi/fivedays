@@ -12,10 +12,10 @@ datasource db {
 }
 
 model Rubric {
-  id             Int               @id @default(autoincrement())
-  courseId       String            @map("course_id")
-  courseWorkId   String            @unique @map("course_work_id")
-  rubricCriteria RubricCriterion[]
+  id             Int          @id @default(autoincrement())
+  courseId       String       @map("course_id")
+  courseWorkId   String       @unique @map("course_work_id")
+  rubricCriteria RubricItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -23,7 +23,7 @@ model Rubric {
   @@map("rubric")
 }
 
-model RubricCriterion {
+model RubricItem {
   id          Int     @id @default(autoincrement())
   rubricId    Int     @map("rubric_id")
   title       String
@@ -34,5 +34,5 @@ model RubricCriterion {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("rubric_criteria")
+  @@map("rubric_items")
 }
