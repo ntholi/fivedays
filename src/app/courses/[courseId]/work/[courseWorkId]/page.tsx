@@ -18,7 +18,7 @@ import RubricModal from './rubric/RubricModal';
 type Props = {
   params: {
     courseId: string;
-    id: string;
+    courseWorkId: string;
   };
 };
 
@@ -31,17 +31,19 @@ const getCourseWork = async (courseId: string, id: string) => {
   return courseWork;
 };
 
-export async function generateMetadata({ params: { courseId, id } }: Props) {
-  const courseWork = await getCourseWork(courseId, id);
+export async function generateMetadata({
+  params: { courseId, courseWorkId },
+}: Props) {
+  const courseWork = await getCourseWork(courseId, courseWorkId);
   return {
     title: courseWork.title,
   };
 }
 
 export default async function CourseWorkPage({
-  params: { id, courseId },
+  params: { courseWorkId, courseId },
 }: Props) {
-  const courseWork = await getCourseWork(courseId, id);
+  const courseWork = await getCourseWork(courseId, courseWorkId);
 
   return (
     <Container mt='lg' size='md'>
@@ -66,7 +68,10 @@ export default async function CourseWorkPage({
           variant='light'
           rightSection={
             <Suspense fallback={<Loader color='blue' size='1.1rem' />}>
-              <SubmissionCount courseId={courseId} courseWorkId={id} />
+              <SubmissionCount
+                courseId={courseId}
+                courseWorkId={courseWorkId}
+              />
             </Suspense>
           }
         >

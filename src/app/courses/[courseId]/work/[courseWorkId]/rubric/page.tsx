@@ -6,15 +6,17 @@ import prisma from '@/lib/db';
 type Props = {
   params: {
     courseId: string;
-    id: string;
+    courseWorkId: string;
   };
 };
 
-export default async function RubricPage({ params: { id, courseId } }: Props) {
+export default async function RubricPage({
+  params: { courseId, courseWorkId },
+}: Props) {
   const rubricItems = await prisma.rubricItem.findMany({
     where: {
-      courseId: courseId,
-      courseWorkId: id,
+      courseId,
+      courseWorkId,
     },
   });
 
