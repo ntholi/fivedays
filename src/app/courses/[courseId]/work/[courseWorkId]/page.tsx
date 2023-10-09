@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import React, { Suspense } from 'react';
 import SubmissionCount from './SubmissionCount';
-import RubricModal from './rubric/RubricModal';
+import Link from 'next/link';
 
 type Props = {
   params: {
@@ -61,7 +61,13 @@ export default async function CourseWorkPage({
         </Text>
       </div>
       <Flex mt='lg' justify={'space-between'} align='flex-end'>
-        <RubricModal courseWork={courseWork} />
+        <Button
+          component={Link}
+          href={`/courses/${courseId}/work/${courseWorkId}/rubric`}
+          variant='light'
+        >
+          Rubric
+        </Button>
         <Button
           variant='light'
           rightSection={
