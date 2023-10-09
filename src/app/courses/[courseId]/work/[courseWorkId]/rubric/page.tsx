@@ -19,6 +19,9 @@ export default async function RubricPage({
       courseId,
       courseWorkId,
     },
+    orderBy: {
+      createdAt: 'desc',
+    },
   });
 
   return (
