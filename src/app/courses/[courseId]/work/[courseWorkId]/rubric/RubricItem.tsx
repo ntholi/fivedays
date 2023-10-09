@@ -3,14 +3,10 @@ import {
   Paper,
   Title,
   Text,
-  List,
-  ActionIcon,
   Flex,
-  LoadingOverlay,
   Grid,
-  Blockquote,
-  Box,
   Stack,
+  ActionIcon,
 } from '@mantine/core';
 import { RubricItem } from '@prisma/client';
 import { IconTrash } from '@tabler/icons-react';

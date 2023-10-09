@@ -7,8 +7,6 @@ import {
   Divider,
   Flex,
   Button,
-  Stack,
-  Skeleton,
   Loader,
 } from '@mantine/core';
 import React, { Suspense } from 'react';

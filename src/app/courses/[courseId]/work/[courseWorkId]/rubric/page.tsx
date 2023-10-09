@@ -1,16 +1,7 @@
 import React from 'react';
-import {
-  Container,
-  Paper,
-  Title,
-  Text,
-  List,
-  ActionIcon,
-  Flex,
-} from '@mantine/core';
+import { Container, List } from '@mantine/core';
 import RubricForm from './RubricForm';
 import prisma from '@/lib/db';
-import { IconTrash, IconTrashXFilled } from '@tabler/icons-react';
 import RubricItem from './RubricItem';
 
 type Props = {
@@ -18,10 +9,6 @@ type Props = {
     courseId: string;
     courseWorkId: string;
   };
-};
-
-export const handleDelete = async () => {
-  console.log('delete');
 };
 
 export default async function RubricPage({
