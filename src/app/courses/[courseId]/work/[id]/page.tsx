@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import React, { Suspense } from 'react';
 import SubmissionCount from './SubmissionCount';
-import RubricModal from './RubricModal';
+import RubricModal from './rubric/RubricModal';
 
 type Props = {
   params: {

@@ -12,10 +12,10 @@ datasource db {
 }
 
 model Rubric {
-  id             Int          @id @default(autoincrement())
-  courseId       String       @map("course_id")
-  courseWorkId   String       @unique @map("course_work_id")
-  rubricCriteria RubricItem[]
+  id           Int          @id @default(autoincrement())
+  courseId     String       @map("course_id")
+  courseWorkId String       @unique @map("course_work_id")
+  rubricItems  RubricItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
