@@ -12,11 +12,9 @@ const schema = z.object({
 export async function addRubricItem(
   courseId: string,
   courseWorkId: string,
-  data: FormData
+  formData: FormData
 ) {
-  const { title, description, points } = schema.parse(
-    Object.fromEntries(data.entries())
-  );
+  const data = schema.parse(Object.fromEntries(formData.entries()));
 
   await prisma.rubricItem.create({
     data: {
@@ -34,9 +32,7 @@ export async function addRubricItem(
           },
         },
       },
-      title: title,
-      description: description,
-      points: points,
+      ...data,
     },
   });
 
