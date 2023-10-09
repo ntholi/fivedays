@@ -12,6 +12,7 @@ import {
 import React, { Suspense } from 'react';
 import SubmissionCount from './SubmissionCount';
 import Link from 'next/link';
+import Heading from './Heading';
 
 type Props = {
   params: {
@@ -45,21 +46,7 @@ export default async function CourseWorkPage({
 
   return (
     <Container mt='lg' size='md'>
-      <Title>{courseWork.title}</Title>
-      <div>
-        <Text tt='capitalize'>
-          {courseWork.workType?.toLowerCase()}
-          <Text component={'span'} c='dimmed' size='sm'>
-            &nbsp; ({courseWork.maxPoints} Points)
-          </Text>
-        </Text>
-        <Text size='sm' c='dimmed'>
-          Due: {formatDate(courseWork.dueDate, courseWork.dueTime)}
-        </Text>
-        <Text tt='capitalize' size='sm' c='dimmed'>
-          {courseWork.state?.toLocaleLowerCase()}
-        </Text>
-      </div>
+      <Heading courseWork={courseWork} />
       <Flex mt='lg' justify={'space-between'} align='flex-end'>
         <Button
           component={Link}
