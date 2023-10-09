@@ -25,7 +25,6 @@ model Rubric {
 
 model RubricItem {
   id           Int     @id @default(autoincrement())
-  rubricId     Int     @map("rubric_id")
   title        String
   points       Float
   description  String?

@@ -22,7 +22,7 @@ export default async function RubricPage({
 
   return (
     <Container mt='xl'>
-      <RubricForm />
+      <RubricForm courseId={courseId} courseWorkId={courseWorkId} />
 
       <ul>
         {rubricItems.map((it) => (

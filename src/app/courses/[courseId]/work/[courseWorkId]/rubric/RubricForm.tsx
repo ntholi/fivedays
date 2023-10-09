@@ -3,9 +3,15 @@ import { experimental_useFormStatus as useFormStatus } from 'react-dom';
 import { addRubricItem } from './actions';
 import { Button, NumberInput, Stack, TextInput } from '@mantine/core';
 
-export default function RubricForm() {
+type Props = {
+  courseId: string;
+  courseWorkId: string;
+};
+export default function RubricForm({ courseId, courseWorkId }: Props) {
+  const addRubricWithId = addRubricItem.bind(null, courseId, courseWorkId);
+
   return (
-    <form action={addRubricItem}>
+    <form action={addRubricWithId}>
       <Stack>
         <TextInput name='title' label='Title' required />
         <NumberInput name='points' label='Points' required />
