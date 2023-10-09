@@ -1,11 +1,23 @@
 import React from 'react';
-import { Button, Container, Divider, List } from '@mantine/core';
+import {
+  ActionIcon,
+  Button,
+  Container,
+  Divider,
+  Flex,
+  List,
+} from '@mantine/core';
 import RubricForm from './RubricForm';
 import prisma from '@/lib/db';
 import RubricItem from './RubricItem';
 import Heading from '../Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
-import { IconArrowBack, IconChevronLeft } from '@tabler/icons-react';
+import {
+  IconArrowBack,
+  IconAtom,
+  IconChevronLeft,
+  IconWand,
+} from '@tabler/icons-react';
 import Link from 'next/link';
 
 type Props = {
@@ -40,15 +52,25 @@ export default async function RubricPage({
   return (
     <Container mt='lg' size='md'>
       <Heading courseWork={courseWork} />
-      <Button
-        mt='md'
-        variant='light'
-        component={Link}
-        href={'.'}
-        leftSection={<IconChevronLeft />}
-      >
-        Back
-      </Button>
+      <Flex mt='lg' justify={'space-between'} align='flex-end'>
+        <Button
+          mt='md'
+          variant='light'
+          component={Link}
+          href={'.'}
+          leftSection={<IconChevronLeft />}
+        >
+          Back
+        </Button>
+        <ActionIcon
+          variant='gradient'
+          size='lg'
+          aria-label='Generate using AI'
+          gradient={{ from: 'blue', to: 'teal', deg: 90 }}
+        >
+          <IconWand size='1.2rem' />
+        </ActionIcon>
+      </Flex>
       <Divider my='md' />
       <RubricForm courseId={courseId} courseWorkId={courseWorkId} />
 
