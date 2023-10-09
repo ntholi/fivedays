@@ -1,5 +1,6 @@
 'use server';
 import prisma from '@/lib/db';
+import { RubricItem } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -38,3 +39,13 @@ export async function addRubricItem(
 
   revalidatePath(`/courses/${courseId}/work/${courseWorkId}/rubric`);
 }
+
+export const deleteRubricItem = async (item: RubricItem) => {
+  await prisma.rubricItem.delete({
+    where: {
+      id: item.id,
+    },
+  });
+
+  revalidatePath(`/courses/${item.courseId}/work/${item.courseWorkId}/rubric`);
+};
