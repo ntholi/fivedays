@@ -1,15 +1,22 @@
 'use server';
 import prisma from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+
+const schema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  points: z.coerce.number().positive(),
+});
 
 export async function addRubricItem(
   courseId: string,
   courseWorkId: string,
   data: FormData
 ) {
-  const title = data.get('title') as string;
-  const description = data.get('description') as string;
-  const points = Number(data.get('points'));
+  const { title, description, points } = schema.parse(
+    Object.fromEntries(data.entries())
+  );
 
   await prisma.rubricItem.create({
     data: {
