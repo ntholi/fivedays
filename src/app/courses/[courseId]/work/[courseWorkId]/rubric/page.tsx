@@ -12,12 +12,7 @@ import prisma from '@/lib/db';
 import RubricItem from './RubricItem';
 import Heading from '../Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
-import {
-  IconArrowBack,
-  IconAtom,
-  IconChevronLeft,
-  IconWand,
-} from '@tabler/icons-react';
+import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';
 
 type Props = {
@@ -54,7 +49,6 @@ export default async function RubricPage({
       <Heading courseWork={courseWork} />
       <Flex mt='lg' justify={'space-between'} align='flex-end'>
         <Button
-          mt='md'
           variant='light'
           component={Link}
           href={'.'}
