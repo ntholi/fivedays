@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import {
   ActionIcon,
   Button,
@@ -6,6 +6,7 @@ import {
   Divider,
   Flex,
   List,
+  Skeleton,
 } from '@mantine/core';
 import RubricForm from './RubricForm';
 import prisma from '@/lib/db';
@@ -14,6 +15,8 @@ import Heading from '../heading/Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';
+import { classroom_v1 } from 'googleapis';
+import RubricList from './RubricList';
 
 type Props = {
   params: {
@@ -34,15 +37,6 @@ export default async function RubricPage({
   params: { courseId, courseWorkId },
 }: Props) {
   const courseWork = await getCourseWork(courseId, courseWorkId);
-  const rubricItems = await prisma.rubricItem.findMany({
-    where: {
-      courseId,
-      courseWorkId,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
 
   return (
     <Container mt='lg' size='md'>
@@ -67,14 +61,9 @@ export default async function RubricPage({
       </Flex>
       <Divider my='md' />
       <RubricForm courseId={courseId} courseWorkId={courseWorkId} />
-
-      <form>
-        <List mt='xl'>
-          {rubricItems.map((it) => (
-            <RubricItem key={it.id} rubricItem={it} />
-          ))}
-        </List>
-      </form>
+      <Suspense fallback={<Skeleton mt='xl' height={100} />}>
+        <RubricList courseId={courseId} courseWorkId={courseWorkId} />
+      </Suspense>
     </Container>
   );
 }
