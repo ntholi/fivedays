@@ -10,7 +10,7 @@ import {
 import RubricForm from './RubricForm';
 import prisma from '@/lib/db';
 import RubricItem from './RubricItem';
-import Heading from '../Heading';
+import Heading from '../heading/Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';

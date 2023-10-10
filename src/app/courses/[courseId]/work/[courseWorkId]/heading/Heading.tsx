@@ -1,23 +1,28 @@
 import { formatDate } from '@/lib/utils/format';
-import {
-  Container,
-  Title,
-  Text,
-  Divider,
-  Flex,
-  Button,
-  Loader,
-} from '@mantine/core';
+import { Title, Text, Anchor, Breadcrumbs } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
+import Link from 'next/link';
+import { Suspense } from 'react';
+import CourseLink from './CourseLink';
 
 type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
 };
 
 export default function Heading({ courseWork }: Props) {
+  const items = [
+    <Anchor component={Link} href={'/courses'} key={1}>
+      Courses
+    </Anchor>,
+    <Suspense fallback={<div>Loading...</div>} key={2}>
+      <CourseLink courseId={courseWork.courseId} />
+    </Suspense>,
+  ];
+
   return (
     <>
-      <Title>{courseWork.title}</Title>
+      <Breadcrumbs>{items}</Breadcrumbs>
+      <Title mt={'lg'}>{courseWork.title}</Title>
       <div>
         <Text tt='capitalize'>
           {courseWork.workType?.toLowerCase()}

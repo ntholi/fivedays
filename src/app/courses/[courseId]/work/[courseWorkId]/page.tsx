@@ -3,7 +3,7 @@ import { Container, Text, Divider, Flex, Button, Loader } from '@mantine/core';
 import React, { Suspense } from 'react';
 import SubmissionCount from './SubmissionCount';
 import Link from 'next/link';
-import Heading from './Heading';
+import Heading from './heading/Heading';
 
 type Props = {
   params: {
