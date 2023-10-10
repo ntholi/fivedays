@@ -18,7 +18,7 @@
     "@mantine/modals": "^7.1.2",
     "@mantine/notifications": "^7.1.2",
     "@mantine/tiptap": "^7.1.2",
-    "@prisma/client": "^5.4.1",
+    "@prisma/client": "^5.4.2",
     "@tabler/icons-react": "^2.38.0",
     "@tiptap/extension-link": "^2.1.11",
     "@tiptap/react": "^2.1.11",
@@ -28,23 +28,23 @@
     "encoding": "^0.1.13",
     "gaxios": "^6.1.1",
     "googleapis": "^126.0.1",
-    "next": "latest",
+    "next": "^13.5.4",
     "next-auth": "^4.23.2",
     "next-nprogress-bar": "^2.1.2",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "eslint-config-next": "latest",
+    "@types/node": "^20.8.4",
+    "@types/react": "^18.2.27",
+    "@types/react-dom": "^18.2.12",
+    "eslint": "^8.51.0",
+    "eslint-config-next": "^13.5.4",
     "postcss": "^8.4.31",
     "postcss-preset-mantine": "^1.8.0",
     "postcss-simple-vars": "^7.0.1",
-    "prisma": "^5.4.1",
-    "typescript": "latest"
+    "prisma": "^5.4.2",
+    "typescript": "^5.2.2"
   }
 }
