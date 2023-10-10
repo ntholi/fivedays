@@ -1,8 +1,10 @@
 'use client';
-import { Accordion, Grid, Paper } from '@mantine/core';
+import { Accordion, ActionIcon, Flex, Grid, Paper, Text } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import React from 'react';
 import CourseWork from './CourseWork';
+import Link from 'next/link';
+import { IconExternalLink } from '@tabler/icons-react';
 
 type Props = {
   course: classroom_v1.Schema$Course;
@@ -14,7 +16,18 @@ export default function Body({ course, courseWorkList }: Props) {
     <Grid mt='xl'>
       <Grid.Col span={{ base: 12, md: 4 }}>
         <Paper withBorder px='xl' py='sm'>
-          {course.name}
+          <Flex justify='space-between'>
+            <Text>{course.name}</Text>
+            <ActionIcon
+              variant='subtle'
+              color='gray'
+              component={Link}
+              href={course.alternateLink || ''}
+              target='_blank'
+            >
+              <IconExternalLink size={'1rem'} />
+            </ActionIcon>
+          </Flex>
         </Paper>
       </Grid.Col>
       <Grid.Col span={{ base: 12, md: 8 }}>
