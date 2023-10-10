@@ -1,8 +1,16 @@
 import React from 'react';
 import googleClassroom from '@/lib/config/googleClassroom';
-import { Button, Container, Group, Title } from '@mantine/core';
+import {
+  Anchor,
+  Breadcrumbs,
+  Button,
+  Container,
+  Group,
+  Title,
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import Body from './Body';
+import Link from 'next/link';
 
 type Props = {
   params: {
@@ -37,9 +45,16 @@ export default async function CoursePage({ params: { courseId } }: Props) {
     getCourseWorkList(courseId),
   ]);
 
+  const items = [{ title: 'Courses', href: '.' }].map((item, index) => (
+    <Anchor component={Link} href={item.href} key={index}>
+      {item.title}
+    </Anchor>
+  ));
+
   return (
-    <Container mt='lg' size='xl'>
-      <Group justify='space-between'>
+    <Container mt='md' size='xl'>
+      <Breadcrumbs>{items}</Breadcrumbs>
+      <Group mt={'lg'} justify='space-between'>
         <Title>{course.name}</Title>
         <Button variant='light' leftSection={<IconPlus size='1rem' />}>
           Create
