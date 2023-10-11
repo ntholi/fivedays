@@ -59,7 +59,7 @@ export default async function CoursePage({ params: { courseId } }: Props) {
   ));
 
   return (
-    <Container mt='md' size='xl'>
+    <Container mt='lg' size='xl'>
       <Breadcrumbs>{items}</Breadcrumbs>
       <Group mt={'lg'} justify='space-between'>
         <Title>{course.name}</Title>
