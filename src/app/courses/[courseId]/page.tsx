@@ -56,7 +56,12 @@ export default async function CoursePage({ params: { courseId } }: Props) {
       <Breadcrumbs>{items}</Breadcrumbs>
       <Group mt={'lg'} justify='space-between'>
         <Title>{course.name}</Title>
-        <Button variant='light' leftSection={<IconPlus size='1rem' />}>
+        <Button
+          component={Link}
+          href={`/courses/${courseId}/work/new`}
+          variant='light'
+          leftSection={<IconPlus size='1rem' />}
+        >
           Create
         </Button>
       </Group>

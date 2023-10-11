@@ -5,17 +5,13 @@ import {
   Container,
   Divider,
   Flex,
-  List,
   Skeleton,
 } from '@mantine/core';
 import RubricForm from './RubricForm';
-import prisma from '@/lib/db';
-import RubricItem from './RubricItem';
 import Heading from '../heading/Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';
-import { classroom_v1 } from 'googleapis';
 import RubricList from './RubricList';
 
 type Props = {
