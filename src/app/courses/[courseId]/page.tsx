@@ -5,12 +5,19 @@ import {
   Breadcrumbs,
   Button,
   Container,
+  Flex,
+  Grid,
   Group,
+  Paper,
   Title,
+  Text,
+  ActionIcon,
+  Accordion,
+  GridCol,
 } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
-import Body from './Body';
+import { IconExternalLink, IconPlus } from '@tabler/icons-react';
 import Link from 'next/link';
+import CourseWork from './CourseWork';
 
 type Props = {
   params: {
@@ -65,7 +72,31 @@ export default async function CoursePage({ params: { courseId } }: Props) {
           Create
         </Button>
       </Group>
-      <Body course={course} courseWorkList={courseWorkList} />
+      <Grid mt='xl'>
+        <GridCol span={{ base: 12, md: 4 }}>
+          <Paper withBorder px='xl' py='sm'>
+            <Flex justify='space-between'>
+              <Text>{course.name}</Text>
+              <ActionIcon
+                variant='subtle'
+                color='gray'
+                component={Link}
+                href={course.alternateLink || ''}
+                target='_blank'
+              >
+                <IconExternalLink size={'1rem'} />
+              </ActionIcon>
+            </Flex>
+          </Paper>
+        </GridCol>
+        <GridCol span={{ base: 12, md: 8 }}>
+          <Accordion variant='separated' radius='xs'>
+            {courseWorkList?.map((work) => (
+              <CourseWork key={work.id} courseWork={work} />
+            ))}
+          </Accordion>
+        </GridCol>
+      </Grid>
     </Container>
   );
 }
