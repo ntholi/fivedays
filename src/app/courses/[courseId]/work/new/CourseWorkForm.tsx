@@ -5,6 +5,7 @@ import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
+import '@mantine/tiptap/styles.css';
 
 type Props = {
   course: classroom_v1.Schema$Course;
@@ -22,12 +23,8 @@ export default function CourseWorkForm({ course }: Props) {
   });
   return (
     <div>
-      <RichTextEditor editor={editor} style={{ border: '1px solid red' }}>
-        <RichTextEditor.Toolbar
-          sticky
-          stickyOffset={60}
-          style={{ border: '1px solid blue' }}
-        >
+      <RichTextEditor editor={editor}>
+        <RichTextEditor.Toolbar>
           <RichTextEditor.ControlsGroup>
             <RichTextEditor.Bold />
             <RichTextEditor.Italic />
@@ -65,7 +62,7 @@ export default function CourseWorkForm({ course }: Props) {
           </RichTextEditor.ControlsGroup>
         </RichTextEditor.Toolbar>
 
-        <RichTextEditor.Content />
+        <RichTextEditor.Content mih='50vh' />
       </RichTextEditor>
     </div>
   );
