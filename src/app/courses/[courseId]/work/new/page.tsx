@@ -16,6 +16,7 @@ import {
 import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';
+import CourseWorkForm from './CourseWorkForm';
 type Props = {
   params: {
     courseId: string;
@@ -74,7 +75,7 @@ export default async function NewCourseWorkPage({
           </Paper>
         </GridCol>
         <GridCol span={{ base: 12, md: 8 }}>
-          <Text>Coursework goes here</Text>
+          <CourseWorkForm course={course} />
         </GridCol>
       </Grid>
     </Container>
