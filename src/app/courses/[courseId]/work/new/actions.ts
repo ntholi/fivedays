@@ -2,11 +2,14 @@
 
 import googleClassroom from '@/lib/config/googleClassroom';
 
-export const createWork = async (
-  courseId: string,
-  title: string,
-  content: string
-) => {
+interface CourseWork {
+  courseId: string;
+  title: string;
+  description: string;
+}
+
+export const createWork = async (courseWork: CourseWork) => {
+  const { courseId, title, description } = courseWork;
   const classroom = await googleClassroom();
 
   const res = await classroom.courses.courseWork.create({
@@ -14,7 +17,7 @@ export const createWork = async (
     requestBody: {
       courseId: courseId,
       title: title,
-      description: content,
+      description: description,
       workType: 'ASSIGNMENT',
       state: 'PUBLISHED',
       maxPoints: 100,
@@ -29,5 +32,5 @@ export const createWork = async (
     },
   });
 
-  console.log({ res });
+  return res;
 };

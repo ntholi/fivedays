@@ -66,18 +66,7 @@ export default async function NewCourseWorkPage({
         </ActionIcon>
       </Flex>
       <Divider my='md' />
-      <Grid mt='xl'>
-        <GridCol span={{ base: 12, md: 4 }}>
-          <Paper withBorder px='xl' py='sm'>
-            <Flex justify='space-between'>
-              <Text>{course.name}</Text>
-            </Flex>
-          </Paper>
-        </GridCol>
-        <GridCol span={{ base: 12, md: 8 }}>
-          <CourseWorkForm course={course} />
-        </GridCol>
-      </Grid>
+      <CourseWorkForm course={course} />
     </Container>
   );
 }
