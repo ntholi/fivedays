@@ -1,4 +1,5 @@
 'use client';
+import { experimental_useFormStatus as useFormStatus } from 'react-dom';
 import { classroom_v1 } from 'googleapis';
 import { RichTextEditor, Link } from '@mantine/tiptap';
 import { useEditor } from '@tiptap/react';
@@ -6,6 +7,9 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import '@mantine/tiptap/styles.css';
+import { createWork } from './actions';
+import { useState } from 'react';
+import { Button, Flex } from '@mantine/core';
 
 type Props = {
   course: classroom_v1.Schema$Course;
@@ -21,8 +25,20 @@ export default function CourseWorkForm({ course }: Props) {
     ],
     content: '',
   });
+
+  const handleSubmit = async (formData: FormData) => {
+    const content = editor?.getHTML();
+    console.log('\ncontent', content);
+    if (course.id) {
+      await createWork(course.id, 'Assignment 4', content || '');
+    }
+  };
+
   return (
-    <div>
+    <form action={handleSubmit}>
+      <Flex justify={'end'} mb={'lg'}>
+        <Button type='submit'>Submit</Button>
+      </Flex>
       <RichTextEditor editor={editor}>
         <RichTextEditor.Toolbar>
           <RichTextEditor.ControlsGroup>
@@ -64,6 +80,6 @@ export default function CourseWorkForm({ course }: Props) {
 
         <RichTextEditor.Content mih='50vh' />
       </RichTextEditor>
-    </div>
+    </form>
   );
 }

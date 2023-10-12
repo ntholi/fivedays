@@ -1,4 +1,3 @@
-import React, { Suspense } from 'react';
 import {
   ActionIcon,
   Anchor,
@@ -17,6 +16,7 @@ import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';
 import CourseWorkForm from './CourseWorkForm';
+
 type Props = {
   params: {
     courseId: string;
