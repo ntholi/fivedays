@@ -6,10 +6,6 @@ import {
   Container,
   Divider,
   Flex,
-  Grid,
-  GridCol,
-  Paper,
-  Text,
   Title,
 } from '@mantine/core';
 import googleClassroom from '@/lib/config/googleClassroom';
