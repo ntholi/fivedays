@@ -1,15 +1,12 @@
 'use client';
 import { experimental_useFormStatus as useFormStatus } from 'react-dom';
 import { Button } from '@mantine/core';
+import { ButtonProps } from '@mantine/core';
 
-type Props = {
-  children: React.ReactNode;
-};
-
-export default function SubmitButton({ children }: Props) {
+export default function SubmitButton({ children, ...props }: ButtonProps) {
   const { pending } = useFormStatus();
   return (
-    <Button type='submit' loading={pending}>
+    <Button type='submit' {...props} loading={pending}>
       {children}
     </Button>
   );

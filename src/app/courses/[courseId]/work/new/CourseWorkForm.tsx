@@ -8,9 +8,14 @@ import {
   GridCol,
   Paper,
   Text,
+  Flex,
+  ActionIcon,
+  Box,
 } from '@mantine/core';
 import SubmitButton from '@/app/core/SubmitButton';
 import { createWork } from './actions';
+import { IconWand } from '@tabler/icons-react';
+import WandButton from '@/app/core/WandButton';
 
 type Props = {
   course: classroom_v1.Schema$Course;
@@ -31,7 +36,19 @@ export default function CourseWorkForm({ course }: Props) {
         <GridCol span={{ base: 12, md: 8 }}>
           <Paper withBorder p={'md'}>
             <Stack>
-              <TextInput required label='Title' name='title' />
+              <Flex justify={'space-between'} align={'center'}>
+                <TextInput
+                  style={{
+                    flexGrow: 1,
+                  }}
+                  required
+                  label='Title'
+                  name='title'
+                  mr={'md'}
+                />
+
+                <WandButton mt={23} />
+              </Flex>
               <Textarea
                 label='Description'
                 description='Optional Description'

@@ -13,6 +13,7 @@ import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft, IconWand } from '@tabler/icons-react';
 import Link from 'next/link';
 import RubricList from './RubricList';
+import WandButton from '@/app/core/WandButton';
 
 type Props = {
   params: {
@@ -46,14 +47,7 @@ export default async function RubricPage({
         >
           Back
         </Button>
-        <ActionIcon
-          variant='gradient'
-          size='lg'
-          aria-label='Generate using AI'
-          gradient={{ from: 'blue', to: 'teal', deg: 90 }}
-        >
-          <IconWand size='1.2rem' />
-        </ActionIcon>
+        <WandButton />
       </Flex>
       <Divider my='md' />
       <RubricForm courseId={courseId} courseWorkId={courseWorkId} />

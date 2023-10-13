@@ -52,14 +52,6 @@ export default async function NewCourseWorkPage({
         >
           Back
         </Button>
-        <ActionIcon
-          variant='gradient'
-          size='lg'
-          aria-label='Generate using AI'
-          gradient={{ from: 'blue', to: 'teal', deg: 90 }}
-        >
-          <IconWand size='1.2rem' />
-        </ActionIcon>
       </Flex>
       <Divider my='md' />
       <CourseWorkForm course={course} />
