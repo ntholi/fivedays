@@ -1,10 +1,7 @@
 'use client';
-import { experimental_useFormStatus as useFormStatus } from 'react-dom';
 import { classroom_v1 } from 'googleapis';
-import { createWork } from './actions';
 import {
   TextInput,
-  Button,
   Stack,
   Textarea,
   Grid,
@@ -12,21 +9,20 @@ import {
   Paper,
   Text,
 } from '@mantine/core';
+import SubmitButton from '@/app/core/SubmitButton';
+import { createWork } from './actions';
 
 type Props = {
   course: classroom_v1.Schema$Course;
 };
 
 export default function CourseWorkForm({ course }: Props) {
-  const handleSubmit = async (formData: FormData) => {
-    console.log(`submitting ${course.id}`);
-    if (course.id) {
-      const res = await createWork({
-        courseId: course.id,
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-      });
-    }
+  const handleSubmit = async (data: FormData) => {
+    createWork({
+      courseId: course.id as string,
+      title: data.get('title') as string,
+      description: data.get('description') as string,
+    });
   };
 
   return (
@@ -47,7 +43,7 @@ export default function CourseWorkForm({ course }: Props) {
         </GridCol>
         <GridCol span={{ base: 12, md: 4 }}>
           <Paper withBorder p={'md'}>
-            <SubmitButton />
+            <SubmitButton>Publish</SubmitButton>
             <Text c='dimmed' mt={'xl'} size='xs'>
               I&lsquo;ll put more things here
             </Text>
@@ -57,12 +53,3 @@ export default function CourseWorkForm({ course }: Props) {
     </form>
   );
 }
-
-const SubmitButton = () => {
-  const { pending } = useFormStatus();
-  return (
-    <Button type='submit' loading={pending}>
-      Submit
-    </Button>
-  );
-};

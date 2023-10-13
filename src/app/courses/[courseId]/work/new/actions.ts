@@ -1,6 +1,7 @@
 'use server';
 
 import googleClassroom from '@/lib/config/googleClassroom';
+import { redirect } from 'next/navigation';
 
 interface CourseWork {
   courseId: string;
@@ -22,15 +23,10 @@ export const createWork = async (courseWork: CourseWork) => {
       state: 'PUBLISHED',
       maxPoints: 100,
       associatedWithDeveloper: true,
-      materials: [
-        {
-          link: {
-            url: 'https://classroom.google.com/c/MTIwMzU2NzQyNzY4/a/MTIwMzU2NzQyNzY5/details',
-          },
-        },
-      ],
     },
   });
 
-  return res;
+  if (res.status === 200) {
+    redirect(`/courses/${courseId}/`);
+  }
 };
