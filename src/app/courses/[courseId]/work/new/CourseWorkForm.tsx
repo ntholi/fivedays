@@ -9,19 +9,21 @@ import {
   Paper,
   Text,
   Flex,
-  ActionIcon,
   Box,
 } from '@mantine/core';
 import SubmitButton from '@/app/core/SubmitButton';
 import { createWork } from './actions';
-import { IconWand } from '@tabler/icons-react';
-import WandButton from '@/app/core/WandButton';
+import { useState } from 'react';
+import GenerateCourseWork from './GenerateCourseWork';
 
 type Props = {
   course: classroom_v1.Schema$Course;
 };
 
 export default function CourseWorkForm({ course }: Props) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
   const handleSubmit = async (data: FormData) => {
     createWork({
       courseId: course.id as string,
@@ -41,18 +43,27 @@ export default function CourseWorkForm({ course }: Props) {
                   style={{
                     flexGrow: 1,
                   }}
+                  value={title}
+                  onChange={(e) => setTitle(e.currentTarget.value)}
                   required
                   label='Title'
                   name='title'
                   mr={'md'}
                 />
-
-                <WandButton mt={23} />
+                <Box mt={23}>
+                  <GenerateCourseWork
+                    course={course}
+                    title={title}
+                    setDescription={setDescription}
+                  />
+                </Box>
               </Flex>
               <Textarea
                 label='Description'
                 description='Optional Description'
                 name='description'
+                value={description}
+                onChange={(e) => setDescription(e.currentTarget.value)}
                 rows={8}
               />
             </Stack>

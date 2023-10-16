@@ -3,7 +3,9 @@ import { IconWand } from '@tabler/icons-react';
 import React from 'react';
 import { ActionIconProps } from '@mantine/core';
 
-export default function WandButton(pros: ActionIconProps) {
+export default function WandButton(
+  pros: ActionIconProps & { onClick?: () => void }
+) {
   return (
     <ActionIcon
       variant='gradient'
