@@ -4,7 +4,9 @@ import React from 'react';
 import { ActionIconProps } from '@mantine/core';
 
 export default function WandButton(
-  pros: ActionIconProps & { onClick?: () => void }
+  pros: ActionIconProps & { onClick?: () => void } & {
+    iconSize?: string | number;
+  } = { iconSize: '1.2rem' }
 ) {
   return (
     <ActionIcon
@@ -14,7 +16,7 @@ export default function WandButton(
       aria-label='Generate using AI'
       gradient={{ from: 'blue', to: 'teal', deg: 90 }}
     >
-      <IconWand size='1.2rem' />
+      <IconWand size={pros.iconSize} />
     </ActionIcon>
   );
 }

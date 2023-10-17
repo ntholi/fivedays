@@ -10,11 +10,13 @@ import {
   Text,
   Flex,
   Box,
+  ActionIcon,
 } from '@mantine/core';
 import SubmitButton from '@/app/core/SubmitButton';
 import { createWork } from './actions';
 import { useState } from 'react';
 import GenerateCourseWork from './GenerateCourseWork';
+import { IconSettings } from '@tabler/icons-react';
 
 type Props = {
   course: classroom_v1.Schema$Course;
@@ -50,13 +52,16 @@ export default function CourseWorkForm({ course }: Props) {
                   name='title'
                   mr={'md'}
                 />
-                <Box mt={23}>
+                <Flex mt={24} gap={5}>
+                  <ActionIcon variant='default' size='lg'>
+                    <IconSettings size='1.2rem' />
+                  </ActionIcon>
                   <GenerateCourseWork
                     course={course}
                     title={title}
                     setDescription={setDescription}
                   />
-                </Box>
+                </Flex>
               </Flex>
               <Textarea
                 label='Description'
