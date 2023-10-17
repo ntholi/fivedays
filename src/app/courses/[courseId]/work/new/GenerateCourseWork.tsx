@@ -2,6 +2,7 @@
 import WandButton from '@/app/core/WandButton';
 import { classroom_v1 } from 'googleapis';
 import React from 'react';
+import { notifications } from '@mantine/notifications';
 
 type Props = {
   course: classroom_v1.Schema$Course;
@@ -31,6 +32,15 @@ export default function GenerateCourseWork({
       .then((res) => res.json())
       .then((data) => {
         console.log(data);
+        if (data.error) {
+          notifications.show({
+            title: 'Error',
+            color: 'red',
+            autoClose: 1000 * 30, // 30 seconds
+            message: data.error,
+          });
+          return;
+        }
         setDescription(data.description);
       })
       .finally(() => setLoading(false));

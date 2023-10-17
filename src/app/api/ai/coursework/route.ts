@@ -1,5 +1,6 @@
+import { getErrorMessage } from '@/lib/common';
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI, { OpenAIError } from 'openai';
 
 const openai = new OpenAI({
   organization: process.env.OPENAI_ORG_ID,
@@ -7,28 +8,40 @@ const openai = new OpenAI({
   timeout: 1000 * 60 * 1, // 1 minute
 });
 
+type RequestType = {
+  courseworkTitle: string;
+  courseName: string;
+};
+
 export async function POST(request: Request) {
-  const { courseworkTitle, courseName } = await request.json();
+  const data = (await request.json()) as RequestType;
 
-  console.log(`Creating ${courseworkTitle} coursework for ${courseName}...`);
-  const chatCompletion = await openai.chat.completions.create({
-    messages: [
-      {
-        role: 'user',
-        content: `Create assignment description for ${courseName} titled ${courseworkTitle}
-        respond in this format {
-          "description": "<description>",
-        }
-        `,
-      },
-    ],
-    model: 'gpt-3.5-turbo',
-  });
+  console.log(`Creating coursework for ${data}`);
 
-  console.log(chatCompletion);
+  try {
+    const chatCompletion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: `You will generate course work based on the provided json payload, and will respond in json using format: { "description": "<description>" }`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify(data),
+        },
+      ],
+      model: 'gpt-3.5-turbo',
+    });
 
-  const { content } = chatCompletion.choices[0].message;
-  console.log(content);
+    const { content } = chatCompletion.choices[0].message;
+    const json = content?.replace(/"/g, `\"`).replace(/'/g, `\'`) || '{}';
 
-  return NextResponse.json(JSON.parse(content || ''));
+    return NextResponse.json(JSON.parse(json));
+  } catch (error: any) {
+    console.error(error);
+    return NextResponse.json(
+      { error: getErrorMessage(error) },
+      { status: 500 }
+    );
+  }
 }
