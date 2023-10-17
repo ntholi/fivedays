@@ -1,4 +1,5 @@
-import { getErrorMessage } from '@/lib/common';
+import { errorToJSON, toJSON as stringToJSON } from '@/lib/common';
+import { completion } from '@/lib/completions';
 import { NextResponse } from 'next/server';
 import OpenAI, { OpenAIError } from 'openai';
 
@@ -16,32 +17,22 @@ type RequestType = {
 export async function POST(request: Request) {
   const data = (await request.json()) as RequestType;
 
-  console.log(`Creating coursework for ${data}`);
-
   try {
-    const chatCompletion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `You will generate course work based on the provided json payload, and will respond in json using format: { "description": "<description>" }`,
+    const chatCompletion = await openai.chat.completions.create(
+      completion({
+        task: 'create_coursework',
+        input: data,
+        responseType: {
+          description: 'string',
         },
-        {
-          role: 'user',
-          content: JSON.stringify(data),
-        },
-      ],
-      model: 'gpt-3.5-turbo',
-    });
+      })
+    );
 
     const { content } = chatCompletion.choices[0].message;
-    const json = content?.replace(/"/g, `\"`).replace(/'/g, `\'`) || '{}';
 
-    return NextResponse.json(JSON.parse(json));
-  } catch (error: any) {
+    return NextResponse.json(stringToJSON(content));
+  } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: getErrorMessage(error) },
-      { status: 500 }
-    );
+    return NextResponse.json(errorToJSON(error));
   }
 }
