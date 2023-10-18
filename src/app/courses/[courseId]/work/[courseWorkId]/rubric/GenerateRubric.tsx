@@ -1,5 +1,5 @@
+'use client';
 import WandButton from '@/app/core/WandButton';
-import googleClassroom from '@/lib/config/googleClassroom';
 import { notifications } from '@mantine/notifications';
 import axios from 'axios';
 import { classroom_v1 } from 'googleapis';
@@ -7,23 +7,18 @@ import { revalidatePath } from 'next/cache';
 import React from 'react';
 
 type Props = {
-  courseId: string;
+  course: classroom_v1.Schema$Course;
   courseWork: classroom_v1.Schema$CourseWork;
 };
 
-const getCourseName = async (courseId: string) => {
-  const classroom = await googleClassroom();
-  const { data: course } = await classroom.courses.get({ id: courseId });
-  return course.name;
-};
-
-export default async function GenerateRubric({ courseId, courseWork }: Props) {
-  const courseName = await getCourseName(courseId);
+export default function GenerateRubric({ course, courseWork }: Props) {
   const handleSubmit = async () => {
     const { data } = await axios.post('/api/ai/rubric', {
-      courseName: courseName,
+      courseName: course.name,
       courseworkTitle: courseWork.title,
       courseWorkDescription: courseWork.description,
+      courseId: course.id,
+      courseWorkId: courseWork.id,
     });
 
     if (data.error) {
@@ -34,7 +29,6 @@ export default async function GenerateRubric({ courseId, courseWork }: Props) {
         message: data.error,
       });
     }
-    revalidatePath(`/courses/${courseId}/work/${courseWork.id}/rubric`);
   };
-  return <WandButton />;
+  return <WandButton onClick={handleSubmit} />;
 }

@@ -1,16 +1,18 @@
 import { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/index.mjs';
+import { RequestOptions } from 'openai/core';
+import OpenAI from 'openai';
 
 type Input = Record<string, unknown>;
-type ResponseType = Record<string, 'string' | 'number'>;
 const Task = {
   create_coursework: 'create coursework',
+  create_rubric: 'create rubric',
   assess_coursework: 'assess coursework',
 } as const;
 
 type Params = {
   task: keyof typeof Task;
   input: Input;
-  responseType: ResponseType;
+  responseType: Record<string, unknown>;
 };
 
 export const completion = (params: Params) => {
@@ -30,3 +32,15 @@ export const completion = (params: Params) => {
     model: 'gpt-3.5-turbo',
   } as ChatCompletionCreateParamsNonStreaming;
 };
+
+export function createCompletion(
+  body: ChatCompletionCreateParamsNonStreaming,
+  options?: RequestOptions
+) {
+  const openai = new OpenAI({
+    organization: process.env.OPENAI_ORG_ID,
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: 1000 * 60 * 1, // 1 minute
+  });
+  return openai.chat.completions.create(body, options);
+}

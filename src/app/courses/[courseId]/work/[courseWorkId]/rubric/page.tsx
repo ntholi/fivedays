@@ -30,10 +30,18 @@ const getCourseWork = async (courseId: string, id: string) => {
   return courseWork;
 };
 
+const getCourse = async (courseId: string) => {
+  //TODO: USE OPTIMISTIC FETCHING
+  const classroom = await googleClassroom();
+  const { data: course } = await classroom.courses.get({ id: courseId });
+  return course;
+};
+
 export default async function RubricPage({
   params: { courseId, courseWorkId },
 }: Props) {
   const courseWork = await getCourseWork(courseId, courseWorkId);
+  const course = await getCourse(courseId);
 
   return (
     <Container mt='lg' size='md'>
@@ -47,9 +55,9 @@ export default async function RubricPage({
         >
           Back
         </Button>
-        <Suspense fallback={<Skeleton radius='sm' w={38} h={38} />}>
-          <GenerateRubric courseWork={courseWork} courseId={courseId} />
-        </Suspense>
+        {/* <Suspense fallback={<Skeleton radius='sm' w={38} h={38} />}> */}
+        <GenerateRubric courseWork={courseWork} course={course} />
+        {/* </Suspense> */}
       </Flex>
       <Divider my='md' />
       <RubricForm courseId={courseId} courseWorkId={courseWorkId} />
