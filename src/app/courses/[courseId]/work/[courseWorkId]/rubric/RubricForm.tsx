@@ -1,6 +1,6 @@
 'use client';
 import { addRubricItem } from './actions';
-import { Divider, NumberInput, Stack, TextInput } from '@mantine/core';
+import { Divider, NumberInput, Stack, TextInput, Title } from '@mantine/core';
 import { useRef } from 'react';
 import SubmitButton from '@/app/core/SubmitButton';
 import { formToJSON } from 'axios';
@@ -19,6 +19,8 @@ export default function RubricForm({ courseId, courseWorkId }: Props) {
 
   return (
     <form action={handleSubmit} ref={ref}>
+      <Title order={2}>Rubric</Title>
+      <Divider mt='xs' mb='md' />
       <Stack>
         <TextInput name='title' label='Title' required />
         <NumberInput name='points' label='Points' required />
