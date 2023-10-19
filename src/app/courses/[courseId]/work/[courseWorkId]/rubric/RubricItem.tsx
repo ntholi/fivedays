@@ -28,7 +28,7 @@ export default function RubricItem({ rubricItem }: Props) {
   return (
     <Paper withBorder radius='md' mr={0} mb='md' component='li'>
       <Grid>
-        <Grid.Col span={{ base: 12, md: 2 }}>
+        <Grid.Col span={{ base: 12, md: 3 }}>
           <Stack
             h='100%'
             bg='var(--mantine-color-blue-light)'
@@ -43,11 +43,15 @@ export default function RubricItem({ rubricItem }: Props) {
             </Text>
           </Stack>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 10 }}>
-          <Flex justify='space-between' p='md'>
+        <Grid.Col span={{ base: 12, md: 9 }}>
+          <Flex justify='space-between' p='xs'>
             <div>
-              <Title order={3}>{title}</Title>
-              <Text mt='xs'>{description}</Text>
+              <Title order={3} size={'sm'}>
+                {title}
+              </Title>
+              <Text mt='xs' size={'sm'}>
+                {description}
+              </Text>
             </div>
             <ActionIcon
               onClick={handleDelete}
