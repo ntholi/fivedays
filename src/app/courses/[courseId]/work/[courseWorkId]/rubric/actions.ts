@@ -17,6 +17,13 @@ export async function createRubric(
 ) {
   const rubricItems = z.array(schema).parse(items);
 
+  await prisma.rubricItem.deleteMany({
+    where: {
+      courseId: courseId,
+      courseWorkId: courseWorkId,
+    },
+  });
+
   await prisma.rubric.deleteMany({
     where: {
       courseId: courseId,
