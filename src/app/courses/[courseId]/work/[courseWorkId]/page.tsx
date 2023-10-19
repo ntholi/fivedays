@@ -48,6 +48,8 @@ export default async function CourseWorkPage({
         </Button>
         <Button
           variant='light'
+          component={Link}
+          href={`/courses/${courseId}/work/${courseWorkId}/submissions`}
           rightSection={
             <Suspense fallback={<Loader color='blue' size='1.1rem' />}>
               <SubmissionCount
