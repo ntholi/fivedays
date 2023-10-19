@@ -10,12 +10,39 @@ const schema = z.object({
   points: z.coerce.number().positive(),
 });
 
+export async function createRubric(
+  courseId: string,
+  courseWorkId: string,
+  items: object[]
+) {
+  const rubricItems = z.array(schema).parse(items);
+
+  await prisma.rubric.deleteMany({
+    where: {
+      courseId: courseId,
+      courseWorkId: courseWorkId,
+    },
+  });
+
+  await prisma.rubric.create({
+    data: {
+      courseId: courseId,
+      courseWorkId: courseWorkId,
+      rubricItems: {
+        create: rubricItems,
+      },
+    },
+  });
+
+  revalidatePath(`/courses/${courseId}/work/${courseWorkId}/rubric`);
+}
+
 export async function addRubricItem(
   courseId: string,
   courseWorkId: string,
-  formData: FormData
+  obj: object
 ) {
-  const data = schema.parse(Object.fromEntries(formData.entries()));
+  const data = schema.parse(obj);
 
   await prisma.rubricItem.create({
     data: {

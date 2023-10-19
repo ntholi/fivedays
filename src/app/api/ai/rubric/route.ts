@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-const schema = z.object({
+const inputSchema = z.object({
   courseName: z.string(),
   courseworkTitle: z.string(),
   courseWorkDescription: z.string(),
@@ -16,10 +16,19 @@ const idSchema = z.object({
   courseWorkId: z.string(),
 });
 
+const outputSchema = z.object({
+  rubric: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+      points: z.number(),
+    })
+  ),
+});
+
 export async function POST(request: Request) {
   const data = await request.json();
-  const input = schema.parse(data);
-  const { courseId, courseWorkId } = idSchema.parse(data);
+  const input = inputSchema.parse(data);
 
   try {
     const chatCompletion = await createCompletion(
@@ -39,28 +48,25 @@ export async function POST(request: Request) {
     );
 
     const { content } = chatCompletion.choices[0].message;
-
-    saveToDatabase(courseId, courseWorkId, toJSON(content).rubric);
-
-    revalidatePath(`/courses/${courseId}/work/${courseWorkId}/rubric`);
-    return Response.json({ revalidated: true, now: Date.now() });
+    return Response.json(outputSchema.parse(toJSON(content)));
   } catch (error) {
     console.error(error);
     return NextResponse.json(errorToJSON(error));
   }
 }
-async function saveToDatabase(
-  courseId: string,
-  courseWorkId: string,
-  rubric: any
-) {
-  await prisma.rubric.create({
-    data: {
-      courseId: courseId,
-      courseWorkId: courseWorkId,
-      rubricItems: {
-        create: rubric,
-      },
-    },
-  });
-}
+
+// type OutPut = z.infer<typeof outputSchema>;
+// async function save(courseId: string, courseWorkId: string, output: OutPut) {
+//   console.log('courseId', courseId);
+//   console.log('courseWorkId', courseWorkId);
+//   console.log('output', output);
+//   await prisma.rubric.create({
+//     data: {
+//       courseId: courseId,
+//       courseWorkId: courseWorkId,
+//       rubricItems: {
+//         create: output.rubric,
+//       },
+//     },
+//   });
+// }

@@ -3,17 +3,17 @@ import { addRubricItem } from './actions';
 import { NumberInput, Stack, TextInput } from '@mantine/core';
 import { useRef } from 'react';
 import SubmitButton from '@/app/core/SubmitButton';
+import { formToJSON } from 'axios';
 
 type Props = {
   courseId: string;
   courseWorkId: string;
 };
 export default function RubricForm({ courseId, courseWorkId }: Props) {
-  const addRubricWithId = addRubricItem.bind(null, courseId, courseWorkId);
   const ref = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (formData: FormData) => {
-    await addRubricWithId(formData);
+    await addRubricItem(courseId, courseWorkId, formToJSON(formData));
     ref.current?.reset();
   };
 
