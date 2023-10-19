@@ -20,7 +20,7 @@ export default async function RubricList({ courseId, courseWorkId }: Props) {
   });
 
   return (
-    <List mt='xl'>
+    <List mt='lg'>
       {rubricItems.map((it) => (
         <RubricItem key={it.id} rubricItem={it} />
       ))}

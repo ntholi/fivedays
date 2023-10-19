@@ -6,14 +6,10 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const inputSchema = z.object({
+  maxPoints: z.number().optional(),
   courseName: z.string(),
   courseworkTitle: z.string(),
   courseWorkDescription: z.string(),
-});
-
-const idSchema = z.object({
-  courseId: z.string(),
-  courseWorkId: z.string(),
 });
 
 const outputSchema = z.object({

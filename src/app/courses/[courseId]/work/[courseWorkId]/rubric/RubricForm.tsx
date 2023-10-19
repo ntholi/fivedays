@@ -1,6 +1,6 @@
 'use client';
 import { addRubricItem } from './actions';
-import { NumberInput, Stack, TextInput } from '@mantine/core';
+import { Divider, NumberInput, Stack, TextInput } from '@mantine/core';
 import { useRef } from 'react';
 import SubmitButton from '@/app/core/SubmitButton';
 import { formToJSON } from 'axios';

@@ -5,12 +5,14 @@ import {
   Container,
   Divider,
   Flex,
+  Grid,
+  GridCol,
   Skeleton,
 } from '@mantine/core';
 import RubricForm from './RubricForm';
 import Heading from '../heading/Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
-import { IconChevronLeft, IconWand } from '@tabler/icons-react';
+import { IconChevronLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 import RubricList from './RubricList';
 import GenerateRubric from './GenerateRubric';
@@ -55,15 +57,19 @@ export default async function RubricPage({
         >
           Back
         </Button>
-        {/* <Suspense fallback={<Skeleton radius='sm' w={38} h={38} />}> */}
         <GenerateRubric courseWork={courseWork} course={course} />
-        {/* </Suspense> */}
       </Flex>
       <Divider my='md' />
-      <RubricForm courseId={courseId} courseWorkId={courseWorkId} />
-      <Suspense fallback={<Skeleton mt='xl' height={100} />}>
-        <RubricList courseId={courseId} courseWorkId={courseWorkId} />
-      </Suspense>
+      <Grid>
+        <GridCol span={{ base: 12, md: 6 }}>
+          <RubricForm courseId={courseId} courseWorkId={courseWorkId} />
+        </GridCol>
+        <GridCol span={{ base: 12, md: 6 }}>
+          <Suspense fallback={<Skeleton mt='lg' height={100} />}>
+            <RubricList courseId={courseId} courseWorkId={courseWorkId} />
+          </Suspense>
+        </GridCol>
+      </Grid>
     </Container>
   );
 }

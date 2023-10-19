@@ -20,6 +20,7 @@ export default function GenerateRubric({ course, courseWork }: Props) {
         courseName: course.name,
         courseworkTitle: courseWork.title,
         courseWorkDescription: courseWork.description,
+        maxPoints: courseWork.maxPoints,
       });
 
       if (data.error) {
