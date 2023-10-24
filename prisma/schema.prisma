@@ -32,8 +32,16 @@ model RubricItem {
   courseId     String  @map("course_id")
   courseWorkId String  @map("course_work_id")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  obtainedPoints Points[]
 
   @@map("rubric_items")
+}
+
+model Points {
+  id           Int        @id @default(autoincrement())
+  rubricItem   RubricItem @relation(fields: [rubricItemId], references: [id])
+  rubricItemId Int
+  points       Float
 }

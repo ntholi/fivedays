@@ -4,6 +4,7 @@ import CourseWorkBreadcrumbs from '../heading/CourseWorkBreadcrumbs';
 import StudentList from './StudentList';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { AttachmentsView } from './AttachmentsView';
+import Grader from './Grader';
 
 type Props = {
   params: {
@@ -45,7 +46,9 @@ export default async function SubmissionsPage({
             <AttachmentsView />
           </Paper>
         </GridCol>
-        <GridCol span={{ base: 12, md: 3 }}></GridCol>
+        <GridCol span={{ base: 12, md: 3 }}>
+          <Grader />
+        </GridCol>
       </Grid>
     </>
   );
@@ -68,3 +71,5 @@ async function StudentListWrapper({
     </Suspense>
   );
 }
+
+async function PointsWrapper() {}
