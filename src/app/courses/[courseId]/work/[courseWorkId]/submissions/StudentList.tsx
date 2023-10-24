@@ -1,4 +1,3 @@
-import googleClassroom from '@/lib/config/googleClassroom';
 import { Avatar, NavLink } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import React from 'react';
@@ -9,16 +8,24 @@ type Props = {
 };
 
 export default async function StudentList({ students }: Props) {
-  const student = students?.[0];
   return (
     <nav>
       {students?.map((it) => (
         <NavLink
           key={it.userId}
           label={it.profile?.name?.fullName}
-          leftSection={<Avatar src={it.profile?.photoUrl} />}
+          leftSection={<Avatar src={getProfileUrl(it)} size='sm' />}
         />
       ))}
     </nav>
   );
 }
+
+const getProfileUrl = (student: classroom_v1.Schema$Student) => {
+  const url = student.profile?.photoUrl;
+  if (!url) return undefined;
+  if (url.startsWith('//')) {
+    return `https:${url}`;
+  }
+  return url;
+};

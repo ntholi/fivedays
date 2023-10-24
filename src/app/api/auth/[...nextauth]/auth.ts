@@ -6,6 +6,7 @@ const scopes = [
   'email',
   'openid',
   'profile',
+  'https://www.googleapis.com/auth/classroom.profile.photos',
   'https://www.googleapis.com/auth/classroom.courses',
   'https://www.googleapis.com/auth/classroom.coursework.me',
   'https://www.googleapis.com/auth/classroom.coursework.students',

@@ -35,9 +35,10 @@ export default async function SubmissionsPage({
   return (
     <>
       <CourseWorkBreadcrumbs courseId={courseId} courseWorkId={courseWorkId} />
-      <StudentListWrapper courseId={courseId} courseWorkId={courseWorkId} />
       <Grid>
-        <GridCol span={{ base: 12, md: 2 }}></GridCol>
+        <GridCol span={{ base: 12, md: 2 }}>
+          <StudentListWrapper courseId={courseId} courseWorkId={courseWorkId} />
+        </GridCol>
         <GridCol span={{ base: 12, md: 7 }}>
           <Paper withBorder>
             <Center>Hello World</Center>
