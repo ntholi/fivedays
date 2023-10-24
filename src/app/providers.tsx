@@ -3,6 +3,8 @@ import { MantineProvider, createTheme } from '@mantine/core';
 import { SessionProvider } from 'next-auth/react';
 import { AppProgressBar as ProgressBar } from 'next-nprogress-bar';
 import { Notifications } from '@mantine/notifications';
+import { Provider as ReduxProvider } from 'react-redux';
+import { store } from '@/lib/redux/store';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const theme = createTheme({
@@ -19,7 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <MantineProvider defaultColorScheme='auto' theme={theme}>
       <SessionProvider>
         <Notifications />
-        {children}
+        <ReduxProvider store={store}>{children}</ReduxProvider>
         <ProgressBar
           height='3px'
           color='#2196F3'

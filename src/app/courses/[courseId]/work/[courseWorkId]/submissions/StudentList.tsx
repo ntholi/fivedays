@@ -1,13 +1,18 @@
+'use client';
+import { RootState } from '@/lib/redux/store';
+import { setStudentSubmission } from '@/lib/redux/submissionSlice';
 import { Avatar, NavLink } from '@mantine/core';
 import { classroom_v1 } from 'googleapis';
 import React from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 type Props = {
   students: classroom_v1.Schema$Student[] | undefined;
   submissions: classroom_v1.Schema$StudentSubmission[] | undefined;
 };
 
-export default async function StudentList({ students }: Props) {
+export default function StudentList({ students }: Props) {
+  const dispatch = useDispatch();
   return (
     <nav>
       {students?.map((it) => (
@@ -15,6 +20,14 @@ export default async function StudentList({ students }: Props) {
           key={it.userId}
           label={it.profile?.name?.fullName}
           leftSection={<Avatar src={getProfileUrl(it)} size='sm' />}
+          onClick={() => {
+            dispatch(
+              setStudentSubmission({
+                student: it,
+                submission: null,
+              })
+            );
+          }}
         />
       ))}
     </nav>
