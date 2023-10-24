@@ -4,8 +4,8 @@ import { classroom_v1 } from 'googleapis';
 
 export interface SubmissionState {
   value: {
-    student: classroom_v1.Schema$Student | null;
-    submission: classroom_v1.Schema$StudentSubmission | null;
+    student: classroom_v1.Schema$Student | undefined | null;
+    submission: classroom_v1.Schema$StudentSubmission | undefined | null;
   };
 }
 
@@ -24,7 +24,7 @@ export const studentSubmissionSlice = createSlice({
       state,
       action: PayloadAction<{
         student: classroom_v1.Schema$Student | null;
-        submission: classroom_v1.Schema$StudentSubmission | null;
+        submission: classroom_v1.Schema$StudentSubmission | undefined | null;
       }>
     ) => {
       state.value.student = action.payload.student;

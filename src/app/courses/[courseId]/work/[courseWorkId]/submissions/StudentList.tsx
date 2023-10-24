@@ -11,8 +11,14 @@ type Props = {
   submissions: classroom_v1.Schema$StudentSubmission[] | undefined;
 };
 
-export default function StudentList({ students }: Props) {
+export default function StudentList({ students, submissions }: Props) {
   const dispatch = useDispatch();
+
+  const getSubmission = (userId?: string | null) => {
+    if (!userId) return null;
+    return submissions?.find((it) => it.userId === userId);
+  };
+
   return (
     <nav>
       {students?.map((it) => (
@@ -24,7 +30,7 @@ export default function StudentList({ students }: Props) {
             dispatch(
               setStudentSubmission({
                 student: it,
-                submission: null,
+                submission: getSubmission(it.userId),
               })
             );
           }}

@@ -1,8 +1,9 @@
-import { Center, Grid, GridCol, Paper, Skeleton } from '@mantine/core';
+import { Flex, Grid, GridCol, Paper, Skeleton, Stack } from '@mantine/core';
 import React, { Suspense } from 'react';
 import CourseWorkBreadcrumbs from '../heading/CourseWorkBreadcrumbs';
 import StudentList from './StudentList';
 import googleClassroom from '@/lib/config/googleClassroom';
+import { AttachmentsView } from './AttachmentsView';
 
 type Props = {
   params: {
@@ -40,8 +41,8 @@ export default async function SubmissionsPage({
           <StudentListWrapper courseId={courseId} courseWorkId={courseWorkId} />
         </GridCol>
         <GridCol span={{ base: 12, md: 7 }}>
-          <Paper withBorder>
-            <Center>Hello World</Center>
+          <Paper withBorder h={'80vh'}>
+            <AttachmentsView />
           </Paper>
         </GridCol>
         <GridCol span={{ base: 12, md: 3 }}></GridCol>
