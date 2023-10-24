@@ -5,6 +5,7 @@ import StudentList from './StudentList';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { AttachmentsView } from './AttachmentsView';
 import Grader from './Grader';
+import prisma from '@/lib/db';
 
 type Props = {
   params: {
@@ -47,20 +48,18 @@ export default async function SubmissionsPage({
           </Paper>
         </GridCol>
         <GridCol span={{ base: 12, md: 3 }}>
-          <Grader />
+          <GraderWrapper courseId={courseId} courseWorkId={courseWorkId} />
         </GridCol>
       </Grid>
     </>
   );
 }
 
-async function StudentListWrapper({
-  courseId,
-  courseWorkId,
-}: {
+type WrapperProps = {
   courseId: string;
   courseWorkId: string;
-}) {
+};
+async function StudentListWrapper({ courseId, courseWorkId }: WrapperProps) {
   const [students, submissions] = await Promise.all([
     getStudents(courseId!),
     getSubmissions(courseId!, courseWorkId!),
@@ -72,4 +71,15 @@ async function StudentListWrapper({
   );
 }
 
-async function PointsWrapper() {}
+async function GraderWrapper({ courseId, courseWorkId }: WrapperProps) {
+  const rubric = await prisma.rubric.findUnique({
+    where: { courseId_courseWorkId: { courseId, courseWorkId } },
+    include: { rubricItems: true },
+  });
+
+  return (
+    <Suspense fallback={<Skeleton h={{ base: 80, md: '85vh' }} />}>
+      <Grader criteria={rubric?.rubricItems} />
+    </Suspense>
+  );
+}
