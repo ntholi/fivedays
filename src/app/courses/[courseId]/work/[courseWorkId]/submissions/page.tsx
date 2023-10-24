@@ -1,25 +1,14 @@
-import { Anchor, Breadcrumbs, Center } from '@mantine/core';
+import { Center, Grid, GridCol, Paper, Skeleton } from '@mantine/core';
 import React, { Suspense } from 'react';
-import CourseLink from '../heading/CourseLink';
-import Link from 'next/link';
-import googleClassroom from '@/lib/config/googleClassroom';
-import { classroom_v1 } from 'googleapis';
 import CourseWorkBreadcrumbs from '../heading/CourseWorkBreadcrumbs';
+import StudentList from './StudentList';
+import googleClassroom from '@/lib/config/googleClassroom';
 
 type Props = {
   params: {
     courseId: string;
     courseWorkId: string;
   };
-};
-
-const getCourseWork = async (courseId: string, courseWorkId: string) => {
-  const classroom = await googleClassroom();
-  const { data: courseWork } = await classroom.courses.courseWork.get({
-    courseId,
-    id: courseWorkId,
-  });
-  return courseWork;
 };
 
 const getStudents = async (courseId: string) => {
@@ -30,18 +19,50 @@ const getStudents = async (courseId: string) => {
   return data.students;
 };
 
+const getSubmissions = async (courseId: string, courseWorkId: string) => {
+  const classroom = await googleClassroom();
+  const { data } = await classroom.courses.courseWork.studentSubmissions.list({
+    courseId,
+    courseWorkId,
+    states: ['CREATED', 'TURNED_IN', 'RETURNED', 'RECLAIMED_BY_STUDENT'],
+  });
+  return data.studentSubmissions;
+};
+
 export default async function SubmissionsPage({
   params: { courseId, courseWorkId },
 }: Props) {
-  // const courseWork = await getCourseWork(courseId, courseWorkId);
-
-  // const students = await getStudents(courseId);
-
   return (
     <>
       <CourseWorkBreadcrumbs courseId={courseId} courseWorkId={courseWorkId} />
-
-      <Center>Hello World</Center>
+      <StudentListWrapper courseId={courseId} courseWorkId={courseWorkId} />
+      <Grid>
+        <GridCol span={{ base: 12, md: 2 }}></GridCol>
+        <GridCol span={{ base: 12, md: 7 }}>
+          <Paper withBorder>
+            <Center>Hello World</Center>
+          </Paper>
+        </GridCol>
+        <GridCol span={{ base: 12, md: 3 }}></GridCol>
+      </Grid>
     </>
+  );
+}
+
+async function StudentListWrapper({
+  courseId,
+  courseWorkId,
+}: {
+  courseId: string;
+  courseWorkId: string;
+}) {
+  const [students, submissions] = await Promise.all([
+    getStudents(courseId!),
+    getSubmissions(courseId!, courseWorkId!),
+  ]);
+  return (
+    <Suspense fallback={<Skeleton h={{ base: 80, md: '85vh' }} />}>
+      <StudentList students={students} submissions={submissions} />
+    </Suspense>
   );
 }
