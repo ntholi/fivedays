@@ -4,6 +4,7 @@ import CourseLink from '../heading/CourseLink';
 import Link from 'next/link';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { classroom_v1 } from 'googleapis';
+import CourseWorkBreadcrumbs from '../heading/CourseWorkBreadcrumbs';
 
 type Props = {
   params: {
@@ -21,16 +22,6 @@ const getCourseWork = async (courseId: string, courseWorkId: string) => {
   return courseWork;
 };
 
-const getSubmissions = async (courseId: string, courseWorkId: string) => {
-  const classroom = await googleClassroom();
-  const { data } = await classroom.courses.courseWork.studentSubmissions.list({
-    courseId,
-    courseWorkId,
-    states: ['CREATED', 'TURNED_IN', 'RETURNED'],
-  });
-  return data.studentSubmissions;
-};
-
 const getStudents = async (courseId: string) => {
   const classroom = await googleClassroom();
   const { data } = await classroom.courses.students.list({
@@ -44,28 +35,11 @@ export default async function SubmissionsPage({
 }: Props) {
   const courseWork = await getCourseWork(courseId, courseWorkId);
 
-  const submissions = await getSubmissions(courseId, courseWorkId);
   const students = await getStudents(courseId);
-
-  const items = [
-    <Anchor component={Link} href={'/courses'} key={1}>
-      Courses
-    </Anchor>,
-    <Suspense fallback={<div>Course</div>} key={2}>
-      <CourseLink courseId={courseId} />
-    </Suspense>,
-    <Anchor
-      component={Link}
-      href={`/courses/${courseId}/work/${courseWorkId}`}
-      key={3}
-    >
-      {courseWork.title}
-    </Anchor>,
-  ];
 
   return (
     <>
-      <Breadcrumbs>{items}</Breadcrumbs>
+      <CourseWorkBreadcrumbs courseWork={courseWork} />
       {students?.map((it) => (
         <h1 key={it.userId}>{it.profile?.name?.fullName}</h1>
       ))}
