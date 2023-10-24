@@ -6,22 +6,23 @@ import { classroom_v1 } from 'googleapis';
 import Link from 'next/link';
 
 type Props = {
-  courseWork: classroom_v1.Schema$CourseWork;
+  courseId?: string | null;
+  courseWorkId?: string | null;
 };
 
-export default function CourseWorkBreadcrumbs({ courseWork }: Props) {
+export default function CourseWorkBreadcrumbs({
+  courseId,
+  courseWorkId,
+}: Props) {
   const items = [
     <Anchor component={Link} href={'/courses'} key={1}>
       Courses
     </Anchor>,
     <Suspense fallback={<div>Course</div>} key={2}>
-      <CourseLink courseId={courseWork.courseId} />
+      <CourseLink courseId={courseId} />
     </Suspense>,
     <Suspense fallback={<div>Assessment</div>} key={2}>
-      <CourseWorkLink
-        courseId={courseWork.courseId}
-        courseWorkId={courseWork.id}
-      />
+      <CourseWorkLink courseId={courseId} courseWorkId={courseWorkId} />
     </Suspense>,
   ];
 

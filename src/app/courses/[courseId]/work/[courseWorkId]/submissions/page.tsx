@@ -1,4 +1,4 @@
-import { Anchor, Breadcrumbs } from '@mantine/core';
+import { Anchor, Breadcrumbs, Center } from '@mantine/core';
 import React, { Suspense } from 'react';
 import CourseLink from '../heading/CourseLink';
 import Link from 'next/link';
@@ -33,16 +33,15 @@ const getStudents = async (courseId: string) => {
 export default async function SubmissionsPage({
   params: { courseId, courseWorkId },
 }: Props) {
-  const courseWork = await getCourseWork(courseId, courseWorkId);
+  // const courseWork = await getCourseWork(courseId, courseWorkId);
 
-  const students = await getStudents(courseId);
+  // const students = await getStudents(courseId);
 
   return (
     <>
-      <CourseWorkBreadcrumbs courseWork={courseWork} />
-      {students?.map((it) => (
-        <h1 key={it.userId}>{it.profile?.name?.fullName}</h1>
-      ))}
+      <CourseWorkBreadcrumbs courseId={courseId} courseWorkId={courseWorkId} />
+
+      <Center>Hello World</Center>
     </>
   );
 }

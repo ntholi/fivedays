@@ -10,7 +10,10 @@ type Props = {
 export default function Heading({ courseWork }: Props) {
   return (
     <>
-      <CourseWorkBreadcrumbs courseWork={courseWork} />
+      <CourseWorkBreadcrumbs
+        courseId={courseWork.courseId}
+        courseWorkId={courseWork.id}
+      />
       <Title mt={'lg'}>{courseWork.title}</Title>
       <div>
         <Text tt='capitalize'>
