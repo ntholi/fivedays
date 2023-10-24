@@ -1,7 +1,7 @@
 'use client';
 import { RootState } from '@/lib/redux/store';
-import { Accordion, Group, Text } from '@mantine/core';
-import { Rubric, RubricItem } from '@prisma/client';
+import { Accordion, Flex, Group, Slider, Stack, Text } from '@mantine/core';
+import { RubricItem } from '@prisma/client';
 import axios from 'axios';
 import { useSession } from 'next-auth/react';
 import React from 'react';
@@ -18,14 +18,24 @@ type AccordionLabelProps = {
 
 function AccordionLabel({ title, points }: AccordionLabelProps) {
   return (
-    <Group wrap='nowrap'>
-      <div>
+    <Stack h={80} mr={'sm'}>
+      <Flex justify='space-between'>
         <Text>{title}</Text>
         <Text size='sm' c='dimmed' fw={400}>
           {points}
         </Text>
-      </div>
-    </Group>
+      </Flex>
+      <Slider
+        color='blue'
+        size='sm'
+        onClick={(e) => e.stopPropagation()}
+        marks={[
+          { value: 20, label: '20%' },
+          { value: 50, label: '50%' },
+          { value: 80, label: '80%' },
+        ]}
+      />
+    </Stack>
   );
 }
 
@@ -46,7 +56,7 @@ export default function Grader({ criteria }: Props) {
     </Accordion.Item>
   ));
   return (
-    <Accordion chevronPosition='right' variant='contained'>
+    <Accordion chevronPosition='right' variant='separated'>
       {items}
     </Accordion>
   );
