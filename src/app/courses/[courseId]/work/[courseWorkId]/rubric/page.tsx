@@ -47,7 +47,7 @@ export default async function RubricPage({
 
   return (
     <Container mt='lg' size='md'>
-      <Heading courseWork={courseWork} />
+      <Heading courseWork={courseWork} title={'Rubric'} />
       <Flex mt='lg' justify={'space-between'} align='flex-end'>
         <Button
           variant='light'

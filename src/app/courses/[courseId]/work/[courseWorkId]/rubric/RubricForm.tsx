@@ -19,8 +19,6 @@ export default function RubricForm({ courseId, courseWorkId }: Props) {
 
   return (
     <form action={handleSubmit} ref={ref}>
-      <Title order={2}>Rubric</Title>
-      <Divider mt='xs' mb='md' />
       <Stack>
         <TextInput name='title' label='Title' required />
         <NumberInput name='points' label='Points' required />

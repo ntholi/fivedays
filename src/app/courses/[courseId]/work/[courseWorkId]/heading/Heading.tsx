@@ -5,16 +5,18 @@ import CourseWorkBreadcrumbs from './CourseWorkBreadcrumbs';
 
 type Props = {
   courseWork: classroom_v1.Schema$CourseWork;
+  title?: string | null;
 };
 
-export default function Heading({ courseWork }: Props) {
+export default function Heading({ courseWork, title }: Props) {
+  if (!title) title = courseWork.title;
   return (
     <>
       <CourseWorkBreadcrumbs
         courseId={courseWork.courseId}
         courseWorkId={courseWork.id}
       />
-      <Title mt={'lg'}>{courseWork.title}</Title>
+      <Title mt={'lg'}>{title}</Title>
       <div>
         <Text tt='capitalize'>
           {courseWork.workType?.toLowerCase()}
