@@ -1,5 +1,5 @@
 'use client';
-import { addRubricItem } from './actions';
+import { addCriteria } from './actions';
 import { Divider, NumberInput, Stack, TextInput, Title } from '@mantine/core';
 import { useRef } from 'react';
 import SubmitButton from '@/app/core/SubmitButton';
@@ -13,7 +13,7 @@ export default function RubricForm({ courseId, courseWorkId }: Props) {
   const ref = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (formData: FormData) => {
-    await addRubricItem(courseId, courseWorkId, formToJSON(formData));
+    await addCriteria(courseId, courseWorkId, formToJSON(formData));
     ref.current?.reset();
   };
 

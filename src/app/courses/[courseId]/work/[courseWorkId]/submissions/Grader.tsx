@@ -1,14 +1,14 @@
 'use client';
 import { RootState } from '@/lib/redux/store';
 import { Accordion, Flex, Group, Slider, Stack, Text } from '@mantine/core';
-import { RubricItem } from '@prisma/client';
+import { Criterion } from '@prisma/client';
 import axios from 'axios';
 import { useSession } from 'next-auth/react';
 import React from 'react';
 import { useSelector } from 'react-redux';
 
 type Props = {
-  criteria: RubricItem[] | undefined;
+  criteria: Criterion[] | undefined;
 };
 
 type AccordionLabelProps = {

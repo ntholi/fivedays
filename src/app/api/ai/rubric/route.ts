@@ -50,19 +50,3 @@ export async function POST(request: Request) {
     return NextResponse.json(errorToJSON(error));
   }
 }
-
-// type OutPut = z.infer<typeof outputSchema>;
-// async function save(courseId: string, courseWorkId: string, output: OutPut) {
-//   console.log('courseId', courseId);
-//   console.log('courseWorkId', courseWorkId);
-//   console.log('output', output);
-//   await prisma.rubric.create({
-//     data: {
-//       courseId: courseId,
-//       courseWorkId: courseWorkId,
-//       rubricItems: {
-//         create: output.rubric,
-//       },
-//     },
-//   });
-// }

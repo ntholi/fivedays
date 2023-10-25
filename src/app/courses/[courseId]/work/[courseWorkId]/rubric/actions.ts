@@ -1,6 +1,6 @@
 'use server';
 import prisma from '@/lib/db';
-import { RubricItem } from '@prisma/client';
+import { Criterion } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -15,9 +15,9 @@ export async function createRubric(
   courseWorkId: string,
   items: object[]
 ) {
-  const rubricItems = z.array(schema).parse(items);
+  const criteria = z.array(schema).parse(items);
 
-  await prisma.rubricItem.deleteMany({
+  await prisma.criterion.deleteMany({
     where: {
       courseId: courseId,
       courseWorkId: courseWorkId,
@@ -35,8 +35,8 @@ export async function createRubric(
     data: {
       courseId: courseId,
       courseWorkId: courseWorkId,
-      rubricItems: {
-        create: rubricItems,
+      criteria: {
+        create: criteria,
       },
     },
   });
@@ -44,14 +44,14 @@ export async function createRubric(
   revalidatePath(`/courses/${courseId}/work/${courseWorkId}/rubric`);
 }
 
-export async function addRubricItem(
+export async function addCriteria(
   courseId: string,
   courseWorkId: string,
   obj: object
 ) {
   const data = schema.parse(obj);
 
-  await prisma.rubricItem.create({
+  await prisma.criterion.create({
     data: {
       rubric: {
         connectOrCreate: {
@@ -74,8 +74,8 @@ export async function addRubricItem(
   revalidatePath(`/courses/${courseId}/work/${courseWorkId}/rubric`);
 }
 
-export const deleteRubricItem = async (item: RubricItem) => {
-  await prisma.rubricItem.delete({
+export const deleteCriterion = async (item: Criterion) => {
+  await prisma.criterion.delete({
     where: {
       id: item.id,
     },

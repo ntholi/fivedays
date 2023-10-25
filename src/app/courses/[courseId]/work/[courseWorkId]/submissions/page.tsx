@@ -74,12 +74,12 @@ async function StudentListWrapper({ courseId, courseWorkId }: WrapperProps) {
 async function GraderWrapper({ courseId, courseWorkId }: WrapperProps) {
   const rubric = await prisma.rubric.findUnique({
     where: { courseId_courseWorkId: { courseId, courseWorkId } },
-    include: { rubricItems: true },
+    include: { criteria: true },
   });
 
   return (
     <Suspense fallback={<Skeleton h={{ base: 80, md: '85vh' }} />}>
-      <Grader criteria={rubric?.rubricItems} />
+      <Grader criteria={rubric?.criteria} />
     </Suspense>
   );
 }

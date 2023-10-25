@@ -1,15 +1,15 @@
 import React from 'react';
-import RubricItem from './RubricItem';
 import prisma from '@/lib/db';
 import { List } from '@mantine/core';
+import CriterionView from './CriterionView';
 
 type Props = {
   courseId: string;
   courseWorkId: string;
 };
 
-export default async function RubricList({ courseId, courseWorkId }: Props) {
-  const rubricItems = await prisma.rubricItem.findMany({
+export default async function Rubric({ courseId, courseWorkId }: Props) {
+  const criteria = await prisma.criterion.findMany({
     where: {
       courseId,
       courseWorkId,
@@ -21,8 +21,8 @@ export default async function RubricList({ courseId, courseWorkId }: Props) {
 
   return (
     <List mt='lg'>
-      {rubricItems.map((it) => (
-        <RubricItem key={it.id} rubricItem={it} />
+      {criteria.map((it) => (
+        <CriterionView key={it.id} criterion={it} />
       ))}
     </List>
   );

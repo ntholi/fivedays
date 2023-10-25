@@ -8,21 +8,21 @@ import {
   Stack,
   ActionIcon,
 } from '@mantine/core';
-import { RubricItem } from '@prisma/client';
+import { Criterion } from '@prisma/client';
 import { IconTrash } from '@tabler/icons-react';
-import { deleteRubricItem } from './actions';
+import { deleteCriterion } from './actions';
 import { useTransition } from 'react';
 
 type Props = {
-  rubricItem: RubricItem;
+  criterion: Criterion;
 };
 
-export default function RubricItem({ rubricItem }: Props) {
-  const { title, points, description } = rubricItem;
+export default function CriterionView({ criterion }: Props) {
+  const { title, points, description } = criterion;
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = async () => {
-    startTransition(() => deleteRubricItem(rubricItem));
+    startTransition(() => deleteCriterion(criterion));
   };
 
   return (

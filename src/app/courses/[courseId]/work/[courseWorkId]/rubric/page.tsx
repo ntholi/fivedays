@@ -14,7 +14,7 @@ import Heading from '../heading/Heading';
 import googleClassroom from '@/lib/config/googleClassroom';
 import { IconChevronLeft } from '@tabler/icons-react';
 import Link from 'next/link';
-import RubricList from './RubricList';
+import Rubric from './RubricList';
 import GenerateRubric from './GenerateRubric';
 
 type Props = {
@@ -66,7 +66,7 @@ export default async function RubricPage({
         </GridCol>
         <GridCol span={{ base: 12, md: 6 }}>
           <Suspense fallback={<Skeleton mt='lg' height={100} />}>
-            <RubricList courseId={courseId} courseWorkId={courseWorkId} />
+            <Rubric courseId={courseId} courseWorkId={courseWorkId} />
           </Suspense>
         </GridCol>
       </Grid>
