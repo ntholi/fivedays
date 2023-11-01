@@ -1,5 +1,5 @@
 'use client';
-import { experimental_useFormStatus as useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { Button } from '@mantine/core';
 import { ButtonProps } from '@mantine/core';
 

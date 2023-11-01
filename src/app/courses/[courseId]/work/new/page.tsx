@@ -19,16 +19,14 @@ type Props = {
   };
 };
 
-export async function getCourse(id: string) {
+async function getCourse(id: string) {
   const classroom = await googleClassroom();
   const { data: course } = await classroom.courses.get({ id });
   return course;
 }
 
-export default async function NewCourseWorkPage({
-  params: { courseId },
-}: Props) {
-  const course = await getCourse(courseId);
+export default async function NewCourseWorkPage({ params }: Props) {
+  const course = await getCourse(params.courseId);
 
   const items = [
     { title: 'Courses', href: '/courses' },

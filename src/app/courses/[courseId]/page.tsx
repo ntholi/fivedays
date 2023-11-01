@@ -25,7 +25,7 @@ type Props = {
   };
 };
 
-export async function getCourse(id: string) {
+async function getCourse(id: string) {
   const classroom = await googleClassroom();
   const { data: course } = await classroom.courses.get({ id });
   return course;
@@ -38,7 +38,7 @@ export async function generateMetadata({ params: { courseId } }: Props) {
   };
 }
 
-export async function getCourseWorkList(courseId: string) {
+async function getCourseWorkList(courseId: string) {
   const classroom = await googleClassroom();
   const { data: courseWork } = await classroom.courses.courseWork.list({
     courseId,
