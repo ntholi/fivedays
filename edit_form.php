@@ -67,7 +67,7 @@ class gradingform_fivedays_editfivedays extends moodleform {
     public function definition_after_data() {
         $form = $this->_form;
         $el = $form->getElement('status');
-        if (!$el->_flagFrozen && $form->isSubmitted()) {
+        if (!$el->_flagFrozen && $this->is_submitted()) {
             $data = $form->getSubmitValues();
             if (isset($data['savefivedays'])) {
                 $el->setValue(gradingform_controller::DEFINITION_STATUS_READY);
@@ -75,7 +75,7 @@ class gradingform_fivedays_editfivedays extends moodleform {
                 $el->setValue(gradingform_controller::DEFINITION_STATUS_DRAFT);
             }
         }
-        if ($form->isSubmitted() && $form->isNoSubmit()) {
+        if ($this->is_submitted() && $this->no_submit_button_pressed()) {
             if ($this->need_confirm_regrading($this->_customdata['controller'])) {
                 $this->findButton('savefivedays')->setValue(get_string('save', 'gradingform_fivedays'));
             }
