@@ -1,0 +1,249 @@
+.gradingform_fivedays {
+    width: 100%;
+}
+
+.gradingform_fivedays .fivedays-criteria {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.gradingform_fivedays .criterion {
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+    border-radius: 0.375rem;
+    background-color: #fff;
+}
+
+.gradingform_fivedays .criterion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.gradingform_fivedays .criterion-header .description {
+    flex: 1;
+    padding-right: 1rem;
+}
+
+.gradingform_fivedays .criterion-header .description textarea {
+    width: 100%;
+    min-height: 60px;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.gradingform_fivedays .criterion-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.gradingform_fivedays .criterion-actions a {
+    color: #6c757d;
+    padding: 0.25rem;
+}
+
+.gradingform_fivedays .criterion-actions a:hover {
+    color: #212529;
+}
+
+.gradingform_fivedays .levels {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0.75rem;
+    gap: 0.5rem;
+}
+
+.gradingform_fivedays .level {
+    flex: 1;
+    min-width: 150px;
+    max-width: 250px;
+    border: 2px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.gradingform_fivedays .level:hover {
+    border-color: #adb5bd;
+}
+
+.gradingform_fivedays .level.selected,
+.gradingform_fivedays .level.checked {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
+
+.gradingform_fivedays .level-inner {
+    padding: 0.75rem;
+}
+
+.gradingform_fivedays .level .definition {
+    margin-bottom: 0.5rem;
+}
+
+.gradingform_fivedays .level .definition textarea {
+    width: 100%;
+    min-height: 50px;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.gradingform_fivedays .level .score {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.gradingform_fivedays .level .score input {
+    width: 60px;
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+}
+
+.gradingform_fivedays .level .range-display {
+    display: block;
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-weight: normal;
+    margin-top: 0.25rem;
+}
+
+.gradingform_fivedays .level-actions {
+    text-align: right;
+}
+
+.gradingform_fivedays .level-actions a {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.gradingform_fivedays .level-actions a:hover {
+    color: #dc3545;
+}
+
+.gradingform_fivedays .addlevel,
+.gradingform_fivedays .addcriterion {
+    margin-top: 0.5rem;
+}
+
+.gradingform_fivedays .fivedays-options {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.gradingform_fivedays .fivedays-custom-score {
+    margin-top: 0.5rem;
+}
+
+.gradingform_fivedays .fivedays-custom-score input {
+    width: 80px;
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.gradingform_fivedays .fivedays-custom-score input.error {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+}
+
+.gradingform_fivedays .fivedays-range-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-left: 0.5rem;
+}
+
+.gradingform_fivedays .fivedays-range-tooltip {
+    display: none;
+    position: absolute;
+    background-color: #212529;
+    color: #fff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    z-index: 1000;
+}
+
+.gradingform_fivedays .remark {
+    margin-top: 0.5rem;
+}
+
+.gradingform_fivedays .remark textarea {
+    width: 100%;
+    min-height: 60px;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.gradingform_fivedays .criterion.locked .level {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.gradingform_fivedays .fivedays-grade-summary {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: #e9ecef;
+    border-radius: 0.375rem;
+    font-weight: 600;
+}
+
+.gradingform_fivedays .criterion-remark {
+    padding: 0.5rem 0.75rem;
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.gradingform_fivedays .criterion-remark textarea {
+    width: 100%;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    min-height: 40px;
+}
+
+.gradingform_fivedays_preview .level {
+    cursor: default;
+}
+
+.gradingform_fivedays_eval .level {
+    cursor: pointer;
+}
+
+.gradingform_fivedays_eval .level:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+.gradingform_fivedays .level-radio {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.gradingform_fivedays .score-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+.gradingform_fivedays .score-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
