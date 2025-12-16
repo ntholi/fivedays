@@ -37,20 +37,27 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         $criteriontemplate = html_writer::start_tag('tr', [
             'class' => 'criterion' . $criterion['class'],
             'id' => '{NAME}-criteria-{CRITERION-id}',
+            'data-id' => $criterion['id'],
         ]);
 
         if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FULL) {
             $criteriontemplate .= html_writer::start_tag('td', ['class' => 'controls']);
-            foreach (['moveup', 'delete', 'movedown'] as $action) {
-                $criteriontemplate .= html_writer::tag('input', '', [
-                    'type' => 'submit',
-                    'name' => '{NAME}[criteria][{CRITERION-id}][' . $action . ']',
-                    'id' => '{NAME}-criteria-{CRITERION-id}-' . $action,
-                    'value' => get_string('criterion' . $action, 'gradingform_fivedays'),
+            $criteriontemplate .= html_writer::start_tag('div', ['class' => 'criterion-actions']);
+            $actions = [
+                'moveup' => 'fa-arrow-up',
+                'delete' => 'fa-trash',
+                'movedown' => 'fa-arrow-down',
+            ];
+            foreach ($actions as $action => $icon) {
+                $criteriontemplate .= html_writer::start_tag('a', [
+                    'href' => '#',
                     'class' => $action,
                     'title' => get_string('criterion' . $action, 'gradingform_fivedays'),
                 ]);
+                $criteriontemplate .= html_writer::tag('i', '', ['class' => 'icon fa ' . $icon]);
+                $criteriontemplate .= html_writer::end_tag('a');
             }
+            $criteriontemplate .= html_writer::end_tag('div');
             $criteriontemplate .= html_writer::end_tag('td');
             $criteriontemplate .= html_writer::empty_tag('input', [
                 'type' => 'hidden',
@@ -187,6 +194,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         $tdattributes = [
             'id' => '{NAME}-criteria-{CRITERION-id}-levels-{LEVEL-id}',
             'class' => 'level' . $level['class'],
+            'data-id' => $level['id'],
         ];
         if (isset($level['tdwidth'])) {
             $tdattributes['style'] = 'width: ' . round($level['tdwidth']) . '%;';
@@ -302,13 +310,14 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         }
 
         if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FULL) {
-            $leveltemplate .= html_writer::start_tag('div', ['class' => 'delete mt-2']);
-            $leveltemplate .= html_writer::tag('input', '', [
-                'type' => 'submit',
-                'name' => '{NAME}[criteria][{CRITERION-id}][levels][{LEVEL-id}][delete]',
-                'value' => get_string('leveldelete', 'gradingform_fivedays', $level['index']),
-                'class' => 'btn btn-sm btn-danger',
+            $leveltemplate .= html_writer::start_tag('div', ['class' => 'level-actions mt-2']);
+            $leveltemplate .= html_writer::start_tag('a', [
+                'href' => '#',
+                'class' => 'delete',
+                'title' => get_string('leveldelete', 'gradingform_fivedays', $level['index']),
             ]);
+            $leveltemplate .= html_writer::tag('i', '', ['class' => 'icon fa fa-trash']);
+            $leveltemplate .= html_writer::end_tag('a');
             $leveltemplate .= html_writer::end_tag('div');
         }
 

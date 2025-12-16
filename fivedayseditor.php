@@ -58,6 +58,13 @@ class MoodleQuickForm_fivedayseditor extends HTML_QuickForm_input {
                     ['confirmdeletelevel', 'gradingform_fivedays'],
                     ['criterionempty', 'gradingform_fivedays'],
                     ['levelempty', 'gradingform_fivedays'],
+                    ['criterionmoveup', 'gradingform_fivedays'],
+                    ['criterionmovedown', 'gradingform_fivedays'],
+                    ['criteriondelete', 'gradingform_fivedays'],
+                    ['leveldelete', 'gradingform_fivedays'],
+                    ['addlevel', 'gradingform_fivedays'],
+                    ['points', 'gradingform_fivedays'],
+                    ['err_mintwolevels', 'gradingform_fivedays'],
                 ],
             ];
             $PAGE->requires->js_init_call('M.gradingform_fivedayseditor.init', [[

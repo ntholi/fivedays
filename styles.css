@@ -247,3 +247,54 @@
     color: #6c757d;
     text-transform: uppercase;
 }
+
+/* Table-based criterion layout */
+.gradingform_fivedays table.criteria {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
+}
+
+.gradingform_fivedays table.criteria tr.criterion {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+}
+
+.gradingform_fivedays table.criteria tr.criterion td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border: 1px solid #dee2e6;
+}
+
+.gradingform_fivedays table.criteria tr.criterion td.controls {
+    width: 100px;
+    text-align: center;
+    background-color: #f8f9fa;
+}
+
+.gradingform_fivedays table.criteria tr.criterion td.description {
+    min-width: 200px;
+}
+
+.gradingform_fivedays table.criteria tr.criterion td.description textarea {
+    width: 100%;
+    min-height: 80px;
+}
+
+.gradingform_fivedays table.criteria tr.criterion td.levels {
+    min-width: 300px;
+}
+
+.gradingform_fivedays table.criteria tr.criterion td.addlevel {
+    width: 100px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.gradingform_fivedays .levels-container {
+    gap: 0.5rem;
+}
+
+.gradingform_fivedays .levels-container .level {
+    padding: 0.75rem;
+}
