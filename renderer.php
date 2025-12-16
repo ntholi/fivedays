@@ -34,8 +34,9 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
             }
         }
 
+        // Match JS structure exactly: class="criterion" without suffix for consistency
         $criteriontemplate = html_writer::start_tag('tr', [
-            'class' => 'criterion' . $criterion['class'],
+            'class' => 'criterion',
             'id' => '{NAME}-criteria-{CRITERION-id}',
             'data-id' => $criterion['id'],
         ]);
@@ -43,6 +44,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FULL) {
             $criteriontemplate .= html_writer::start_tag('td', ['class' => 'controls']);
             $criteriontemplate .= html_writer::start_tag('div', ['class' => 'criterion-actions']);
+            // Order matches JS: moveup, delete, movedown
             $actions = [
                 'moveup' => 'fa-arrow-up',
                 'delete' => 'fa-trash',
@@ -59,6 +61,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
             }
             $criteriontemplate .= html_writer::end_tag('div');
             $criteriontemplate .= html_writer::end_tag('td');
+            // Hidden input outside of td, matching JS structure
             $criteriontemplate .= html_writer::empty_tag('input', [
                 'type' => 'hidden',
                 'name' => '{NAME}[criteria][{CRITERION-id}][sortorder]',
@@ -68,13 +71,15 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
                 'class' => 'description',
                 'id' => '{NAME}-criteria-{CRITERION-id}-description-cell',
             ]);
+            // Add placeholder attribute to match JS
             $criteriontemplate .= html_writer::tag('textarea', s($criterion['description']), [
                 'name' => '{NAME}[criteria][{CRITERION-id}][description]',
                 'id' => '{NAME}-criteria-{CRITERION-id}-description',
                 'cols' => '10',
                 'rows' => '5',
                 'class' => 'form-control',
-                'aria-label' => get_string('criterion', 'gradingform_fivedays'),
+                'aria-label' => get_string('criterionempty', 'gradingform_fivedays'),
+                'placeholder' => get_string('criterionempty', 'gradingform_fivedays'),
             ]);
         } else {
             if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FROZEN) {
@@ -98,12 +103,13 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
 
         if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FULL) {
             $criteriontemplate .= html_writer::start_tag('td', ['class' => 'addlevel']);
+            // Match JS structure exactly with addlevel class on the input
             $criteriontemplate .= html_writer::tag('input', '', [
                 'type' => 'submit',
                 'name' => '{NAME}[criteria][{CRITERION-id}][levels][addlevel]',
                 'id' => '{NAME}-criteria-{CRITERION-id}-levels-addlevel',
                 'value' => get_string('addlevel', 'gradingform_fivedays'),
-                'class' => 'btn btn-secondary',
+                'class' => 'addlevel btn btn-secondary',
             ]);
             $criteriontemplate .= html_writer::end_tag('td');
         }
@@ -191,9 +197,10 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
             }
         }
 
+        // Match JS structure exactly: class="level" without suffix
         $tdattributes = [
             'id' => '{NAME}-criteria-{CRITERION-id}-levels-{LEVEL-id}',
-            'class' => 'level' . $level['class'],
+            'class' => 'level',
             'data-id' => $level['id'],
         ];
         if (isset($level['tdwidth'])) {
@@ -207,12 +214,14 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FULL) {
             $definitionclass .= ' input-group';
             $leveltemplate .= html_writer::start_tag('div', ['class' => $definitionclass]);
+            // Add placeholder to match JS
             $leveltemplate .= html_writer::tag('textarea', s($level['definition']), [
                 'name' => '{NAME}[criteria][{CRITERION-id}][levels][{LEVEL-id}][definition]',
                 'cols' => '10',
                 'rows' => '4',
                 'class' => 'form-control',
-                'aria-label' => get_string('leveldefinition', 'gradingform_fivedays'),
+                'aria-label' => get_string('levelempty', 'gradingform_fivedays'),
+                'placeholder' => get_string('levelempty', 'gradingform_fivedays'),
             ]);
             $leveltemplate .= html_writer::end_tag('div');
         } else {

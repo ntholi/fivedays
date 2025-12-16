@@ -134,12 +134,15 @@ class MoodleQuickForm_fivedayseditor extends HTML_QuickForm_input {
                     'levels' => [],
                     'sortorder' => $id,
                 ];
-                foreach (['NEWID1', 'NEWID2', 'NEWID3'] as $newlevelid) {
-                    $criterion['levels'][$newlevelid] = [
-                        'definition' => '',
-                        'score' => 0,
-                    ];
-                }
+                // Match JS: create 2 levels with scores 0 and 10
+                $criterion['levels']['NEWID1'] = [
+                    'definition' => '',
+                    'score' => 0,
+                ];
+                $criterion['levels']['NEWID2'] = [
+                    'definition' => '',
+                    'score' => 10,
+                ];
                 $this->nonjsbuttonpressed = true;
             }
             $levels = [];
