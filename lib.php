@@ -198,7 +198,8 @@ class gradingform_fivedays_controller extends gradingform_controller {
         }
 
         foreach ($userdata->fivedays['criteria'] as $id => $criterion) {
-            if (preg_match('/^NEWID(\d+)$/', $id, $matches)) {
+            $isnewcriterion = preg_match('/^NEWID(\d+)$/', $id, $matches);
+            if ($isnewcriterion) {
                 $criterion['definitionid'] = $this->definition->id;
                 $criterion['descriptionformat'] = FORMAT_MOODLE;
                 $id = $DB->insert_record('gradingform_fivedays_criteria', $criterion);
@@ -227,18 +228,18 @@ class gradingform_fivedays_controller extends gradingform_controller {
                             'score' => $level['score'],
                             'definition' => $level['definition'],
                         ];
-                        if (isset($currentcriteria[$criterion['id']]['levels'][$levelid]['score']) &&
-                            $level['score'] != $currentcriteria[$criterion['id']]['levels'][$levelid]['score']) {
+                        if (!$isnewcriterion && isset($currentcriteria[$id]['levels'][$levelid]['score']) &&
+                            $level['score'] != $currentcriteria[$id]['levels'][$levelid]['score']) {
                             $haschanges[1] = true;
                         }
                         $DB->update_record('gradingform_fivedays_levels', $record);
                     }
-                    if (isset($currentcriteria[$id]['levels'][$levelid])) {
+                    if (!$isnewcriterion && isset($currentcriteria[$id]['levels'][$levelid])) {
                         unset($currentcriteria[$id]['levels'][$levelid]);
                     }
                 }
             }
-            if (isset($currentcriteria[$id])) {
+            if (!$isnewcriterion && isset($currentcriteria[$id])) {
                 unset($currentcriteria[$id]);
             }
         }
