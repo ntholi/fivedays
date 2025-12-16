@@ -351,11 +351,9 @@ class gradingform_fivedays_controller extends gradingform_controller {
 
     protected function delete_plugin_definition(): void {
         global $DB;
-        $DB->delete_records('gradingform_fivedays_fillings', ['criterionid' => $DB->sql_substring('criterionid')]);
         $sql = "DELETE FROM {gradingform_fivedays_fillings}
                  WHERE criterionid IN (SELECT id FROM {gradingform_fivedays_criteria} WHERE definitionid = :definitionid)";
         $DB->execute($sql, ['definitionid' => $this->definition->id]);
-        $DB->delete_records('gradingform_fivedays_levels', ['criterionid' => $DB->sql_substring('criterionid')]);
         $sql = "DELETE FROM {gradingform_fivedays_levels}
                  WHERE criterionid IN (SELECT id FROM {gradingform_fivedays_criteria} WHERE definitionid = :definitionid)";
         $DB->execute($sql, ['definitionid' => $this->definition->id]);
