@@ -166,6 +166,7 @@ class gradingform_fivedays_controller extends gradingform_controller {
             $haschanges[5] = true;
         }
         parent::update_definition($userdata, $usermodified);
+        $this->load_definition();
         if (isset($userdata->fivedays['options'])) {
             $newoptionsdata = $userdata->fivedays['options'];
             $newoptions = [];
