@@ -162,7 +162,9 @@ class gradingform_fivedays_controller extends gradingform_controller {
             if (!isset($userdata->name)) {
                 $userdata->name = '';
             }
-            $userdata->status = gradingform_controller::DEFINITION_STATUS_DRAFT;
+            if (!property_exists($userdata, 'status')) {
+                $userdata->status = gradingform_controller::DEFINITION_STATUS_DRAFT;
+            }
             $haschanges[5] = true;
         }
         parent::update_definition($userdata, $usermodified);
