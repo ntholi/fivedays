@@ -4,47 +4,52 @@ setlocal
 set PLUGIN_NAME=fivedays
 set PLUGIN_TYPE=gradingform
 set SOURCE_DIR=%~dp0
-set BUILD_DIR=%SOURCE_DIR%build
+set OUTPUT_DIR=%SOURCE_DIR%build
+set STAGE_DIR=%TEMP%\moodle_%PLUGIN_TYPE%_%PLUGIN_NAME%_stage
+set ZIP_PATH=%OUTPUT_DIR%\%PLUGIN_TYPE%_%PLUGIN_NAME%.zip
 
 echo ========================================
 echo FiveDays Rubric Plugin - Build Script
 echo ========================================
 echo.
 
-if exist "%BUILD_DIR%" (
+if exist "%OUTPUT_DIR%" (
     echo Cleaning previous build...
-    rmdir /s /q "%BUILD_DIR%"
+    rmdir /s /q "%OUTPUT_DIR%"
+)
+
+if exist "%STAGE_DIR%" (
+    rmdir /s /q "%STAGE_DIR%"
 )
 
 echo Creating build directory...
-mkdir "%BUILD_DIR%"
-mkdir "%BUILD_DIR%\%PLUGIN_NAME%"
+mkdir "%OUTPUT_DIR%"
+mkdir "%STAGE_DIR%"
+mkdir "%STAGE_DIR%\%PLUGIN_NAME%"
 
 echo Copying plugin files...
-xcopy /s /e /y "%SOURCE_DIR%*.php" "%BUILD_DIR%\%PLUGIN_NAME%\" >nul 2>&1
-xcopy /s /e /y "%SOURCE_DIR%*.js" "%BUILD_DIR%\%PLUGIN_NAME%\" >nul 2>&1
-xcopy /s /e /y "%SOURCE_DIR%*.css" "%BUILD_DIR%\%PLUGIN_NAME%\" >nul 2>&1
-xcopy /s /e /y "%SOURCE_DIR%*.xml" "%BUILD_DIR%\%PLUGIN_NAME%\" >nul 2>&1
-xcopy /s /e /y "%SOURCE_DIR%db" "%BUILD_DIR%\%PLUGIN_NAME%\db\" >nul 2>&1
-xcopy /s /e /y "%SOURCE_DIR%lang" "%BUILD_DIR%\%PLUGIN_NAME%\lang\" >nul 2>&1
-xcopy /s /e /y "%SOURCE_DIR%js" "%BUILD_DIR%\%PLUGIN_NAME%\js\" >nul 2>&1
-
-if exist "%SOURCE_DIR%README.md" (
-    copy /y "%SOURCE_DIR%README.md" "%BUILD_DIR%\%PLUGIN_NAME%\" >nul
-)
-
-if exist "%SOURCE_DIR%LICENSE" (
-    copy /y "%SOURCE_DIR%LICENSE" "%BUILD_DIR%\%PLUGIN_NAME%\" >nul
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $src='%SOURCE_DIR%'; $dst=Join-Path '%STAGE_DIR%' '%PLUGIN_NAME%'; New-Item -ItemType Directory -Force -Path $dst | Out-Null; Copy-Item -Force -Path (Join-Path $src '*.php') -Destination $dst; if (Test-Path (Join-Path $src 'db')) { Copy-Item -Recurse -Force -Path (Join-Path $src 'db') -Destination $dst }; if (Test-Path (Join-Path $src 'lang')) { Copy-Item -Recurse -Force -Path (Join-Path $src 'lang') -Destination $dst }; if (Test-Path (Join-Path $src 'js')) { Copy-Item -Recurse -Force -Path (Join-Path $src 'js') -Destination $dst }; if (Test-Path (Join-Path $src 'styles.css')) { Copy-Item -Force -Path (Join-Path $src 'styles.css') -Destination $dst }; if (Test-Path (Join-Path $src 'README.md')) { Copy-Item -Force -Path (Join-Path $src 'README.md') -Destination $dst }; if (Test-Path (Join-Path $src 'LICENSE')) { Copy-Item -Force -Path (Join-Path $src 'LICENSE') -Destination $dst }"
+if errorlevel 1 (
+    echo.
+    echo ERROR: Failed to copy plugin files.
+    exit /b 1
 )
 
 echo Creating ZIP archive...
-cd "%BUILD_DIR%"
-powershell -Command "Compress-Archive -Path '%PLUGIN_NAME%' -DestinationPath '%PLUGIN_TYPE%_%PLUGIN_NAME%.zip' -Force"
+if exist "%ZIP_PATH%" (
+    del /q "%ZIP_PATH%" >nul 2>&1
+)
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; Compress-Archive -Path (Join-Path '%STAGE_DIR%' '%PLUGIN_NAME%') -DestinationPath '%ZIP_PATH%' -Force"
+if errorlevel 1 (
+    echo.
+    echo ERROR: Failed to create ZIP archive.
+    exit /b 1
+)
 
 echo.
 echo ========================================
 echo Build complete!
-echo Output: %BUILD_DIR%\%PLUGIN_TYPE%_%PLUGIN_NAME%.zip
+echo Output: %ZIP_PATH%
 echo ========================================
 
 endlocal
