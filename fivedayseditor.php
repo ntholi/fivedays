@@ -86,7 +86,15 @@ class MoodleQuickForm_fivedayseditor extends HTML_QuickForm_input {
             $html .= $renderer->display_regrade_confirmation($this->getName(), $this->regradeconfirmation, $data['regrade']);
         }
         if ($this->validationerrors) {
-            $html .= html_writer::div($renderer->notification($this->validationerrors));
+            $messages = [];
+            foreach ((array) $this->validationerrors as $errorcode) {
+                if (is_string($errorcode) && get_string_manager()->string_exists($errorcode, 'gradingform_fivedays')) {
+                    $messages[] = get_string($errorcode, 'gradingform_fivedays');
+                }
+            }
+            if ($messages) {
+                $html .= html_writer::div($renderer->notification(implode('<br>', $messages)));
+            }
         }
         $html .= $renderer->display_fivedays($data['criteria'], $data['options'], $mode, $this->getName());
         return $html;

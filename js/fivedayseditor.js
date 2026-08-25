@@ -7,10 +7,7 @@ M.gradingform_fivedayseditor.init = function(Y, options) {
     self.Y = Y;
     self.options = options || {};
     self.name = options.name;
-    self.criterionCounter = 0;
-    self.levelCounter = 0;
 
-    // Find the criteria table by ID or class
     var criteriaTable = Y.one('#' + self.name + '-criteria');
     if (criteriaTable) {
         self.initTable(criteriaTable);
@@ -19,23 +16,22 @@ M.gradingform_fivedayseditor.init = function(Y, options) {
     self.initAddCriterionButton();
 };
 
-M.gradingform_fivedayseditor.initTable = function(table) {
-    var self = this;
-    var Y = self.Y;
-
-    table.all('.criterion').each(function(criterion, index) {
-        self.initCriterion(criterion);
-        var criterionId = criterion.getData('id');
-        if (criterionId && parseInt(criterionId) > self.criterionCounter) {
-            self.criterionCounter = parseInt(criterionId);
+M.gradingform_fivedayseditor.newIdNumber = function(nodes) {
+    var next = 1;
+    nodes.each(function(node) {
+        var match = String(node.getData('id') || '').match(/^NEWID(\d+)$/);
+        if (match) {
+            next = Math.max(next, parseInt(match[1], 10) + 1);
         }
     });
+    return next;
+};
 
-    table.all('.level').each(function(level) {
-        var levelId = level.getData('id');
-        if (levelId && parseInt(levelId) > self.levelCounter) {
-            self.levelCounter = parseInt(levelId);
-        }
+M.gradingform_fivedayseditor.initTable = function(table) {
+    var self = this;
+
+    table.all('.criterion').each(function(criterion) {
+        self.initCriterion(criterion);
     });
 };
 
@@ -185,8 +181,7 @@ M.gradingform_fivedayseditor.addLevel = function(criterion) {
     var self = this;
     var Y = self.Y;
 
-    self.levelCounter++;
-    var newLevelId = 'NEWID' + self.levelCounter;
+    var newLevelId = 'NEWID' + self.newIdNumber(criterion.all('.level'));
     var criterionId = criterion.getData('id');
     var levelsContainer = criterion.one('.levels-container');
 
@@ -311,39 +306,27 @@ M.gradingform_fivedayseditor.initAddCriterionButton = function() {
     var self = this;
     var Y = self.Y;
 
-    // Find the add criterion button by ID
     var addBtn = Y.one('#' + self.name + '-criteria-addcriterion');
     if (addBtn) {
         addBtn.on('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             self.addCriterion(addBtn);
         });
     }
-
-    // Also handle any buttons with .addcriterion class
-    Y.all('.addcriterion').each(function(button) {
-        if (button !== addBtn) {
-            button.on('click', function(e) {
-                e.preventDefault();
-                self.addCriterion(button);
-            });
-        }
-    });
 };
 
 M.gradingform_fivedayseditor.addCriterion = function(button) {
     var self = this;
     var Y = self.Y;
 
-    self.criterionCounter++;
-    var newCriterionId = 'NEWID' + self.criterionCounter;
-
-    self.levelCounter++;
-    var level1Id = 'NEWID' + self.levelCounter;
-    self.levelCounter++;
-    var level2Id = 'NEWID' + self.levelCounter;
-
     var criteriaTable = Y.one('#' + self.name + '-criteria');
+    if (!criteriaTable) {
+        return;
+    }
+    var newCriterionId = 'NEWID' + self.newIdNumber(criteriaTable.all('.criterion'));
+    var level1Id = 'NEWID1';
+    var level2Id = 'NEWID2';
     var baseName = self.name + '[criteria][' + newCriterionId + ']';
 
     // Create a table row matching PHP renderer structure
@@ -357,8 +340,8 @@ M.gradingform_fivedayseditor.addCriterion = function(button) {
         '<a href="#" class="movedown" title="' + M.util.get_string('criterionmovedown', 'gradingform_fivedays') + '">' +
         '<i class="icon fa fa-arrow-down"></i></a>' +
         '</div>' +
-        '</td>' +
         '<input type="hidden" name="' + baseName + '[sortorder]" value="999" />' +
+        '</td>' +
         '<td class="description" id="' + self.name + '-criteria-' + newCriterionId + '-description-cell">' +
         '<textarea name="' + baseName + '[description]" id="' + self.name + '-criteria-' + newCriterionId + '-description" ' +
         'cols="10" rows="5" class="form-control" aria-label="' + M.util.get_string('criterionempty', 'gradingform_fivedays') + '" ' +
@@ -371,14 +354,13 @@ M.gradingform_fivedayseditor.addCriterion = function(button) {
         '</div>' +
         '</td>' +
         '<td class="addlevel">' +
-        '<input type="submit" name="' + baseName + '[levels][addlevel]" id="' + self.name + '-criteria-' + newCriterionId + '-levels-addlevel" ' +
+        '<input type="button" name="' + baseName + '[levels][addlevel]" id="' + self.name + '-criteria-' + newCriterionId + '-levels-addlevel" ' +
         'value="' + M.util.get_string('addlevel', 'gradingform_fivedays') + '" class="addlevel btn btn-secondary" />' +
         '</td>' +
         '</tr>';
 
-    if (criteriaTable) {
-        criteriaTable.append(criterionHtml);
-    }
+    var target = criteriaTable.one('tbody') || criteriaTable;
+    target.append(criterionHtml);
 
     var newCriterion = Y.one('#' + self.name + '-criteria-' + newCriterionId);
     if (newCriterion) {

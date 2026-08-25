@@ -60,13 +60,12 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
                 $criteriontemplate .= html_writer::end_tag('a');
             }
             $criteriontemplate .= html_writer::end_tag('div');
-            $criteriontemplate .= html_writer::end_tag('td');
-            // Hidden input outside of td, matching JS structure
             $criteriontemplate .= html_writer::empty_tag('input', [
                 'type' => 'hidden',
                 'name' => '{NAME}[criteria][{CRITERION-id}][sortorder]',
                 'value' => $criterion['sortorder'],
             ]);
+            $criteriontemplate .= html_writer::end_tag('td');
             $criteriontemplate .= html_writer::start_tag('td', [
                 'class' => 'description',
                 'id' => '{NAME}-criteria-{CRITERION-id}-description-cell',
@@ -105,7 +104,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
             $criteriontemplate .= html_writer::start_tag('td', ['class' => 'addlevel']);
             // Match JS structure exactly with addlevel class on the input
             $criteriontemplate .= html_writer::tag('input', '', [
-                'type' => 'submit',
+                'type' => 'button',
                 'name' => '{NAME}[criteria][{CRITERION-id}][levels][addlevel]',
                 'id' => '{NAME}-criteria-{CRITERION-id}-levels-addlevel',
                 'value' => get_string('addlevel', 'gradingform_fivedays'),
@@ -376,7 +375,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         ]);
 
         $caption = html_writer::tag('caption', get_string('fivedays', 'gradingform_fivedays'), ['class' => 'visually-hidden']);
-        $fivedaystable = html_writer::tag('table', $caption . $criteriastr, [
+        $fivedaystable = html_writer::tag('table', $caption . html_writer::tag('tbody', $criteriastr), [
             'class' => 'criteria',
             'id' => '{NAME}-criteria',
         ]);
@@ -385,7 +384,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
         if ($mode == gradingform_fivedays_controller::DISPLAY_EDIT_FULL) {
             $fivedaystemplate .= html_writer::start_tag('div', ['class' => 'addcriterion mt-2']);
             $fivedaystemplate .= html_writer::tag('input', '', [
-                'type' => 'submit',
+                'type' => 'button',
                 'name' => '{NAME}[criteria][addcriterion]',
                 'id' => '{NAME}-criteria-addcriterion',
                 'value' => get_string('addcriterion', 'gradingform_fivedays'),

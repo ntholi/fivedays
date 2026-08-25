@@ -42,24 +42,17 @@ $mform = new gradingform_fivedays_editfivedays(null, [
 ], 'post', '', ['class' => 'gradingform_fivedays_editform']);
 
 $data = $controller->get_definition_for_editing(true);
-$returnurl = optional_param('returnurl', $manager->get_management_url(), PARAM_LOCALURL);
+$managementurl = $manager->get_management_url();
+$returnurl = optional_param('returnurl', $managementurl, PARAM_LOCALURL);
 $data->returnurl = $returnurl;
 $mform->set_data($data);
 
 if ($mform->is_cancelled()) {
-    redirect($returnurl);
+    redirect($managementurl);
 } else if ($mform->is_submitted() && $mform->is_validated() && !$mform->need_confirm_regrading($controller)) {
     $data = $mform->get_data();
     $controller->update_definition($data);
-    $warning = null;
-    if (!empty($data->returnurl) && $data->returnurl !== $manager->get_management_url()->out(false)) {
-        if (empty($data->fivedays['options']['lockzeropoints']) && ($scores = $controller->get_min_max_score()) &&
-            $scores['minscore'] != 0) {
-            $warning = get_string('zerolevelsabsent', 'gradingform_fivedays') . '<br>' .
-                html_writer::link($manager->get_management_url(), get_string('back'));
-        }
-    }
-    redirect($returnurl, $warning, null, \core\output\notification::NOTIFY_ERROR);
+    redirect($managementurl);
 }
 
 \core\session\manager::keepalive();
