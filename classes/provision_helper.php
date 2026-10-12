@@ -123,11 +123,12 @@ class provision_helper {
 
         require_once($CFG->dirroot . '/user/lib.php');
 
-        $user = $DB->get_record('user', ['email' => $email, 'deleted' => 0]);
+        $email = strtolower(trim($email));
+        $user = self::find_user_by_email($email);
         if (!$user) {
             $record = (object) [
                 'auth' => 'oauth2',
-                'username' => strtolower(str_replace('@', '.', $email)),
+                'username' => self::unique_username(str_replace('@', '.', $email)),
                 'email' => $email,
                 'firstname' => $firstname,
                 'lastname' => $lastname,
@@ -154,6 +155,22 @@ class provision_helper {
         }
 
         return $user;
+    }
+
+    private static function unique_username(string $base): string {
+        global $CFG, $DB;
+
+        $username = $base;
+        $suffix = 1;
+        while ($DB->record_exists('user', [
+            'username' => $username,
+            'mnethostid' => $CFG->mnet_localhost_id,
+            'deleted' => 0,
+        ])) {
+            $suffix++;
+            $username = $base . $suffix;
+        }
+        return $username;
     }
 
     public static function ensure_category(string $categoryname): \core_course_category {

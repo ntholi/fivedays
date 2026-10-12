@@ -187,6 +187,11 @@ class update_rubric extends external_api {
 
         $rubricdata->fivedays['options'] = array_merge($existingoptions, $newoptions);
 
+        // Same default as Moodle's own editor: any change to a used rubric marks its gradings for regrading.
+        if ($controller->has_active_instances() && $controller->update_or_check_fivedays($rubricdata) > 0) {
+            $rubricdata->fivedays['regrade'] = 1;
+        }
+
         $controller->update_definition($rubricdata);
 
         return [

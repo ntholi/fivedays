@@ -74,8 +74,8 @@ class get_or_create_category extends external_api {
                 ];
             }
             $parentid = $parent->id;
-            
             $context = \context::instance_by_id($parent->contextid);
+            require_capability('moodle/question:managecategory', $context);
         } else {
             
             $topcat = $DB->get_record('question_categories', [

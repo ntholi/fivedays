@@ -1,5 +1,21 @@
 # Activity Utils changelog
 
+## 2026-10-12 (2)
+
+### Fixed
+- Quizzes: `update_quiz` uses `set_coursemodule_visible` (grade item and events follow visibility), rescales grades on a max-grade change, recomputes on a grade-method change, and refreshes events/open attempts on date or time-limit changes. Visibility/idnumber/grade-only updates are no longer reported as "no changes".
+- `update_quiz_slot_mark` regrades existing attempts when the mark changes; `grade_essay_question` recomputes the final grade so the gradebook updates.
+- `add_question_to_quiz` checks `question:use` on the question and that the quiz can still be edited; `get_or_create_category` checks `managecategory` on the parent's context.
+- `save_question_version` takes the next version from `core_question\versions`.
+- `get_quiz_attempt_details` returns the teacher comment as `comment`; `feedback` is general feedback only.
+- Rubric: `fill_rubric` grades through the grading instance (`submit_and_get_grade`), so only one active instance per student; validates score ranges; returns `releasestate` on every failure; creates the empty submission like typed grades do. `update_rubric` marks existing gradings for regrade when the rubric changes.
+- Assignments: `save_assignment_grade` fails when Moodle rejects the grade. Turning on marking workflow keeps already-visible grades released.
+- BigBlueButton: `create_bigbluebuttonbn` goes through `add_moduleinfo` (owner log, calendar event, grade item); update refreshes calendar/grade item; closing time must be after opening time.
+- Provisioning: existing users are found by email case-insensitively; usernames that collide get a numeric suffix.
+
+### Requires
+- `gradingform_fivedays` 2026101200.
+
 ## 2026-10-12
 
 ### Added

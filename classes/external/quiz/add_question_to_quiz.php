@@ -29,6 +29,7 @@ class add_question_to_quiz extends external_api {
 
         require_once($CFG->dirroot . '/mod/quiz/locallib.php');
         require_once($CFG->dirroot . '/question/engine/bank.php');
+        require_once($CFG->dirroot . '/lib/questionlib.php');
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'quizid' => $quizid,
@@ -49,6 +50,7 @@ class add_question_to_quiz extends external_api {
         self::validate_context($context);
         require_capability('local/activity_utils:managequizquestions', $context);
         require_capability('mod/quiz:manage', $context);
+        \mod_quiz\quiz_settings::create($quiz->id)->get_structure()->check_can_be_edited();
 
         
         $qbe = $DB->get_record('question_bank_entries', ['id' => $params['questionbankentryid']]);
@@ -79,6 +81,7 @@ class add_question_to_quiz extends external_api {
                 'slot' => 0,
             ];
         }
+        question_require_capability_on($questionversion->questionid, 'use');
 
         
         $existingref = $DB->get_record_sql(

@@ -63,7 +63,9 @@ class grade_essay_question extends external_api {
         $attempt->timemodified = time();
         $DB->update_record('quiz_attempts', $attempt);
 
-        quiz_update_grades($quiz, $attempt->userid);
+        if (empty($attempt->preview)) {
+            \mod_quiz\quiz_settings::create($quiz->id)->get_grade_calculator()->recompute_final_grade((int)$attempt->userid);
+        }
 
         return [
             'success' => true,

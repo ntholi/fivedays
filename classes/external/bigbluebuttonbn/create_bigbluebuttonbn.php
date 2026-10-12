@@ -6,9 +6,6 @@ use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
 use local_activity_utils\helper;
-use mod_bigbluebuttonbn\plugin;
-use mod_bigbluebuttonbn\local\helpers\mod_helper;
-use mod_bigbluebuttonbn\meeting;
 
 
 class create_bigbluebuttonbn extends external_api {
@@ -148,102 +145,51 @@ class create_bigbluebuttonbn extends external_api {
         require_capability('local/activity_utils:createbigbluebuttonbn', $context);
         require_capability('mod/bigbluebuttonbn:addinstance', $context);
 
-        
-        $meetingid = meeting::get_unique_meetingid_seed();
-        $moderatorpass = plugin::random_password(12);
-        $viewerpass = plugin::random_password(12, $moderatorpass);
-        
-        
-        $guestlinkuid = '';
-        $guestpassword = '';
-        if ($params['guestallowed']) {
-            [$guestlinkuid, $guestpassword] = plugin::generate_guest_meeting_credentials();
+        if ($params['openingtime'] && $params['closingtime'] && $params['closingtime'] <= $params['openingtime']) {
+            throw new \invalid_parameter_exception('closingtime must be after openingtime');
         }
 
-        
-        $bigbluebuttonbn = new \stdClass();
-        $bigbluebuttonbn->course = $params['courseid'];
-        $bigbluebuttonbn->name = $params['name'];
-        $bigbluebuttonbn->intro = $params['intro'];
-        $bigbluebuttonbn->introformat = FORMAT_HTML;
-        $bigbluebuttonbn->type = $params['type'];
-        $bigbluebuttonbn->meetingid = $meetingid;
-        $bigbluebuttonbn->moderatorpass = $moderatorpass;
-        $bigbluebuttonbn->viewerpass = $viewerpass;
-        $bigbluebuttonbn->welcome = $params['welcome'];
-        $bigbluebuttonbn->voicebridge = $params['voicebridge'];
-        $bigbluebuttonbn->wait = $params['wait'];
-        $bigbluebuttonbn->userlimit = $params['userlimit'];
-        $bigbluebuttonbn->record = $params['record'];
-        $bigbluebuttonbn->muteonstart = $params['muteonstart'];
-        $bigbluebuttonbn->disablecam = $params['disablecam'];
-        $bigbluebuttonbn->disablemic = $params['disablemic'];
-        $bigbluebuttonbn->disableprivatechat = $params['disableprivatechat'];
-        $bigbluebuttonbn->disablepublicchat = $params['disablepublicchat'];
-        $bigbluebuttonbn->disablenote = $params['disablenote'];
-        $bigbluebuttonbn->hideuserlist = $params['hideuserlist'];
-        $bigbluebuttonbn->openingtime = $params['openingtime'];
-        $bigbluebuttonbn->closingtime = $params['closingtime'];
-        $bigbluebuttonbn->guestallowed = $params['guestallowed'];
-        $bigbluebuttonbn->mustapproveuser = $params['mustapproveuser'];
-        $bigbluebuttonbn->guestlinkuid = $guestlinkuid;
-        $bigbluebuttonbn->guestpassword = $guestpassword;
-        $bigbluebuttonbn->recordings_deleted = $params['recordings_deleted'];
-        $bigbluebuttonbn->recordings_imported = $params['recordings_imported'];
-        $bigbluebuttonbn->recordings_preview = $params['recordings_preview'];
-        $bigbluebuttonbn->showpresentation = $params['showpresentation'];
-        $bigbluebuttonbn->presentation = '';
-        $bigbluebuttonbn->participants = '[]';
-        $bigbluebuttonbn->timecreated = time();
-        $bigbluebuttonbn->timemodified = 0;
-        
-        
-        $bigbluebuttonbn->completionattendance = $params['completionattendance'];
-        $bigbluebuttonbn->completionengagementchats = $params['completionengagementchats'];
-        $bigbluebuttonbn->completionengagementtalks = $params['completionengagementtalks'];
-        $bigbluebuttonbn->completionengagementraisehand = $params['completionengagementraisehand'];
-        $bigbluebuttonbn->completionengagementpollvotes = $params['completionengagementpollvotes'];
-        $bigbluebuttonbn->completionengagementemojis = $params['completionengagementemojis'];
+        $moduleinfo = helper::create_module($course, 'bigbluebuttonbn', $params['section'], $params['name'], $params['visible'], [
+            'instance' => 0,
+            'intro' => $params['intro'],
+            'introformat' => FORMAT_HTML,
+            'type' => $params['type'],
+            'welcome' => $params['welcome'],
+            'voicebridge' => $params['voicebridge'],
+            'wait' => $params['wait'],
+            'userlimit' => $params['userlimit'],
+            'record' => $params['record'],
+            'muteonstart' => $params['muteonstart'],
+            'disablecam' => $params['disablecam'],
+            'disablemic' => $params['disablemic'],
+            'disableprivatechat' => $params['disableprivatechat'],
+            'disablepublicchat' => $params['disablepublicchat'],
+            'disablenote' => $params['disablenote'],
+            'hideuserlist' => $params['hideuserlist'],
+            'openingtime' => $params['openingtime'],
+            'closingtime' => $params['closingtime'],
+            'guestallowed' => $params['guestallowed'],
+            'mustapproveuser' => $params['mustapproveuser'],
+            'recordings_deleted' => $params['recordings_deleted'],
+            'recordings_imported' => $params['recordings_imported'],
+            'recordings_preview' => $params['recordings_preview'],
+            'showpresentation' => $params['showpresentation'],
+            'presentation' => '',
+            'participants' => '[]',
+            'grade' => 0,
+            'completionattendance' => $params['completionattendance'],
+            'completionengagementchats' => $params['completionengagementchats'],
+            'completionengagementtalks' => $params['completionengagementtalks'],
+            'completionengagementraisehand' => $params['completionengagementraisehand'],
+            'completionengagementpollvotes' => $params['completionengagementpollvotes'],
+            'completionengagementemojis' => $params['completionengagementemojis'],
+        ]);
 
-        
-        $bigbluebuttonbnid = $DB->insert_record('bigbluebuttonbn', $bigbluebuttonbn);
-
-        
-        $moduleid = $DB->get_field('modules', 'id', ['name' => 'bigbluebuttonbn'], MUST_EXIST);
-
-        
-        $cm = new \stdClass();
-        $cm->course = $params['courseid'];
-        $cm->module = $moduleid;
-        $cm->instance = $bigbluebuttonbnid;
-        $cm->section = $params['section'];
-        $cm->idnumber = '';
-        $cm->added = time();
-        $cm->score = 0;
-        $cm->indent = 0;
-        $cm->visible = $params['visible'];
-        $cm->visibleoncoursepage = 1;
-        $cm->visibleold = $params['visible'];
-        $cm->groupmode = 0;
-        $cm->groupingid = 0;
-        $cm->completion = 0;
-        $cm->completionview = 0;
-        $cm->completionexpected = 0;
-        $cm->completionpassgrade = 0;
-        $cm->showdescription = 0;
-        $cm->availability = null;
-        $cm->deletioninprogress = 0;
-        $cm->downloadcontent = 1;
-        $cm->lang = '';
-        $cm->completiongradeitemnumber = null;
-
-        $cmid = $DB->insert_record('course_modules', $cm);
-
-        
-        helper::add_module_to_section($params['courseid'], $params['section'], $cmid, $params['visible']);
-
-        
         rebuild_course_cache($params['courseid'], true);
+
+        $bigbluebuttonbnid = (int)$moduleinfo->instance;
+        $cmid = (int)$moduleinfo->coursemodule;
+        $meetingid = (string)$DB->get_field('bigbluebuttonbn', 'meetingid', ['id' => $bigbluebuttonbnid], MUST_EXIST);
 
         return [
             'id' => $bigbluebuttonbnid,

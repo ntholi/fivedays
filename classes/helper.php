@@ -49,7 +49,7 @@ class helper {
         $version = new \stdClass();
         $version->questionbankentryid = $questionbankentryid;
         $version->questionid = $questionid;
-        $version->version = $latest ? (int)$latest->version + 1 : 1;
+        $version->version = \core_question\versions::get_next_version((int)$questionbankentryid);
         $version->status = 'ready';
         $DB->insert_record('question_versions', $version);
 
@@ -207,17 +207,32 @@ class helper {
             return $assignment;
         }
 
+        $transaction = $DB->start_delegated_transaction();
         $DB->set_field('assign', 'markingworkflow', 1, ['id' => $instance->id]);
         [$fresh] = self::get_assign((int)$instance->id);
+        // Grades students could already see stay visible once the workflow is on.
+        foreach (self::list_assignment_grades($fresh) as $row) {
+            if ($row['releasestate'] !== 'notreleased') {
+                continue;
+            }
+            $flags = $fresh->get_user_flags($row['userid'], true);
+            if (!empty($flags->workflowstate)) {
+                continue;
+            }
+            $flags->workflowstate = ASSIGN_MARKING_WORKFLOW_STATE_RELEASED;
+            $fresh->update_user_flags($flags);
+        }
+        $transaction->allow_commit();
         return $fresh;
     }
 
     public static function save_assignment_grade(\assign $assignment, int $userid, float $gradevalue): array {
-        global $USER;
+        global $DB, $USER;
 
         $assignment = self::ensure_marking_workflow($assignment);
         $gradevalue = self::format_assign_grade($assignment, $gradevalue);
 
+        $transaction = $DB->start_delegated_transaction();
         $flags = $assignment->get_user_flags($userid, true);
         $current = !empty($flags->workflowstate) ? (string)$flags->workflowstate : null;
         $next = self::workflow_after_grade_change($current);
@@ -227,7 +242,10 @@ class helper {
         $grade = $assignment->get_user_grade($userid, true);
         $grade->grade = $gradevalue;
         $grade->grader = $USER->id;
-        $assignment->update_grade($grade);
+        if (!$assignment->update_grade($grade)) {
+            throw new \moodle_exception('errorgradechangessaveddetail', 'mod_assign');
+        }
+        $transaction->allow_commit();
 
         return [
             'grade' => $gradevalue,

@@ -55,159 +55,111 @@ class fill_rubric extends external_api {
 
         $user = $DB->get_record('user', ['id' => $params['userid']], '*', MUST_EXIST);
         if (!is_enrolled($context, $user)) {
-            return [
-                'instanceid' => 0,
-                'grade' => 0,
-                'success' => false,
-                'message' => 'User is not enrolled in this course',
-            ];
+            return self::failure('User is not enrolled in this course');
         }
 
         $gradingmanager = get_grading_manager($context, 'mod_assign', 'submissions');
         $activemethod = $gradingmanager->get_active_method();
 
         if ($activemethod !== 'fivedays') {
-            return [
-                'instanceid' => 0,
-                'grade' => 0,
-                'success' => false,
-                'message' => 'Assignment does not use FiveDays rubric grading',
-            ];
+            return self::failure('Assignment does not use FiveDays rubric grading');
         }
 
         $controller = $gradingmanager->get_controller('fivedays');
 
         if (!$controller->is_form_defined()) {
-            return [
-                'instanceid' => 0,
-                'grade' => 0,
-                'success' => false,
-                'message' => 'FiveDays rubric is not defined for this assignment',
-            ];
+            return self::failure('FiveDays rubric is not defined for this assignment');
         }
 
         $assignment = new \assign($context, $cm, $cm->course);
-        $submission = $assignment->get_user_submission($params['userid'], false);
+        $assignment->get_user_submission($params['userid'], true);
 
-        if (!$submission) {
-            return [
-                'instanceid' => 0,
-                'grade' => 0,
-                'success' => false,
-                'message' => 'No submission found for this user',
-            ];
-        }
+        $criteria = $controller->get_definition()->fivedays_criteria;
 
-        $grade = $assignment->get_user_grade($params['userid'], true);
-        $definition = $controller->get_definition();
-        $criteria = $DB->get_records('gradingform_fivedays_criteria', ['definitionid' => $definition->id], '', 'id');
-
-        $validfillings = [];
+        $posted = [];
         foreach ($params['fillings'] as $filling) {
-            if (!isset($criteria[$filling['criterionid']])) {
-                return [
-                    'instanceid' => 0,
-                    'grade' => 0,
-                    'success' => false,
-                    'message' => 'Invalid criterion ID: ' . $filling['criterionid'],
-                ];
+            $criterionid = $filling['criterionid'];
+            if (!isset($criteria[$criterionid])) {
+                return self::failure('Invalid criterion ID: ' . $criterionid);
+            }
+            $levels = $criteria[$criterionid]['levels'];
+            $levelid = !empty($filling['levelid']) ? (int)$filling['levelid'] : null;
+            if ($levelid !== null && !isset($levels[$levelid])) {
+                return self::failure('Invalid level ID: ' . $levelid . ' for criterion: ' . $criterionid);
             }
 
-            if (!empty($filling['levelid'])) {
-                $level = $DB->get_record('gradingform_fivedays_levels', [
-                    'id' => $filling['levelid'],
-                    'criterionid' => $filling['criterionid']
-                ]);
-
-                if (!$level) {
-                    return [
-                        'instanceid' => 0,
-                        'grade' => 0,
-                        'success' => false,
-                        'message' => 'Invalid level ID: ' . $filling['levelid'] . ' for criterion: ' . $filling['criterionid'],
-                    ];
-                }
-            }
-
-            $levelid = !empty($filling['levelid']) ? $filling['levelid'] : null;
             $score = $filling['score'] ?? null;
-
-            if ($levelid && $score === null) {
-                $level = $DB->get_record('gradingform_fivedays_levels', ['id' => $levelid]);
-                if ($level) {
-                    $score = (float) $level->score;
-                }
+            if ($score === null && $levelid !== null) {
+                $score = (float)$levels[$levelid]['score'];
+            }
+            if ($score === null) {
+                return self::failure('Choose a level or score for criterion: ' . $criterionid);
+            }
+            $maxscore = $levels ? max(array_column($levels, 'score')) : 0;
+            if ($score < 0 || $score > $maxscore) {
+                return self::failure('Score for criterion ' . $criterionid . ' must be between 0 and ' . $maxscore);
             }
 
-            $validfillings[$filling['criterionid']] = [
+            $posted[$criterionid] = [
                 'levelid' => $levelid,
                 'score' => $score,
                 'remark' => $filling['remark'] ?? '',
             ];
         }
 
-        $existinginstance = $DB->get_record_sql(
-            "SELECT gi.* FROM {grading_instances} gi
-             WHERE gi.definitionid = :definitionid
-             AND gi.itemid = :itemid
-             ORDER BY gi.timemodified DESC
-             LIMIT 1",
-            ['definitionid' => $definition->id, 'itemid' => $grade->id]
-        );
+        $transaction = $DB->start_delegated_transaction();
+        $grade = $assignment->get_user_grade($params['userid'], true);
 
-        if ($existinginstance) {
-            $instance = $controller->get_or_create_instance($existinginstance->id, $USER->id, $grade->id);
-        } else {
-            $instance = $controller->get_or_create_instance(0, $USER->id, $grade->id);
+        // Instance id 0 makes a new instance for this rater, copied from the current active one, like core assign grading.
+        $instance = $controller->get_or_create_instance(0, $USER->id, $grade->id);
+        // Clear posted criteria first so a custom score does not keep the copied level.
+        $instance->clear_attempt(['criteria' => $posted]);
+        $data = ['criteria' => []];
+        foreach ($instance->get_fivedays_filling(true)['criteria'] as $criterionid => $record) {
+            $data['criteria'][$criterionid] = [
+                'levelid' => $record['levelid'],
+                'score' => $record['score'],
+                'remark' => $record['remark'],
+            ];
+        }
+        foreach ($posted as $criterionid => $filling) {
+            $data['criteria'][$criterionid] = $filling;
         }
 
-        $instanceid = $instance->get_id();
-
-        foreach ($validfillings as $criterionid => $filling) {
-            $existingfilling = $DB->get_record('gradingform_fivedays_fillings', [
-                'instanceid' => $instanceid,
-                'criterionid' => $criterionid,
-            ]);
-
-            if ($existingfilling) {
-                $DB->update_record('gradingform_fivedays_fillings', [
-                    'id' => $existingfilling->id,
-                    'levelid' => $filling['levelid'],
-                    'score' => $filling['score'],
-                    'remark' => $filling['remark'],
-                    'remarkformat' => FORMAT_HTML,
-                ]);
-            } else {
-                $DB->insert_record('gradingform_fivedays_fillings', [
-                    'instanceid' => $instanceid,
-                    'criterionid' => $criterionid,
-                    'levelid' => $filling['levelid'],
-                    'score' => $filling['score'],
-                    'remark' => $filling['remark'],
-                    'remarkformat' => FORMAT_HTML,
-                ]);
-            }
+        if (!$instance->validate_grading_element($data)) {
+            $transaction->rollback(new \invalid_parameter_exception('Rubric fillings do not match this rubric'));
         }
-
-        $DB->set_field('grading_instances', 'status', \gradingform_instance::INSTANCE_STATUS_ACTIVE, ['id' => $instanceid]);
-        $DB->set_field('grading_instances', 'timemodified', time(), ['id' => $instanceid]);
 
         $grademax = $assignment->get_instance()->grade;
         $controller->set_grade_range(make_grades_menu($grademax), $grademax > 0);
-        $instance->get_fivedays_filling(true);
-        $gradevalue = $instance->get_grade();
+        $gradevalue = $instance->submit_and_get_grade($data, $grade->id);
+        if ($gradevalue < 0) {
+            $transaction->rollback(new \invalid_parameter_exception('This rubric has no scores to calculate a grade'));
+        }
+
         $saved = \local_activity_utils\helper::save_assignment_grade(
             $assignment,
             $params['userid'],
             (float)$gradevalue
         );
+        $transaction->allow_commit();
 
         return [
-            'instanceid' => $instanceid,
+            'instanceid' => (int)$instance->get_id(),
             'grade' => $saved['grade'],
             'releasestate' => $saved['releasestate'],
             'success' => true,
             'message' => 'FiveDays rubric filled and grade saved successfully',
+        ];
+    }
+
+    private static function failure(string $message): array {
+        return [
+            'instanceid' => 0,
+            'grade' => 0,
+            'releasestate' => 'notgraded',
+            'success' => false,
+            'message' => $message,
         ];
     }
 

@@ -54,24 +54,8 @@ class get_quiz_attempt_details extends external_api {
 
             $rightanswer = $qa->get_right_answer_summary();
 
-            $feedback = null;
-            if ($state->is_graded()) {
-                $behaviour = $qa->get_behaviour();
-                if (method_exists($behaviour, 'get_field')) {
-                    $feedback = $behaviour->get_field('_feedback');
-                }
-                if (empty($feedback)) {
-                    $feedback = $question->generalfeedback;
-                }
-            }
-
-            $behaviour = $qa->get_behaviour();
-            if (method_exists($behaviour, 'get_field')) {
-                $comment = $behaviour->get_field('_comment');
-                if (!empty($comment)) {
-                    $feedback = $comment;
-                }
-            }
+            $feedback = $state->is_graded() ? $question->generalfeedback : null;
+            [$comment] = $qa->get_manual_comment();
 
             $questiondata = [
                 'slot' => (int)$slot,
@@ -88,6 +72,9 @@ class get_quiz_attempt_details extends external_api {
             }
             if ($feedback !== null && $feedback !== '') {
                 $questiondata['feedback'] = $feedback;
+            }
+            if ($comment !== null && $comment !== '') {
+                $questiondata['comment'] = $comment;
             }
             $questionsarray[] = $questiondata;
         }
@@ -160,7 +147,8 @@ class get_quiz_attempt_details extends external_api {
                         'response' => new external_value(PARAM_RAW, 'Student response'),
                         'rightanswer' => new external_value(PARAM_RAW, 'Right answer'),
                         'state' => new external_value(PARAM_TEXT, 'Question state'),
-                        'feedback' => new external_value(PARAM_RAW, 'Feedback', VALUE_OPTIONAL),
+                        'feedback' => new external_value(PARAM_RAW, 'General feedback', VALUE_OPTIONAL),
+                        'comment' => new external_value(PARAM_RAW, 'Teacher comment', VALUE_OPTIONAL),
                     ])
                 ),
             ]),

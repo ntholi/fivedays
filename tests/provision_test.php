@@ -377,6 +377,55 @@ class provision_test extends advanced_testcase {
         $this->assertTrue($this->has_linked_login($fromid, $fromemail));
     }
 
+    public function test_provision_reuses_user_when_email_case_differs(): void {
+        global $DB;
+
+        ensure_google_login::execute('test-client-id', 'test-client-secret');
+        $existing = $this->getDataGenerator()->create_user([
+            'username' => 'case.user',
+            'email' => 'Case.User@example.com',
+        ]);
+
+        $provisioned = provision_users::execute([
+            [
+                'email' => 'case.user@EXAMPLE.com',
+                'firstname' => 'Ada',
+                'lastname' => 'Lovelace',
+            ],
+        ]);
+
+        $this->assertSame((int) $existing->id, (int) $provisioned['users'][0]['moodleUserId']);
+        $this->assertSame(1, $DB->count_records_select('user', 'LOWER(email) = ? AND deleted = 0', ['case.user@example.com']));
+        $this->assertTrue($this->has_linked_login((int) $existing->id, 'case.user@example.com'));
+    }
+
+    public function test_provision_suffixes_username_derived_from_email_on_collision(): void {
+        global $DB;
+
+        ensure_google_login::execute('test-client-id', 'test-client-secret');
+        $first = provision_users::execute([
+            [
+                'email' => 'a.b@c.com',
+                'firstname' => 'Ada',
+                'lastname' => 'Lovelace',
+            ],
+        ]);
+        $second = provision_users::execute([
+            [
+                'email' => 'a@b.c.com',
+                'firstname' => 'Alan',
+                'lastname' => 'Turing',
+            ],
+        ]);
+
+        $firstid = (int) $first['users'][0]['moodleUserId'];
+        $secondid = (int) $second['users'][0]['moodleUserId'];
+        $this->assertNotSame($firstid, $secondid);
+        $this->assertSame('a.b.c.com', $DB->get_field('user', 'username', ['id' => $firstid]));
+        $this->assertSame('a.b.c.com2', $DB->get_field('user', 'username', ['id' => $secondid]));
+        $this->assertSame('a@b.c.com', $DB->get_field('user', 'email', ['id' => $secondid]));
+    }
+
     private function has_linked_login(int $userid, string $email): bool {
         global $DB;
 

@@ -52,9 +52,15 @@ class update_quiz_slot_mark extends external_api {
             ];
         }
 
-        $quizobj->get_structure()->update_slot_maxmark($slotrecord, $params['maxmark']);
-        quiz_delete_previews($quizobj->get_quiz());
-        $quizobj->get_grade_calculator()->recompute_quiz_sumgrades();
+        if ($quizobj->get_structure()->update_slot_maxmark($slotrecord, $params['maxmark'])) {
+            $quiz = $quizobj->get_quiz();
+            $gradecalculator = $quizobj->get_grade_calculator();
+            quiz_delete_previews($quiz);
+            $gradecalculator->recompute_quiz_sumgrades();
+            $gradecalculator->recompute_all_attempt_sumgrades();
+            $gradecalculator->recompute_all_final_grades();
+            quiz_update_grades($quiz, 0, true);
+        }
 
         return [
             'success' => true,

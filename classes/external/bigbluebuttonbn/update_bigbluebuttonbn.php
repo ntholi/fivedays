@@ -5,6 +5,9 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use mod_bigbluebuttonbn\instance;
+use mod_bigbluebuttonbn\logger;
+use mod_bigbluebuttonbn\local\helpers\mod_helper;
 
 
 class update_bigbluebuttonbn extends external_api {
@@ -271,16 +274,26 @@ class update_bigbluebuttonbn extends external_api {
         }
 
         
+        if ($bigbluebuttonbn->openingtime && $bigbluebuttonbn->closingtime
+                && $bigbluebuttonbn->closingtime <= $bigbluebuttonbn->openingtime) {
+            throw new \invalid_parameter_exception('closingtime must be after openingtime');
+        }
+
+        // Not bigbluebuttonbn_update_instance(): it treats the stored presentation path as a draft
+        // itemid and rotates guest credentials, so only its post-save side effects are replayed here.
         if ($updated) {
             $bigbluebuttonbn->timemodified = time();
             $DB->update_record('bigbluebuttonbn', $bigbluebuttonbn);
+
+            $bigbluebuttonbn->coursemodule = $cm->id;
+            mod_helper::process_post_save($bigbluebuttonbn);
+            bigbluebuttonbn_grade_item_update($bigbluebuttonbn);
+            logger::log_instance_updated(instance::get_from_instanceid($bigbluebuttonbn->id));
         }
 
         
         if ($params['visible'] !== null) {
-            $cm->visible = $params['visible'];
-            $cm->visibleold = $params['visible'];
-            $DB->update_record('course_modules', $cm);
+            set_coursemodule_visible($cm->id, $params['visible'], 1, false);
             $cmupdated = true;
         }
 

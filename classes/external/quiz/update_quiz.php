@@ -119,6 +119,7 @@ class update_quiz extends external_api {
 
         require_once($CFG->dirroot . '/course/lib.php');
         require_once($CFG->dirroot . '/mod/quiz/lib.php');
+        require_once($CFG->dirroot . '/mod/quiz/locallib.php');
         require_once($CFG->dirroot . '/lib/gradelib.php');
 
         $params = self::validate_parameters(self::execute_parameters(), [
@@ -176,8 +177,7 @@ class update_quiz extends external_api {
         require_capability('mod/quiz:manage', $context);
 
         $updated = false;
-        $oldgrademethod = $quiz->grademethod;
-        $oldgrade = $quiz->grade;
+        $oldquiz = clone $quiz;
 
         
         if ($params['name'] !== null) {
@@ -209,10 +209,6 @@ class update_quiz extends external_api {
         }
         if ($params['graceperiod'] !== null) {
             $quiz->graceperiod = $params['graceperiod'];
-            $updated = true;
-        }
-        if ($params['grade'] !== null) {
-            $quiz->grade = $params['grade'];
             $updated = true;
         }
         if ($params['grademethod'] !== null && $params['grademethod'] >= 1 && $params['grademethod'] <= 4) {
@@ -344,7 +340,8 @@ class update_quiz extends external_api {
             $updated = true;
         }
 
-        if (!$updated) {
+        $cmchanged = $params['visible'] !== null || $params['idnumber'] !== null;
+        if (!$updated && !$cmchanged && $params['grade'] === null) {
             return [
                 'id' => $quiz->id,
                 'coursemoduleid' => $cm->id,
@@ -353,41 +350,52 @@ class update_quiz extends external_api {
             ];
         }
 
-        
-        $quiz->timemodified = time();
-
-        
-        $DB->update_record('quiz', $quiz);
-
-        
-        if ($params['visible'] !== null) {
-            $DB->set_field('course_modules', 'visible', $params['visible'] ? 1 : 0, ['id' => $cm->id]);
-            $DB->set_field('course_modules', 'visibleold', $params['visible'] ? 1 : 0, ['id' => $cm->id]);
+        if ($updated) {
+            $quiz->timemodified = time();
+            $DB->update_record('quiz', $quiz);
         }
 
-        
+        if ($params['visible'] !== null) {
+            set_coursemodule_visible($cm->id, $params['visible'] ? 1 : 0, 1, false);
+        }
+
         if ($params['idnumber'] !== null) {
             $DB->set_field('course_modules', 'idnumber', $params['idnumber'], ['id' => $cm->id]);
         }
 
-        
-        if ($params['grade'] !== null || $params['name'] !== null || $params['idnumber'] !== null) {
+        $gradecalculator = \mod_quiz\quiz_settings::create($quiz->id)->get_grade_calculator();
+
+        if ($params['grade'] !== null) {
+            $gradecalculator->update_quiz_maximum_grade($params['grade']);
+            $quiz->grade = $params['grade'];
+        }
+
+        if ($oldquiz->grademethod != $quiz->grademethod) {
+            $gradecalculator->recompute_all_final_grades();
+            quiz_update_grades($quiz);
+        }
+
+        $timingchanged = $oldquiz->timelimit != $quiz->timelimit
+            || $oldquiz->timeclose != $quiz->timeclose
+            || $oldquiz->graceperiod != $quiz->graceperiod;
+        if ($timingchanged || $oldquiz->timeopen != $quiz->timeopen) {
+            quiz_update_events($quiz);
+        }
+        if ($timingchanged) {
+            quiz_update_open_attempts(['quizid' => $quiz->id]);
+        }
+
+        if ($params['name'] !== null || $params['idnumber'] !== null) {
             $gradeitem = [];
             if ($params['name'] !== null) {
                 $gradeitem['itemname'] = $params['name'];
             }
-            if ($params['grade'] !== null) {
-                $gradeitem['grademax'] = $params['grade'];
-            }
             if ($params['idnumber'] !== null) {
                 $gradeitem['idnumber'] = $params['idnumber'];
             }
-            if (!empty($gradeitem)) {
-                grade_update('mod/quiz', $cm->course, 'mod', 'quiz', $quiz->id, 0, null, $gradeitem);
-            }
+            grade_update('mod/quiz', $cm->course, 'mod', 'quiz', $quiz->id, 0, null, $gradeitem);
         }
 
-        
         rebuild_course_cache($cm->course, true);
 
         return [
