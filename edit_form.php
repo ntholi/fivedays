@@ -118,6 +118,9 @@ class gradingform_fivedays_editfivedays extends moodleform {
         ];
         $dominated[0] = array_keys($dominated);
         $data = $this->get_submitted_data();
+        if (isset($data->fivedays['regrade'])) {
+            return false;
+        }
         if (empty($data->savefivedays) && empty($data->savefivedaysdraft)) {
             return false;
         }

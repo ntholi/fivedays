@@ -17,7 +17,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component  = 'gradingform_fivedays';
-$plugin->version    = 2026082502;
+$plugin->version    = 2026101200;
 $plugin->requires   = 2024100700;
 $plugin->maturity   = MATURITY_STABLE;
-$plugin->release    = '1.0.1';
+$plugin->release    = '1.1.0';

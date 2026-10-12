@@ -201,7 +201,7 @@ class gradingform_fivedays_controller extends gradingform_controller {
         }
 
         foreach ($userdata->fivedays['criteria'] as $id => $criterion) {
-            $isnewcriterion = (bool) preg_match('/^NEWID(\d+)$/', (string) $id);
+            $isnewcriterion = !isset($currentcriteria[$id]);
             $levels = !empty($criterion['levels']) && is_array($criterion['levels']) ? $criterion['levels'] : [];
             if ($isnewcriterion) {
                 $id = $DB->insert_record('gradingform_fivedays_criteria', [
@@ -223,7 +223,7 @@ class gradingform_fivedays_controller extends gradingform_controller {
                 $DB->update_record('gradingform_fivedays_criteria', $record);
             }
             foreach ($levels as $levelid => $level) {
-                if (preg_match('/^NEWID(\d+)$/', (string) $levelid)) {
+                if ($isnewcriterion || !isset($currentcriteria[$id]['levels'][$levelid])) {
                     $levelid = $DB->insert_record('gradingform_fivedays_levels', [
                         'criterionid' => $id,
                         'score' => $level['score'],
@@ -267,13 +267,16 @@ class gradingform_fivedays_controller extends gradingform_controller {
             }
         }
         $this->load_definition();
+        if (!empty($userdata->fivedays['regrade'])) {
+            $this->mark_for_regrade();
+        }
     }
 
     protected function get_elements_to_delete(array $haschanges): array {
         return [];
     }
 
-    public function update_or_check_fivedays(stdClass $userdata, $checkonly = false): int {
+    public function update_or_check_fivedays(stdClass $userdata, $checkonly = true): int {
         $dominated = [
             1 => [2, 3, 4, 5],
             2 => [3, 4, 5],
@@ -443,19 +446,15 @@ class gradingform_fivedays_controller extends gradingform_controller {
         $returnvalue = ['minscore' => 0, 'maxscore' => 0];
         $options = $this->get_options();
         foreach ($this->definition->fivedays_criteria as $id => $criterion) {
-            $scores = [];
-            foreach ($criterion['levels'] as $level) {
-                $scores[] = $level['score'];
+            $scores = array_column($criterion['levels'], 'score');
+            if (!$scores) {
+                continue;
             }
             sort($scores);
             $returnvalue['minscore'] += $options['lockzeropoints'] ? $scores[0] : 0;
             $returnvalue['maxscore'] += $scores[count($scores) - 1];
         }
         return $returnvalue;
-    }
-
-    public function get_fivedays(): gradingform_fivedays_instance {
-        return $this->get_or_create_instance(0, 0);
     }
 
     protected function prepare_instance($instance, $raterid, $itemid): gradingform_fivedays_instance {
@@ -532,9 +531,24 @@ class gradingform_fivedays_instance extends gradingform_instance {
         if (!isset($elementvalue['criteria']) || !is_array($elementvalue['criteria']) || count($elementvalue['criteria']) == 0) {
             return false;
         }
+        $criteria = $this->get_controller()->get_definition()->fivedays_criteria;
         foreach ($elementvalue['criteria'] as $criterionid => $rec) {
-            if (empty($rec['levelid']) && empty($rec['score'])) {
+            if (!isset($criteria[$criterionid])) {
                 return false;
+            }
+            $levels = $criteria[$criterionid]['levels'];
+            $hasscore = isset($rec['score']) && is_numeric($rec['score']);
+            if (empty($rec['levelid']) && !$hasscore) {
+                return false;
+            }
+            if (!empty($rec['levelid']) && !isset($levels[$rec['levelid']])) {
+                return false;
+            }
+            if ($hasscore) {
+                $maxscore = $levels ? max(array_column($levels, 'score')) : 0;
+                if ($rec['score'] < 0 || $rec['score'] > $maxscore) {
+                    return false;
+                }
             }
         }
         return true;
@@ -617,7 +631,7 @@ class gradingform_fivedays_instance extends gradingform_instance {
 
         $curscore = 0;
         foreach ($grade['criteria'] as $id => $record) {
-            if (!empty($record['score'])) {
+            if (isset($record['score']) && is_numeric($record['score'])) {
                 $curscore += (float) $record['score'];
             } elseif (!empty($record['levelid'])) {
                 $curscore += $this->get_controller()->get_definition()->fivedays_criteria[$id]['levels'][$record['levelid']]['score'];
@@ -628,7 +642,7 @@ class gradingform_fivedays_instance extends gradingform_instance {
         $options = $this->get_controller()->get_options();
 
         if ($options['lockzeropoints']) {
-            $grade = max($mingrade, $curscore / $scores['maxscore'] * $maxgrade);
+            $grade = min($maxgrade, max($mingrade, $curscore / $scores['maxscore'] * $maxgrade));
             return $allowdecimals ? $grade : round($grade, 0);
         } else {
             $gradeoffset = ($curscore - $scores['minscore']) / ($scores['maxscore'] - $scores['minscore']) * ($maxgrade - $mingrade);

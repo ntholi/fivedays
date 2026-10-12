@@ -147,6 +147,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
                 'class' => 'form-control score-input',
                 'step' => 'any',
                 'min' => '0',
+                'max' => !empty($criterion['levels']) ? max(array_column($criterion['levels'], 'score')) : null,
                 'aria-label' => get_string('customscore', 'gradingform_fivedays'),
             ]);
             $criteriontemplate .= html_writer::tag('div', '', ['class' => 'score-range-info']);
@@ -160,7 +161,8 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
             if ($options['enableremarks'] && $options['showremarksstudent']) {
                 $criteriontemplate .= html_writer::tag('td', s($currentremark), ['class' => 'remark']);
             }
-            if (!empty($currentscore)) {
+            if ($currentscore !== '' && $currentscore !== null &&
+                    ($mode == gradingform_fivedays_controller::DISPLAY_REVIEW || $options['showscorestudent'])) {
                 $criteriontemplate .= html_writer::tag('td', s($currentscore), ['class' => 'customscore']);
             }
         }
@@ -617,7 +619,7 @@ class gradingform_fivedays_renderer extends plugin_renderer_base {
             'id' => $elementname . '-regrade-1',
             'checked' => $value ? 'checked' : null,
         ]);
-        $html .= html_writer::tag('label', get_string('mark fornewgrade', 'gradingform_fivedays'),
+        $html .= html_writer::tag('label', get_string('markfornewgrade', 'gradingform_fivedays'),
             ['for' => $elementname . '-regrade-1', 'class' => 'form-check-label']);
         $html .= html_writer::end_tag('div');
         $html .= html_writer::end_tag('div');

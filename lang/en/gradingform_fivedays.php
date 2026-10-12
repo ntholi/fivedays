@@ -93,9 +93,9 @@ $string['gradecalculation'] = 'Grade calculation: minimum possible score is {$a-
 $string['rangeexplanation'] = 'How score ranges work';
 $string['rangeexplanation_help'] = 'The FiveDays Rubric allows teachers to give scores within a range around each level. The range extends from halfway to the previous level up to halfway to the next level. For example, if levels are defined as Poor=10, Fair=20, Good=40, Excellent=50, then Fair would accept any score from 15 to 30 points.';
 
-$string['privacy:metadata:gradingform_fivedays_fillings'] = 'Information about the user\'s grade given via the FiveDays rubric';
-$string['privacy:metadata:gradingform_fivedays_fillings:instanceid'] = 'The ID of the grading instance';
-$string['privacy:metadata:gradingform_fivedays_fillings:criterionid'] = 'The ID of the criterion';
-$string['privacy:metadata:gradingform_fivedays_fillings:levelid'] = 'The ID of the selected level';
-$string['privacy:metadata:gradingform_fivedays_fillings:score'] = 'The custom score entered';
-$string['privacy:metadata:gradingform_fivedays_fillings:remark'] = 'The remark left by the grader';
+$string['privacy:metadata:criterionid'] = 'An identifier for a specific criterion being graded.';
+$string['privacy:metadata:fillingssummary'] = 'Stores information about the user\'s grade created by the FiveDays rubric.';
+$string['privacy:metadata:instanceid'] = 'An identifier relating to a grade in an activity.';
+$string['privacy:metadata:levelid'] = 'The level obtained in the FiveDays rubric.';
+$string['privacy:metadata:remark'] = 'Remarks related to the FiveDays rubric criterion being assessed.';
+$string['privacy:metadata:score'] = 'The custom score given for the criterion.';
