@@ -27,6 +27,7 @@ class create_truefalse_question extends external_api {
                 VALUE_DEFAULT,
                 []
             ),
+            'questionbankentryid' => new external_value(PARAM_INT, 'Existing question bank entry ID; when set, saves a new version of that question', VALUE_DEFAULT, 0),
         ]);
     }
 
@@ -40,7 +41,8 @@ class create_truefalse_question extends external_api {
         string $feedbackfalse = '',
         string $generalfeedback = '',
         string $idnumber = '',
-        array $tags = []
+        array $tags = [],
+        int $questionbankentryid = 0
     ): array {
         global $CFG, $DB, $USER;
 
@@ -58,6 +60,7 @@ class create_truefalse_question extends external_api {
             'generalfeedback' => $generalfeedback,
             'idnumber' => $idnumber,
             'tags' => $tags,
+            'questionbankentryid' => $questionbankentryid,
         ]);
 
         
@@ -67,6 +70,7 @@ class create_truefalse_question extends external_api {
         self::validate_context($context);
         require_capability('local/activity_utils:createquestion', $context);
         require_capability('moodle/question:add', $context);
+        \local_activity_utils\helper::require_question_entry($params['questionbankentryid']);
 
         
         $correctanswer = $params['correctanswer'] ? 1 : 0;
@@ -93,21 +97,12 @@ class create_truefalse_question extends external_api {
         $questionid = $DB->insert_record('question', $question);
 
         
-        $qbe = new \stdClass();
-        $qbe->questioncategoryid = $params['categoryid'];
-        $qbe->idnumber = !empty($params['idnumber']) ? $params['idnumber'] : null;
-        $qbe->ownerid = $USER->id;
-
-        $qbeid = $DB->insert_record('question_bank_entries', $qbe);
-
-        
-        $qv = new \stdClass();
-        $qv->questionbankentryid = $qbeid;
-        $qv->questionid = $questionid;
-        $qv->version = 1;
-        $qv->status = 'ready';
-
-        $DB->insert_record('question_versions', $qv);
+        $qbeid = \local_activity_utils\helper::save_question_version(
+            $params['categoryid'],
+            (int)$questionid,
+            $params['idnumber'],
+            $params['questionbankentryid']
+        );
 
         
         $trueanswer = new \stdClass();

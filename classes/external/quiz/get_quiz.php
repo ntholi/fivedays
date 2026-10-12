@@ -80,9 +80,13 @@ class get_quiz extends external_api {
             $questionid = (int)$slot->questionid;
 
             $answers = $DB->get_records('question_answers', ['question' => $questionid], 'id ASC');
+            $tolerances = [];
+            if ($slot->qtype === 'numerical') {
+                $tolerances = $DB->get_records_menu('question_numerical', ['question' => $questionid], '', 'answer, tolerance');
+            }
             $answersarray = [];
             foreach ($answers as $answer) {
-                $answersarray[] = [
+                $answerdata = [
                     'id' => (int)$answer->id,
                     'answer' => $answer->answer ?? '',
                     'answerformat' => (int)$answer->answerformat,
@@ -90,6 +94,10 @@ class get_quiz extends external_api {
                     'feedback' => $answer->feedback ?? '',
                     'feedbackformat' => (int)$answer->feedbackformat,
                 ];
+                if (isset($tolerances[$answer->id])) {
+                    $answerdata['tolerance'] = (float)$tolerances[$answer->id];
+                }
+                $answersarray[] = $answerdata;
             }
 
             $options = null;
@@ -121,6 +129,21 @@ class get_quiz extends external_api {
                         'partiallycorrectfeedbackformat' => (int)$mcopt->partiallycorrectfeedbackformat,
                         'incorrectfeedback' => $mcopt->incorrectfeedback ?? '',
                         'incorrectfeedbackformat' => (int)$mcopt->incorrectfeedbackformat,
+                    ];
+                }
+            } else if ($slot->qtype === 'essay') {
+                $essayopt = $DB->get_record('qtype_essay_options', ['questionid' => $questionid]);
+                if ($essayopt) {
+                    $options = [
+                        'responseformat' => $essayopt->responseformat,
+                        'responserequired' => (int)$essayopt->responserequired,
+                        'responsefieldlines' => (int)$essayopt->responsefieldlines,
+                        'minwordlimit' => (int)$essayopt->minwordlimit,
+                        'maxwordlimit' => (int)$essayopt->maxwordlimit,
+                        'attachments' => (int)$essayopt->attachments,
+                        'attachmentsrequired' => (int)$essayopt->attachmentsrequired,
+                        'graderinfo' => $essayopt->graderinfo ?? '',
+                        'responsetemplate' => $essayopt->responsetemplate ?? '',
                     ];
                 }
             }
@@ -296,6 +319,7 @@ class get_quiz extends external_api {
                             'fraction' => new external_value(PARAM_FLOAT, 'Fraction (1.0=correct, 0.0=incorrect)'),
                             'feedback' => new external_value(PARAM_RAW, 'Feedback for this answer'),
                             'feedbackformat' => new external_value(PARAM_INT, 'Feedback format'),
+                            'tolerance' => new external_value(PARAM_FLOAT, 'Accepted error (numerical only)', VALUE_OPTIONAL),
                         ]),
                         'Question answers'
                     ),
@@ -312,6 +336,15 @@ class get_quiz extends external_api {
                         'partiallycorrectfeedbackformat' => new external_value(PARAM_INT, 'Partially correct feedback format (multichoice only)', VALUE_OPTIONAL),
                         'incorrectfeedback' => new external_value(PARAM_RAW, 'Incorrect feedback (multichoice only)', VALUE_OPTIONAL),
                         'incorrectfeedbackformat' => new external_value(PARAM_INT, 'Incorrect feedback format (multichoice only)', VALUE_OPTIONAL),
+                        'responseformat' => new external_value(PARAM_ALPHA, 'Response format (essay only)', VALUE_OPTIONAL),
+                        'responserequired' => new external_value(PARAM_INT, 'Response required (essay only)', VALUE_OPTIONAL),
+                        'responsefieldlines' => new external_value(PARAM_INT, 'Response field lines (essay only)', VALUE_OPTIONAL),
+                        'minwordlimit' => new external_value(PARAM_INT, 'Minimum word limit (essay only)', VALUE_OPTIONAL),
+                        'maxwordlimit' => new external_value(PARAM_INT, 'Maximum word limit (essay only)', VALUE_OPTIONAL),
+                        'attachments' => new external_value(PARAM_INT, 'Allowed attachments (essay only)', VALUE_OPTIONAL),
+                        'attachmentsrequired' => new external_value(PARAM_INT, 'Required attachments (essay only)', VALUE_OPTIONAL),
+                        'graderinfo' => new external_value(PARAM_RAW, 'Information for graders (essay only)', VALUE_OPTIONAL),
+                        'responsetemplate' => new external_value(PARAM_RAW, 'Response template (essay only)', VALUE_OPTIONAL),
                     ], 'Question type-specific options', VALUE_OPTIONAL),
                 ]),
                 'Quiz questions'

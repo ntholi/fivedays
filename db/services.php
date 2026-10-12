@@ -403,6 +403,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/activity_utils:managequizquestions',
     ),
+    'local_activity_utils_update_quiz_slot_mark' => array(
+        'classname' => 'local_activity_utils\external\quiz\update_quiz_slot_mark',
+        'methodname' => 'execute',
+        'description' => 'Change the maximum mark of a quiz slot',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/activity_utils:managequizquestions',
+    ),
     'local_activity_utils_reorder_quiz_questions' => array(
         'classname' => 'local_activity_utils\external\quiz\reorder_quiz_questions',
         'methodname' => 'execute',

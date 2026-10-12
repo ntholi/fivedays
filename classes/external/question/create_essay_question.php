@@ -30,6 +30,7 @@ class create_essay_question extends external_api {
             'generalfeedback' => new external_value(PARAM_RAW, 'General feedback shown after attempt', VALUE_DEFAULT, ''),
             'idnumber' => new external_value(PARAM_RAW, 'ID number for the question', VALUE_DEFAULT, ''),
             'tags' => new external_value(PARAM_RAW, 'JSON array of tag names: ["tag1","tag2"]', VALUE_DEFAULT, '[]'),
+            'questionbankentryid' => new external_value(PARAM_INT, 'Existing question bank entry ID; when set, saves a new version of that question', VALUE_DEFAULT, 0),
         ]);
     }
 
@@ -51,7 +52,8 @@ class create_essay_question extends external_api {
         string $responsetemplate = '',
         string $generalfeedback = '',
         string $idnumber = '',
-        string $tags = '[]'
+        string $tags = '[]',
+        int $questionbankentryid = 0
     ): array {
         global $CFG, $DB, $USER;
 
@@ -77,6 +79,7 @@ class create_essay_question extends external_api {
             'generalfeedback' => $generalfeedback,
             'idnumber' => $idnumber,
             'tags' => $tags,
+            'questionbankentryid' => $questionbankentryid,
         ]);
 
         
@@ -92,6 +95,7 @@ class create_essay_question extends external_api {
         self::validate_context($context);
         require_capability('local/activity_utils:createquestion', $context);
         require_capability('moodle/question:add', $context);
+        \local_activity_utils\helper::require_question_entry($params['questionbankentryid']);
 
         
         $validformats = ['editor', 'editorfilepicker', 'plain', 'monospaced', 'noinline'];
@@ -121,21 +125,12 @@ class create_essay_question extends external_api {
         $questionid = $DB->insert_record('question', $question);
 
         
-        $qbe = new \stdClass();
-        $qbe->questioncategoryid = $params['categoryid'];
-        $qbe->idnumber = !empty($params['idnumber']) ? $params['idnumber'] : null;
-        $qbe->ownerid = $USER->id;
-
-        $qbeid = $DB->insert_record('question_bank_entries', $qbe);
-
-        
-        $qv = new \stdClass();
-        $qv->questionbankentryid = $qbeid;
-        $qv->questionid = $questionid;
-        $qv->version = 1;
-        $qv->status = 'ready';
-
-        $DB->insert_record('question_versions', $qv);
+        $qbeid = \local_activity_utils\helper::save_question_version(
+            $params['categoryid'],
+            (int)$questionid,
+            $params['idnumber'],
+            $params['questionbankentryid']
+        );
 
         
         $options = new \stdClass();

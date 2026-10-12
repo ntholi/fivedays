@@ -3,6 +3,64 @@ namespace local_activity_utils;
 
 class helper {
 
+    public static function require_question_entry(int $questionbankentryid): void {
+        global $DB, $USER;
+
+        if ($questionbankentryid <= 0) {
+            return;
+        }
+
+        $entry = $DB->get_record('question_bank_entries', ['id' => $questionbankentryid], '*', MUST_EXIST);
+        $category = $DB->get_record('question_categories', ['id' => $entry->questioncategoryid], '*', MUST_EXIST);
+        $context = \context::instance_by_id($category->contextid);
+
+        if ((int)$entry->ownerid !== (int)$USER->id) {
+            require_capability('moodle/question:editall', $context);
+        } else if (!has_capability('moodle/question:editmine', $context)) {
+            require_capability('moodle/question:editall', $context);
+        }
+    }
+
+    public static function save_question_version(
+        int $categoryid,
+        int $questionid,
+        string $idnumber,
+        int $questionbankentryid
+    ): int {
+        global $DB, $USER;
+
+        if ($questionbankentryid <= 0) {
+            $entry = new \stdClass();
+            $entry->questioncategoryid = $categoryid;
+            $entry->idnumber = $idnumber !== '' ? $idnumber : null;
+            $entry->ownerid = $USER->id;
+            $questionbankentryid = $DB->insert_record('question_bank_entries', $entry);
+        }
+
+        $latest = $DB->get_record_sql(
+            "SELECT questionid, version
+               FROM {question_versions}
+              WHERE questionbankentryid = ?
+           ORDER BY version DESC",
+            [$questionbankentryid],
+            IGNORE_MULTIPLE
+        );
+
+        $version = new \stdClass();
+        $version->questionbankentryid = $questionbankentryid;
+        $version->questionid = $questionid;
+        $version->version = $latest ? (int)$latest->version + 1 : 1;
+        $version->status = 'ready';
+        $DB->insert_record('question_versions', $version);
+
+        if ($latest) {
+            \question_bank::notify_question_edited((int)$latest->questionid);
+        }
+
+        return (int)$questionbankentryid;
+    }
+
+
     public static function get_section_by_number(int $courseid, int $sectionnum): ?\stdClass {
         global $DB;
         

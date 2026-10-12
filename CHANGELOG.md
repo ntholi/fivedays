@@ -1,5 +1,12 @@
 # Activity Utils changelog
 
+## 2026-10-12
+
+### Added
+- `update_quiz_slot_mark` changes a quiz slot's maximum mark through `structure::update_slot_maxmark()` and recomputes the quiz sum of grades.
+- `get_quiz` returns each numerical answer's `tolerance` and the essay options (`responseformat`, `responserequired`, `responsefieldlines`, `minwordlimit`, `maxwordlimit`, `attachments`, `attachmentsrequired`, `graderinfo`, `responsetemplate`), so a question can be edited without losing its settings.
+- `create_multichoice_question`, `create_truefalse_question`, `create_shortanswer_question`, `create_essay_question` and `create_numerical_question` accept an optional `questionbankentryid`. When set, the question is saved as a new version of that entry, so quiz slots that use the latest version pick it up and earlier attempts keep the version they were taken on.
+
 ## 2026-09-04
 
 ### Added

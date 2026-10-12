@@ -972,6 +972,18 @@ Adds an existing question from the question bank to a quiz.
 
 **Note:** Removes the question from the specified slot. Subsequent slots are automatically renumbered.
 
+### Update Quiz Slot Mark
+
+`local_activity_utils_update_quiz_slot_mark`
+
+| Parameter | Type  | Required | Description                   |
+| --------- | ----- | -------- | ----------------------------- |
+| `quizid`  | int   | Yes      | Quiz instance ID              |
+| `slot`    | int   | Yes      | Slot number                   |
+| `maxmark` | float | Yes      | New maximum mark for the slot |
+
+**Note:** Uses Moodle's `structure::update_slot_maxmark()`, which regrades existing attempts, then recomputes the quiz sum of grades.
+
 ### Reorder Quiz Questions
 
 `local_activity_utils_reorder_quiz_questions`
@@ -1223,6 +1235,10 @@ Gets an existing category or creates a new one if it doesn't exist.
   "message": "Found 1 category(ies)"
 }
 ```
+
+### Editing a Question
+
+Every `create_*_question` call below also accepts an optional `questionbankentryid` (int, default 0). When it is set, the question is saved as a new version of that question bank entry instead of a new question. Quiz slots that use the latest version show the new version, and attempts already started keep the version they were taken on. The caller needs `moodle/question:editall`, or `moodle/question:editmine` for their own questions, in the entry's category context.
 
 ### Create Multiple Choice Question
 
