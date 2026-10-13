@@ -85,6 +85,16 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
+    'local/activity_utils:viewassignment' => array(
+        'riskbitmask' => 0,
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => array(
+            'teacher' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
     'local/activity_utils:viewassignmentcomments' => array(
         'riskbitmask' => 0,
         'captype' => 'read',

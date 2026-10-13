@@ -13,6 +13,7 @@ $string['activity_utils:createsubsection'] = 'Create subsections via API';
 $string['activity_utils:createbook'] = 'Create book resources via API';
 $string['activity_utils:readbook'] = 'Read book resources via API';
 $string['activity_utils:updateassignment'] = 'Update assignments via API';
+$string['activity_utils:viewassignment'] = 'View assignment location via API';
 $string['activity_utils:viewassignmentcomments'] = 'View assignment comments via API';
 $string['activity_utils:manageassignmentcomments'] = 'Manage assignment comments via API';
 $string['activity_utils:updatepage'] = 'Update page activities via API';

@@ -26,6 +26,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/activity_utils:updateassignment',
     ),
+    'local_activity_utils_get_assignment' => array(
+        'classname' => 'local_activity_utils\external\assignment\get_assignment',
+        'methodname' => 'execute',
+        'description' => 'Get an assignment\'s course module and course without requiring enrolment',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/activity_utils:viewassignment',
+    ),
     'local_activity_utils_get_assignment_comments' => array(
         'classname' => 'local_activity_utils\external\assignment\get_assignment_comments',
         'methodname' => 'execute',

@@ -1,5 +1,10 @@
 # Activity Utils changelog
 
+## 2026-10-13 (2)
+
+### Added
+- `get_assignment` returns an assignment's course module and course by instance id. Unlike `mod_assign_get_assignments`, it does not need the caller to be enrolled, so the system token can find a linked assignment in any class.
+
 ## 2026-10-13
 
 ### Added
