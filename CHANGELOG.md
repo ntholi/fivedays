@@ -1,5 +1,10 @@
 # Activity Utils changelog
 
+## 2026-10-13 (3)
+
+### Changed
+- `get_assignment`, `get_quiz` and `get_quiz_attempts` fail with error code `activitynotfound` when the activity or its course module was deleted. Moodle 5.2 reports a missing record without naming the table, so the app could not tell a deleted activity from other errors.
+
 ## 2026-10-13 (2)
 
 ### Added

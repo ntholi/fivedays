@@ -3,6 +3,22 @@ namespace local_activity_utils;
 
 class helper {
 
+    /**
+     * Returns [$instance, $cm] for an activity, or throws `activitynotfound` when
+     * it was deleted. Moodle's own missing-record error does not say which table
+     * was missing, so callers could not tell a deleted activity from other errors.
+     */
+    public static function require_activity(string $modname, int $instanceid, string $fields = '*'): array {
+        global $DB;
+
+        $instance = $DB->get_record($modname, ['id' => $instanceid], $fields, IGNORE_MISSING);
+        $cm = $instance ? get_coursemodule_from_instance($modname, $instance->id, 0, false, IGNORE_MISSING) : false;
+        if (!$instance || !$cm) {
+            throw new \moodle_exception('activitynotfound', 'local_activity_utils');
+        }
+        return [$instance, $cm];
+    }
+
     public static function require_question_entry(int $questionbankentryid): void {
         global $DB, $USER;
 

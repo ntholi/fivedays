@@ -5,6 +5,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_activity_utils\helper;
 
 class get_assignment extends external_api {
 
@@ -19,14 +20,11 @@ class get_assignment extends external_api {
      * enrolled, so the system token can locate assignments in any class.
      */
     public static function execute(int $assignmentid): array {
-        global $DB;
-
         $params = self::validate_parameters(self::execute_parameters(), [
             'assignmentid' => $assignmentid,
         ]);
 
-        $assign = $DB->get_record('assign', ['id' => $params['assignmentid']], 'id, course, name', MUST_EXIST);
-        $cm = get_coursemodule_from_instance('assign', $assign->id, 0, false, MUST_EXIST);
+        [$assign, $cm] = helper::require_activity('assign', $params['assignmentid'], 'id, course, name');
 
         $context = \context_module::instance($cm->id);
         self::validate_context($context);

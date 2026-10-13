@@ -23,10 +23,7 @@ class get_quiz extends external_api {
         ]);
 
         
-        $quiz = $DB->get_record('quiz', ['id' => $params['quizid']], '*', MUST_EXIST);
-
-        
-        $cm = get_coursemodule_from_instance('quiz', $quiz->id, 0, false, MUST_EXIST);
+        [$quiz, $cm] = \local_activity_utils\helper::require_activity('quiz', $params['quizid']);
 
         
         $context = \context_module::instance($cm->id);
