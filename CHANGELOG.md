@@ -1,5 +1,11 @@
 # Activity Utils changelog
 
+## 2026-10-13
+
+### Added
+- `get_draft_files` returns the calling user's draft-area files (base64) for a draft item id, so the app can send an upload as `introfiles` to classes it writes with the system token.
+- `create_draft_files` saves base64 files into the calling user's draft area and returns the draft item id, so the system token can attach files to `mod_forum_add_discussion` without `webservice/upload.php`.
+
 ## 2026-10-12 (2)
 
 ### Fixed

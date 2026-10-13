@@ -576,6 +576,20 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/activity_utils:provision',
     ),
+    'local_activity_utils_get_draft_files' => array(
+        'classname' => 'local_activity_utils\external\file\get_draft_files',
+        'methodname' => 'execute',
+        'description' => 'Get the calling user\'s draft-area files as base64',
+        'type' => 'read',
+        'ajax' => true,
+    ),
+    'local_activity_utils_create_draft_files' => array(
+        'classname' => 'local_activity_utils\external\file\create_draft_files',
+        'methodname' => 'execute',
+        'description' => 'Save base64 files into the calling user\'s draft area',
+        'type' => 'write',
+        'ajax' => true,
+    ),
     'local_activity_utils_ensure_google_login' => array(
         'classname' => 'local_activity_utils\external\provision\ensure_google_login',
         'methodname' => 'execute',
