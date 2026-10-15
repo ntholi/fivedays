@@ -1,5 +1,10 @@
 # Activity Utils changelog
 
+## 2026-10-15
+
+### Added
+- `delete_course` deletes a course and everything in it with `delete_course()`, without checking for content. It fails with `cannotdeletesitecourse` for the site course and `coursenotfound` for a missing course. Requires `local/activity_utils:provision` and `moodle/course:delete` on the course. The app uses it to retire duplicate class courses.
+
 ## 2026-10-13 (3)
 
 ### Changed

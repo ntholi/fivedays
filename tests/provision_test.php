@@ -4,6 +4,7 @@ namespace local_activity_utils\tests;
 defined('MOODLE_INTERNAL') || die();
 
 use advanced_testcase;
+use local_activity_utils\external\provision\delete_course;
 use local_activity_utils\external\provision\enrol_users;
 use local_activity_utils\external\provision\ensure_course;
 use local_activity_utils\external\provision\ensure_google_login;
@@ -424,6 +425,32 @@ class provision_test extends advanced_testcase {
         $this->assertSame('a.b.c.com', $DB->get_field('user', 'username', ['id' => $firstid]));
         $this->assertSame('a.b.c.com2', $DB->get_field('user', 'username', ['id' => $secondid]));
         $this->assertSame('a@b.c.com', $DB->get_field('user', 'email', ['id' => $secondid]));
+    }
+
+    public function test_delete_course_removes_course_with_content(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $this->getDataGenerator()->create_module('assign', ['course' => $course->id]);
+
+        $result = delete_course::execute((int) $course->id);
+
+        $this->assertTrue($result['success']);
+        $this->assertFalse($DB->record_exists('course', ['id' => $course->id]));
+    }
+
+    public function test_delete_course_refuses_site_course(): void {
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('cannotdeletesitecourse', 'local_activity_utils'));
+
+        delete_course::execute((int) SITEID);
+    }
+
+    public function test_delete_course_refuses_missing_course(): void {
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('coursenotfound', 'local_activity_utils'));
+
+        delete_course::execute(999999);
     }
 
     private function has_linked_login(int $userid, string $email): bool {

@@ -584,6 +584,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/activity_utils:provision',
     ),
+    'local_activity_utils_delete_course' => array(
+        'classname' => 'local_activity_utils\external\provision\delete_course',
+        'methodname' => 'execute',
+        'description' => 'Delete a course and all its content',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/activity_utils:provision, moodle/course:delete',
+    ),
     'local_activity_utils_get_draft_files' => array(
         'classname' => 'local_activity_utils\external\file\get_draft_files',
         'methodname' => 'execute',
