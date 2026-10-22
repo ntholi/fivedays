@@ -2,7 +2,6 @@
 defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'FiveDays';
-$string['fivedays'] = 'FiveDays';
 
 $string['fivedays:createassignment'] = 'Create assignments via FiveDays';
 $string['fivedays:deleteassignment'] = 'Delete assignments via FiveDays';

@@ -30,19 +30,6 @@ class provision_helper {
         return $issuer;
     }
 
-    public static function find_fivedays_service(): ?\stdClass {
-        global $DB;
-
-        foreach (['fivedays', 'registry_lms'] as $shortname) {
-            $service = $DB->get_record('external_services', ['shortname' => $shortname]);
-            if ($service) {
-                return $service;
-            }
-        }
-
-        return null;
-    }
-
     public static function ensure_rest_service(): \stdClass {
         global $CFG, $DB;
 
@@ -56,7 +43,7 @@ class provision_helper {
         }
 
         $webservicemanager = new \webservice();
-        $service = self::find_fivedays_service();
+        $service = $DB->get_record('external_services', ['shortname' => 'fivedays']);
         if (!$service) {
             $service = (object) [
                 'name' => 'FiveDays',
@@ -67,13 +54,8 @@ class provision_helper {
                 'uploadfiles' => 1,
             ];
             $service->id = $webservicemanager->add_external_service($service);
-        } else if (
-            $service->name !== 'FiveDays'
-            || $service->shortname !== 'fivedays'
-            || (int) $service->enabled !== 1
-        ) {
+        } else if ($service->name !== 'FiveDays' || (int) $service->enabled !== 1) {
             $service->name = 'FiveDays';
-            $service->shortname = 'fivedays';
             $service->enabled = 1;
             $webservicemanager->update_external_service($service);
         }
