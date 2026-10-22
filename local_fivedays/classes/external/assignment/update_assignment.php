@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\assignment;
+namespace local_fivedays\external\assignment;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -70,7 +70,7 @@ class update_assignment extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:updateassignment', $context);
+        require_capability('local/fivedays:updateassignment', $context);
         require_capability('mod/assign:addinstance', $context);
 
         

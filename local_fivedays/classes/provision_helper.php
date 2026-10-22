@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils;
+namespace local_fivedays;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -8,7 +8,7 @@ class provision_helper {
     public static function require_system_capability(): \context_system {
         $context = \context_system::instance();
         \core_external\external_api::validate_context($context);
-        require_capability('local/activity_utils:provision', $context);
+        require_capability('local/fivedays:provision', $context);
         return $context;
     }
 
@@ -25,7 +25,7 @@ class provision_helper {
     public static function require_google_issuer(): \core\oauth2\issuer {
         $issuer = self::find_google_issuer();
         if (!$issuer) {
-            throw new \moodle_exception('googleissuermissing', 'local_activity_utils');
+            throw new \moodle_exception('googleissuermissing', 'local_fivedays');
         }
         return $issuer;
     }
@@ -78,7 +78,7 @@ class provision_helper {
             $webservicemanager->update_external_service($service);
         }
 
-        $pluginfunctions = $DB->get_fieldset_select('external_functions', 'name', "name LIKE 'local_activity_utils_%'");
+        $pluginfunctions = $DB->get_fieldset_select('external_functions', 'name', "name LIKE 'local_fivedays_%'");
         $core = [
             'core_enrol_get_enrolled_users',
         ];
@@ -375,7 +375,7 @@ class provision_helper {
         if ($fromemail === $toemail) {
             $user = $from ?: $to;
             if (!$user) {
-                throw new \moodle_exception('usernotfound', 'local_activity_utils', '', $fromemail);
+                throw new \moodle_exception('usernotfound', 'local_fivedays', '', $fromemail);
             }
             self::link_oauth_login($user, $fromemail, $issuer);
             return $user;
@@ -390,7 +390,7 @@ class provision_helper {
             $fromenrolled = self::has_enrolments((int) $from->id);
             $toenrolled = self::has_enrolments((int) $to->id);
             if ($fromenrolled && $toenrolled) {
-                throw new \moodle_exception('emailhasmoodlework', 'local_activity_utils');
+                throw new \moodle_exception('emailhasmoodlework', 'local_fivedays');
             }
             if ($toenrolled && !$fromenrolled) {
                 self::unlink_oauth_login((int) $from->id, $fromemail);
@@ -423,7 +423,7 @@ class provision_helper {
             return $from;
         }
 
-        throw new \moodle_exception('usernotfound', 'local_activity_utils', '', $fromemail);
+        throw new \moodle_exception('usernotfound', 'local_fivedays', '', $fromemail);
     }
 
     private static function unlink_oauth_login(int $userid, string $email): void {
@@ -472,7 +472,7 @@ class provision_helper {
 
         $user = self::find_user_by_email($email);
         if (!$user) {
-            throw new \moodle_exception('usernotfound', 'local_activity_utils', '', $email);
+            throw new \moodle_exception('usernotfound', 'local_fivedays', '', $email);
         }
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);

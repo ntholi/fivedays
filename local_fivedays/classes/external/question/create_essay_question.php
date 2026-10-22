@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\question;
+namespace local_fivedays\external\question;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -93,9 +93,9 @@ class create_essay_question extends external_api {
         $context = \context::instance_by_id($category->contextid);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:createquestion', $context);
+        require_capability('local/fivedays:createquestion', $context);
         require_capability('moodle/question:add', $context);
-        \local_activity_utils\helper::require_question_entry($params['questionbankentryid']);
+        \local_fivedays\helper::require_question_entry($params['questionbankentryid']);
 
         
         $validformats = ['editor', 'editorfilepicker', 'plain', 'monospaced', 'noinline'];
@@ -125,7 +125,7 @@ class create_essay_question extends external_api {
         $questionid = $DB->insert_record('question', $question);
 
         
-        $qbeid = \local_activity_utils\helper::save_question_version(
+        $qbeid = \local_fivedays\helper::save_question_version(
             $params['categoryid'],
             (int)$questionid,
             $params['idnumber'],

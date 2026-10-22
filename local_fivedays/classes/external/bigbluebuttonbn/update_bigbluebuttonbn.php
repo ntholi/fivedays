@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\bigbluebuttonbn;
+namespace local_fivedays\external\bigbluebuttonbn;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -143,7 +143,7 @@ class update_bigbluebuttonbn extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:updatebigbluebuttonbn', $context);
+        require_capability('local/fivedays:updatebigbluebuttonbn', $context);
         require_capability('mod/bigbluebuttonbn:addinstance', $context);
 
         

@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils;
+namespace local_fivedays;
 
 class helper {
 
@@ -14,7 +14,7 @@ class helper {
         $instance = $DB->get_record($modname, ['id' => $instanceid], $fields, IGNORE_MISSING);
         $cm = $instance ? get_coursemodule_from_instance($modname, $instance->id, 0, false, IGNORE_MISSING) : false;
         if (!$instance || !$cm) {
-            throw new \moodle_exception('activitynotfound', 'local_activity_utils');
+            throw new \moodle_exception('activitynotfound', 'local_fivedays');
         }
         return [$instance, $cm];
     }
@@ -140,7 +140,7 @@ class helper {
 
         $section = self::get_section_by_number($courseid, $sectionnum);
         if (!$section) {
-            throw new \moodle_exception('sectionnotfound', 'local_activity_utils', '', $sectionnum);
+            throw new \moodle_exception('sectionnotfound', 'local_fivedays', '', $sectionnum);
         }
 
         course_add_cm_to_section($courseid, $cmid, $sectionnum);

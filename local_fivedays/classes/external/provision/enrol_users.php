@@ -1,12 +1,12 @@
 <?php
-namespace local_activity_utils\external\provision;
+namespace local_fivedays\external\provision;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\provision_helper;
+use local_fivedays\provision_helper;
 
 class enrol_users extends external_api {
 

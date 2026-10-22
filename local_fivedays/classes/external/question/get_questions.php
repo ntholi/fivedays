@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\question;
+namespace local_fivedays\external\question;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -42,7 +42,7 @@ class get_questions extends external_api {
         $context = \context::instance_by_id($category->contextid);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:viewquestions', $context);
+        require_capability('local/fivedays:viewquestions', $context);
         require_capability('moodle/question:viewall', $context);
 
         

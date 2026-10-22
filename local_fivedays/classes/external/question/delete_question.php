@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\question;
+namespace local_fivedays\external\question;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -38,7 +38,7 @@ class delete_question extends external_api {
         $context = \context::instance_by_id($category->contextid);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:deletequestion', $context);
+        require_capability('local/fivedays:deletequestion', $context);
         require_capability('moodle/question:editall', $context);
 
         

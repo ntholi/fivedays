@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\rubric;
+namespace local_fivedays\external\rubric;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -32,10 +32,10 @@ class copy_rubric extends external_api {
         $targetcontext = \context_module::instance($targetcm->id);
 
         self::validate_context($sourcecontext);
-        require_capability('local/activity_utils:managerubric', $sourcecontext);
+        require_capability('local/fivedays:managerubric', $sourcecontext);
 
         self::validate_context($targetcontext);
-        require_capability('local/activity_utils:managerubric', $targetcontext);
+        require_capability('local/fivedays:managerubric', $targetcontext);
         require_capability('moodle/grade:managegradingforms', $targetcontext);
 
         $sourcegradingmanager = get_grading_manager($sourcecontext, 'mod_assign', 'submissions');

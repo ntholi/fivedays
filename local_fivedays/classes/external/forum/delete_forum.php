@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\forum;
+namespace local_fivedays\external\forum;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -50,7 +50,7 @@ class delete_forum extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:deleteforum', $context);
+        require_capability('local/fivedays:deleteforum', $context);
         require_capability('moodle/course:manageactivities', $context);
 
         $forumname = $forum->name;

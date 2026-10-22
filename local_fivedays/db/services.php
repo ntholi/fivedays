@@ -2,617 +2,617 @@
 defined('MOODLE_INTERNAL') || die();
 
 $functions = array(
-    'local_activity_utils_create_assignment' => array(
-        'classname' => 'local_activity_utils\external\assignment\create_assignment',
+    'local_fivedays_create_assignment' => array(
+        'classname' => 'local_fivedays\external\assignment\create_assignment',
         'methodname' => 'execute',
         'description' => 'Create a new assignment',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createassignment',
+        'capabilities' => 'local/fivedays:createassignment',
     ),
-    'local_activity_utils_delete_assignment' => array(
-        'classname' => 'local_activity_utils\external\assignment\delete_assignment',
+    'local_fivedays_delete_assignment' => array(
+        'classname' => 'local_fivedays\external\assignment\delete_assignment',
         'methodname' => 'execute',
         'description' => 'Delete an existing assignment',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deleteassignment',
+        'capabilities' => 'local/fivedays:deleteassignment',
     ),
-    'local_activity_utils_update_assignment' => array(
-        'classname' => 'local_activity_utils\external\assignment\update_assignment',
+    'local_fivedays_update_assignment' => array(
+        'classname' => 'local_fivedays\external\assignment\update_assignment',
         'methodname' => 'execute',
         'description' => 'Update an existing assignment',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updateassignment',
+        'capabilities' => 'local/fivedays:updateassignment',
     ),
-    'local_activity_utils_get_assignment' => array(
-        'classname' => 'local_activity_utils\external\assignment\get_assignment',
+    'local_fivedays_get_assignment' => array(
+        'classname' => 'local_fivedays\external\assignment\get_assignment',
         'methodname' => 'execute',
         'description' => 'Get an assignment\'s course module and course without requiring enrolment',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewassignment',
+        'capabilities' => 'local/fivedays:viewassignment',
     ),
-    'local_activity_utils_get_assignment_comments' => array(
-        'classname' => 'local_activity_utils\external\assignment\get_assignment_comments',
+    'local_fivedays_get_assignment_comments' => array(
+        'classname' => 'local_fivedays\external\assignment\get_assignment_comments',
         'methodname' => 'execute',
         'description' => 'List feedback comments for a student assignment submission',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewassignmentcomments',
+        'capabilities' => 'local/fivedays:viewassignmentcomments',
     ),
-    'local_activity_utils_add_assignment_comment' => array(
-        'classname' => 'local_activity_utils\external\assignment\add_assignment_comment',
+    'local_fivedays_add_assignment_comment' => array(
+        'classname' => 'local_fivedays\external\assignment\add_assignment_comment',
         'methodname' => 'execute',
         'description' => 'Add a feedback comment on a student assignment submission',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:manageassignmentcomments',
+        'capabilities' => 'local/fivedays:manageassignmentcomments',
     ),
-    'local_activity_utils_update_assignment_comment' => array(
-        'classname' => 'local_activity_utils\external\assignment\update_assignment_comment',
+    'local_fivedays_update_assignment_comment' => array(
+        'classname' => 'local_fivedays\external\assignment\update_assignment_comment',
         'methodname' => 'execute',
         'description' => 'Update a feedback comment on a student assignment submission',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:manageassignmentcomments',
+        'capabilities' => 'local/fivedays:manageassignmentcomments',
     ),
-    'local_activity_utils_delete_assignment_comment' => array(
-        'classname' => 'local_activity_utils\external\assignment\delete_assignment_comment',
+    'local_fivedays_delete_assignment_comment' => array(
+        'classname' => 'local_fivedays\external\assignment\delete_assignment_comment',
         'methodname' => 'execute',
         'description' => 'Delete a feedback comment on a student assignment submission',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:manageassignmentcomments',
+        'capabilities' => 'local/fivedays:manageassignmentcomments',
     ),
-    'local_activity_utils_get_assignment_grades' => array(
-        'classname' => 'local_activity_utils\external\assignment\get_assignment_grades',
+    'local_fivedays_get_assignment_grades' => array(
+        'classname' => 'local_fivedays\external\assignment\get_assignment_grades',
         'methodname' => 'execute',
         'description' => 'List assignment grades and release states for enrolled students',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:gradeassignment',
+        'capabilities' => 'local/fivedays:gradeassignment',
     ),
-    'local_activity_utils_save_assignment_grade' => array(
-        'classname' => 'local_activity_utils\external\assignment\save_assignment_grade',
+    'local_fivedays_save_assignment_grade' => array(
+        'classname' => 'local_fivedays\external\assignment\save_assignment_grade',
         'methodname' => 'execute',
         'description' => 'Save or override an assignment overall mark without releasing it',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:gradeassignment',
+        'capabilities' => 'local/fivedays:gradeassignment',
     ),
-    'local_activity_utils_release_assignment_grades' => array(
-        'classname' => 'local_activity_utils\external\assignment\release_assignment_grades',
+    'local_fivedays_release_assignment_grades' => array(
+        'classname' => 'local_fivedays\external\assignment\release_assignment_grades',
         'methodname' => 'execute',
         'description' => 'Release selected unpublished assignment grades and optional feedback comments',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:gradeassignment',
+        'capabilities' => 'local/fivedays:gradeassignment',
     ),
 
-    'local_activity_utils_create_book' => array(
-        'classname' => 'local_activity_utils\external\book\create_book',
+    'local_fivedays_create_book' => array(
+        'classname' => 'local_fivedays\external\book\create_book',
         'methodname' => 'execute',
         'description' => 'Create a new book resource with optional chapters',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createbook',
+        'capabilities' => 'local/fivedays:createbook',
     ),
-    'local_activity_utils_add_book_chapter' => array(
-        'classname' => 'local_activity_utils\external\book\add_book_chapter',
+    'local_fivedays_add_book_chapter' => array(
+        'classname' => 'local_fivedays\external\book\add_book_chapter',
         'methodname' => 'execute',
         'description' => 'Add a chapter to an existing book',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createbook',
+        'capabilities' => 'local/fivedays:createbook',
     ),
-    'local_activity_utils_get_book' => array(
-        'classname' => 'local_activity_utils\external\book\get_book',
+    'local_fivedays_get_book' => array(
+        'classname' => 'local_fivedays\external\book\get_book',
         'methodname' => 'execute',
         'description' => 'Get complete book details with all chapters and content',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:readbook',
+        'capabilities' => 'local/fivedays:readbook',
     ),
-    'local_activity_utils_update_book' => array(
-        'classname' => 'local_activity_utils\external\book\update_book',
+    'local_fivedays_update_book' => array(
+        'classname' => 'local_fivedays\external\book\update_book',
         'methodname' => 'execute',
         'description' => 'Update an existing book resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatebook',
+        'capabilities' => 'local/fivedays:updatebook',
     ),
-    'local_activity_utils_update_book_chapter' => array(
-        'classname' => 'local_activity_utils\external\book\update_book_chapter',
+    'local_fivedays_update_book_chapter' => array(
+        'classname' => 'local_fivedays\external\book\update_book_chapter',
         'methodname' => 'execute',
         'description' => 'Update an existing book chapter',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatebook',
+        'capabilities' => 'local/fivedays:updatebook',
     ),
-    'local_activity_utils_delete_book' => array(
-        'classname' => 'local_activity_utils\external\book\delete_book',
+    'local_fivedays_delete_book' => array(
+        'classname' => 'local_fivedays\external\book\delete_book',
         'methodname' => 'execute',
         'description' => 'Delete an existing book resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletebook',
+        'capabilities' => 'local/fivedays:deletebook',
     ),
 
-    'local_activity_utils_create_file' => array(
-        'classname' => 'local_activity_utils\external\file\create_file',
+    'local_fivedays_create_file' => array(
+        'classname' => 'local_fivedays\external\file\create_file',
         'methodname' => 'execute',
         'description' => 'Create a new file resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createfile',
+        'capabilities' => 'local/fivedays:createfile',
     ),
-    'local_activity_utils_update_file' => array(
-        'classname' => 'local_activity_utils\external\file\update_file',
+    'local_fivedays_update_file' => array(
+        'classname' => 'local_fivedays\external\file\update_file',
         'methodname' => 'execute',
         'description' => 'Update an existing file resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatefile',
+        'capabilities' => 'local/fivedays:updatefile',
     ),
-    'local_activity_utils_delete_file' => array(
-        'classname' => 'local_activity_utils\external\file\delete_file',
+    'local_fivedays_delete_file' => array(
+        'classname' => 'local_fivedays\external\file\delete_file',
         'methodname' => 'execute',
         'description' => 'Delete an existing file resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletefile',
+        'capabilities' => 'local/fivedays:deletefile',
     ),
 
-    'local_activity_utils_create_page' => array(
-        'classname' => 'local_activity_utils\external\page\create_page',
+    'local_fivedays_create_page' => array(
+        'classname' => 'local_fivedays\external\page\create_page',
         'methodname' => 'execute',
         'description' => 'Create a new page activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createpage',
+        'capabilities' => 'local/fivedays:createpage',
     ),
-    'local_activity_utils_update_page' => array(
-        'classname' => 'local_activity_utils\external\page\update_page',
+    'local_fivedays_update_page' => array(
+        'classname' => 'local_fivedays\external\page\update_page',
         'methodname' => 'execute',
         'description' => 'Update an existing page activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatepage',
+        'capabilities' => 'local/fivedays:updatepage',
     ),
-    'local_activity_utils_delete_page' => array(
-        'classname' => 'local_activity_utils\external\page\delete_page',
+    'local_fivedays_delete_page' => array(
+        'classname' => 'local_fivedays\external\page\delete_page',
         'methodname' => 'execute',
         'description' => 'Delete an existing page activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletepage',
+        'capabilities' => 'local/fivedays:deletepage',
     ),
 
-    'local_activity_utils_create_section' => array(
-        'classname' => 'local_activity_utils\external\section\create_section',
+    'local_fivedays_create_section' => array(
+        'classname' => 'local_fivedays\external\section\create_section',
         'methodname' => 'execute',
         'description' => 'Create a new course section',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createsection',
+        'capabilities' => 'local/fivedays:createsection',
     ),
-    'local_activity_utils_update_section' => array(
-        'classname' => 'local_activity_utils\external\section\update_section',
+    'local_fivedays_update_section' => array(
+        'classname' => 'local_fivedays\external\section\update_section',
         'methodname' => 'execute',
         'description' => 'Update an existing course section',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatesection',
+        'capabilities' => 'local/fivedays:updatesection',
     ),
-    'local_activity_utils_delete_section' => array(
-        'classname' => 'local_activity_utils\external\section\delete_section',
+    'local_fivedays_delete_section' => array(
+        'classname' => 'local_fivedays\external\section\delete_section',
         'methodname' => 'execute',
         'description' => 'Delete an existing course section',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletesection',
+        'capabilities' => 'local/fivedays:deletesection',
     ),
-    'local_activity_utils_create_subsection' => array(
-        'classname' => 'local_activity_utils\external\section\create_subsection',
+    'local_fivedays_create_subsection' => array(
+        'classname' => 'local_fivedays\external\section\create_subsection',
         'methodname' => 'execute',
         'description' => 'Create a new subsection within a course section',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createsubsection',
+        'capabilities' => 'local/fivedays:createsubsection',
     ),
-    'local_activity_utils_update_subsection' => array(
-        'classname' => 'local_activity_utils\external\section\update_subsection',
+    'local_fivedays_update_subsection' => array(
+        'classname' => 'local_fivedays\external\section\update_subsection',
         'methodname' => 'execute',
         'description' => 'Update an existing subsection',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatesubsection',
+        'capabilities' => 'local/fivedays:updatesubsection',
     ),
-    'local_activity_utils_delete_subsection' => array(
-        'classname' => 'local_activity_utils\external\section\delete_subsection',
+    'local_fivedays_delete_subsection' => array(
+        'classname' => 'local_fivedays\external\section\delete_subsection',
         'methodname' => 'execute',
         'description' => 'Delete an existing subsection',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletesubsection',
+        'capabilities' => 'local/fivedays:deletesubsection',
     ),
 
-    'local_activity_utils_create_rubric' => array(
-        'classname' => 'local_activity_utils\external\rubric\create_rubric',
+    'local_fivedays_create_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\create_rubric',
         'methodname' => 'execute',
         'description' => 'Create a FiveDays rubric for an assignment (switches from simple direct grading to FiveDays)',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managerubric',
+        'capabilities' => 'local/fivedays:managerubric',
     ),
-    'local_activity_utils_get_rubric' => array(
-        'classname' => 'local_activity_utils\external\rubric\get_rubric',
+    'local_fivedays_get_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\get_rubric',
         'methodname' => 'execute',
         'description' => 'Get FiveDays rubric definition for an assignment (returns grading method info)',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managerubric',
+        'capabilities' => 'local/fivedays:managerubric',
     ),
-    'local_activity_utils_update_rubric' => array(
-        'classname' => 'local_activity_utils\external\rubric\update_rubric',
+    'local_fivedays_update_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\update_rubric',
         'methodname' => 'execute',
         'description' => 'Update an existing FiveDays rubric',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managerubric',
+        'capabilities' => 'local/fivedays:managerubric',
     ),
-    'local_activity_utils_delete_rubric' => array(
-        'classname' => 'local_activity_utils\external\rubric\delete_rubric',
+    'local_fivedays_delete_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\delete_rubric',
         'methodname' => 'execute',
         'description' => 'Delete a FiveDays rubric from an assignment (reverts to simple direct grading)',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managerubric',
+        'capabilities' => 'local/fivedays:managerubric',
     ),
-    'local_activity_utils_copy_rubric' => array(
-        'classname' => 'local_activity_utils\external\rubric\copy_rubric',
+    'local_fivedays_copy_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\copy_rubric',
         'methodname' => 'execute',
         'description' => 'Copy a FiveDays rubric from one assignment to another',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managerubric',
+        'capabilities' => 'local/fivedays:managerubric',
     ),
-    'local_activity_utils_fill_rubric' => array(
-        'classname' => 'local_activity_utils\external\rubric\fill_rubric',
+    'local_fivedays_fill_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\fill_rubric',
         'methodname' => 'execute',
         'description' => 'Fill a FiveDays rubric to grade a student\'s assignment submission',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:graderubric',
+        'capabilities' => 'local/fivedays:graderubric',
     ),
-    'local_activity_utils_get_rubric_filling' => array(
-        'classname' => 'local_activity_utils\external\rubric\get_rubric_filling',
+    'local_fivedays_get_rubric_filling' => array(
+        'classname' => 'local_fivedays\external\rubric\get_rubric_filling',
         'methodname' => 'execute',
         'description' => 'Get FiveDays rubric filling (grading) for a student\'s assignment',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewrubricfilling',
+        'capabilities' => 'local/fivedays:viewrubricfilling',
     ),
 
-    'local_activity_utils_create_bigbluebuttonbn' => array(
-        'classname' => 'local_activity_utils\external\bigbluebuttonbn\create_bigbluebuttonbn',
+    'local_fivedays_create_bigbluebuttonbn' => array(
+        'classname' => 'local_fivedays\external\bigbluebuttonbn\create_bigbluebuttonbn',
         'methodname' => 'execute',
         'description' => 'Create a new BigBlueButton activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createbigbluebuttonbn',
+        'capabilities' => 'local/fivedays:createbigbluebuttonbn',
     ),
-    'local_activity_utils_update_bigbluebuttonbn' => array(
-        'classname' => 'local_activity_utils\external\bigbluebuttonbn\update_bigbluebuttonbn',
+    'local_fivedays_update_bigbluebuttonbn' => array(
+        'classname' => 'local_fivedays\external\bigbluebuttonbn\update_bigbluebuttonbn',
         'methodname' => 'execute',
         'description' => 'Update an existing BigBlueButton activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatebigbluebuttonbn',
+        'capabilities' => 'local/fivedays:updatebigbluebuttonbn',
     ),
-    'local_activity_utils_delete_bigbluebuttonbn' => array(
-        'classname' => 'local_activity_utils\external\bigbluebuttonbn\delete_bigbluebuttonbn',
+    'local_fivedays_delete_bigbluebuttonbn' => array(
+        'classname' => 'local_fivedays\external\bigbluebuttonbn\delete_bigbluebuttonbn',
         'methodname' => 'execute',
         'description' => 'Delete an existing BigBlueButton activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletebigbluebuttonbn',
+        'capabilities' => 'local/fivedays:deletebigbluebuttonbn',
     ),
 
-    'local_activity_utils_create_forum' => array(
-        'classname' => 'local_activity_utils\external\forum\create_forum',
+    'local_fivedays_create_forum' => array(
+        'classname' => 'local_fivedays\external\forum\create_forum',
         'methodname' => 'execute',
         'description' => 'Create a new forum activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createforum',
+        'capabilities' => 'local/fivedays:createforum',
     ),
-    'local_activity_utils_delete_forum' => array(
-        'classname' => 'local_activity_utils\external\forum\delete_forum',
+    'local_fivedays_delete_forum' => array(
+        'classname' => 'local_fivedays\external\forum\delete_forum',
         'methodname' => 'execute',
         'description' => 'Delete an existing forum activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deleteforum',
+        'capabilities' => 'local/fivedays:deleteforum',
     ),
 
-    'local_activity_utils_create_url' => array(
-        'classname' => 'local_activity_utils\external\url\create_url',
+    'local_fivedays_create_url' => array(
+        'classname' => 'local_fivedays\external\url\create_url',
         'methodname' => 'execute',
         'description' => 'Create a new URL resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createurl',
+        'capabilities' => 'local/fivedays:createurl',
     ),
-    'local_activity_utils_update_url' => array(
-        'classname' => 'local_activity_utils\external\url\update_url',
+    'local_fivedays_update_url' => array(
+        'classname' => 'local_fivedays\external\url\update_url',
         'methodname' => 'execute',
         'description' => 'Update an existing URL resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updateurl',
+        'capabilities' => 'local/fivedays:updateurl',
     ),
-    'local_activity_utils_delete_url' => array(
-        'classname' => 'local_activity_utils\external\url\delete_url',
+    'local_fivedays_delete_url' => array(
+        'classname' => 'local_fivedays\external\url\delete_url',
         'methodname' => 'execute',
         'description' => 'Delete an existing URL resource',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deleteurl',
+        'capabilities' => 'local/fivedays:deleteurl',
     ),
 
-    'local_activity_utils_create_quiz' => array(
-        'classname' => 'local_activity_utils\external\quiz\create_quiz',
+    'local_fivedays_create_quiz' => array(
+        'classname' => 'local_fivedays\external\quiz\create_quiz',
         'methodname' => 'execute',
         'description' => 'Create a new quiz activity with full configuration options',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createquiz',
+        'capabilities' => 'local/fivedays:createquiz',
     ),
-    'local_activity_utils_update_quiz' => array(
-        'classname' => 'local_activity_utils\external\quiz\update_quiz',
+    'local_fivedays_update_quiz' => array(
+        'classname' => 'local_fivedays\external\quiz\update_quiz',
         'methodname' => 'execute',
         'description' => 'Update an existing quiz activity settings',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:updatequiz',
+        'capabilities' => 'local/fivedays:updatequiz',
     ),
-    'local_activity_utils_delete_quiz' => array(
-        'classname' => 'local_activity_utils\external\quiz\delete_quiz',
+    'local_fivedays_delete_quiz' => array(
+        'classname' => 'local_fivedays\external\quiz\delete_quiz',
         'methodname' => 'execute',
         'description' => 'Delete an existing quiz activity',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletequiz',
+        'capabilities' => 'local/fivedays:deletequiz',
     ),
-    'local_activity_utils_get_quiz' => array(
-        'classname' => 'local_activity_utils\external\quiz\get_quiz',
+    'local_fivedays_get_quiz' => array(
+        'classname' => 'local_fivedays\external\quiz\get_quiz',
         'methodname' => 'execute',
         'description' => 'Get complete quiz details with all questions and sections',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewquiz',
+        'capabilities' => 'local/fivedays:viewquiz',
     ),
-    'local_activity_utils_add_question_to_quiz' => array(
-        'classname' => 'local_activity_utils\external\quiz\add_question_to_quiz',
+    'local_fivedays_add_question_to_quiz' => array(
+        'classname' => 'local_fivedays\external\quiz\add_question_to_quiz',
         'methodname' => 'execute',
         'description' => 'Add an existing question to a quiz',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managequizquestions',
+        'capabilities' => 'local/fivedays:managequizquestions',
     ),
-    'local_activity_utils_remove_question_from_quiz' => array(
-        'classname' => 'local_activity_utils\external\quiz\remove_question_from_quiz',
+    'local_fivedays_remove_question_from_quiz' => array(
+        'classname' => 'local_fivedays\external\quiz\remove_question_from_quiz',
         'methodname' => 'execute',
         'description' => 'Remove a question from a quiz',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managequizquestions',
+        'capabilities' => 'local/fivedays:managequizquestions',
     ),
-    'local_activity_utils_update_quiz_slot_mark' => array(
-        'classname' => 'local_activity_utils\external\quiz\update_quiz_slot_mark',
+    'local_fivedays_update_quiz_slot_mark' => array(
+        'classname' => 'local_fivedays\external\quiz\update_quiz_slot_mark',
         'methodname' => 'execute',
         'description' => 'Change the maximum mark of a quiz slot',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managequizquestions',
+        'capabilities' => 'local/fivedays:managequizquestions',
     ),
-    'local_activity_utils_reorder_quiz_questions' => array(
-        'classname' => 'local_activity_utils\external\quiz\reorder_quiz_questions',
+    'local_fivedays_reorder_quiz_questions' => array(
+        'classname' => 'local_fivedays\external\quiz\reorder_quiz_questions',
         'methodname' => 'execute',
         'description' => 'Reorder questions within a quiz',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managequizquestions',
+        'capabilities' => 'local/fivedays:managequizquestions',
     ),
 
-    'local_activity_utils_get_or_create_question_category' => array(
-        'classname' => 'local_activity_utils\external\question\get_or_create_category',
+    'local_fivedays_get_or_create_question_category' => array(
+        'classname' => 'local_fivedays\external\question\get_or_create_category',
         'methodname' => 'execute',
         'description' => 'Get or create a question category for a course',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managequestioncategory',
+        'capabilities' => 'local/fivedays:managequestioncategory',
     ),
-    'local_activity_utils_list_question_categories' => array(
-        'classname' => 'local_activity_utils\external\question\list_categories',
+    'local_fivedays_list_question_categories' => array(
+        'classname' => 'local_fivedays\external\question\list_categories',
         'methodname' => 'execute',
         'description' => 'List all question categories in a course',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:managequestioncategory',
+        'capabilities' => 'local/fivedays:managequestioncategory',
     ),
 
-    'local_activity_utils_create_multichoice_question' => array(
-        'classname' => 'local_activity_utils\external\question\create_multichoice_question',
+    'local_fivedays_create_multichoice_question' => array(
+        'classname' => 'local_fivedays\external\question\create_multichoice_question',
         'methodname' => 'execute',
         'description' => 'Create a multiple choice question (single or multiple answer)',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createquestion',
+        'capabilities' => 'local/fivedays:createquestion',
     ),
-    'local_activity_utils_create_truefalse_question' => array(
-        'classname' => 'local_activity_utils\external\question\create_truefalse_question',
+    'local_fivedays_create_truefalse_question' => array(
+        'classname' => 'local_fivedays\external\question\create_truefalse_question',
         'methodname' => 'execute',
         'description' => 'Create a true/false question',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createquestion',
+        'capabilities' => 'local/fivedays:createquestion',
     ),
-    'local_activity_utils_create_shortanswer_question' => array(
-        'classname' => 'local_activity_utils\external\question\create_shortanswer_question',
+    'local_fivedays_create_shortanswer_question' => array(
+        'classname' => 'local_fivedays\external\question\create_shortanswer_question',
         'methodname' => 'execute',
         'description' => 'Create a short answer question',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createquestion',
+        'capabilities' => 'local/fivedays:createquestion',
     ),
-    'local_activity_utils_create_essay_question' => array(
-        'classname' => 'local_activity_utils\external\question\create_essay_question',
+    'local_fivedays_create_essay_question' => array(
+        'classname' => 'local_fivedays\external\question\create_essay_question',
         'methodname' => 'execute',
         'description' => 'Create an essay question',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createquestion',
+        'capabilities' => 'local/fivedays:createquestion',
     ),
-    'local_activity_utils_create_numerical_question' => array(
-        'classname' => 'local_activity_utils\external\question\create_numerical_question',
+    'local_fivedays_create_numerical_question' => array(
+        'classname' => 'local_fivedays\external\question\create_numerical_question',
         'methodname' => 'execute',
         'description' => 'Create a numerical question',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:createquestion',
+        'capabilities' => 'local/fivedays:createquestion',
     ),
 
-    'local_activity_utils_get_questions' => array(
-        'classname' => 'local_activity_utils\external\question\get_questions',
+    'local_fivedays_get_questions' => array(
+        'classname' => 'local_fivedays\external\question\get_questions',
         'methodname' => 'execute',
         'description' => 'Get questions in a category',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewquestions',
+        'capabilities' => 'local/fivedays:viewquestions',
     ),
-    'local_activity_utils_delete_question' => array(
-        'classname' => 'local_activity_utils\external\question\delete_question',
+    'local_fivedays_delete_question' => array(
+        'classname' => 'local_fivedays\external\question\delete_question',
         'methodname' => 'execute',
         'description' => 'Delete a question from the question bank',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:deletequestion',
+        'capabilities' => 'local/fivedays:deletequestion',
     ),
 
-    'local_activity_utils_get_quiz_attempts' => array(
-        'classname' => 'local_activity_utils\external\quiz\get_quiz_attempts',
+    'local_fivedays_get_quiz_attempts' => array(
+        'classname' => 'local_fivedays\external\quiz\get_quiz_attempts',
         'methodname' => 'execute',
         'description' => 'Get all quiz attempts for a quiz with student info',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewquizattempts',
+        'capabilities' => 'local/fivedays:viewquizattempts',
     ),
-    'local_activity_utils_get_quiz_attempt_details' => array(
-        'classname' => 'local_activity_utils\external\quiz\get_quiz_attempt_details',
+    'local_fivedays_get_quiz_attempt_details' => array(
+        'classname' => 'local_fivedays\external\quiz\get_quiz_attempt_details',
         'methodname' => 'execute',
         'description' => 'Get detailed attempt with question responses',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewquizattempts',
+        'capabilities' => 'local/fivedays:viewquizattempts',
     ),
-    'local_activity_utils_grade_essay_question' => array(
-        'classname' => 'local_activity_utils\external\quiz\grade_essay_question',
+    'local_fivedays_grade_essay_question' => array(
+        'classname' => 'local_fivedays\external\quiz\grade_essay_question',
         'methodname' => 'execute',
         'description' => 'Grade an essay question manually',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:gradequizattempts',
+        'capabilities' => 'local/fivedays:gradequizattempts',
     ),
-    'local_activity_utils_add_attempt_feedback' => array(
-        'classname' => 'local_activity_utils\external\quiz\add_attempt_feedback',
+    'local_fivedays_add_attempt_feedback' => array(
+        'classname' => 'local_fivedays\external\quiz\add_attempt_feedback',
         'methodname' => 'execute',
         'description' => 'Add feedback to a quiz attempt',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:gradequizattempts',
+        'capabilities' => 'local/fivedays:gradequizattempts',
     ),
-    'local_activity_utils_get_attempt_feedback' => array(
-        'classname' => 'local_activity_utils\external\quiz\get_attempt_feedback',
+    'local_fivedays_get_attempt_feedback' => array(
+        'classname' => 'local_fivedays\external\quiz\get_attempt_feedback',
         'methodname' => 'execute',
         'description' => 'Get feedback for a quiz attempt',
         'type' => 'read',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:viewquizattempts',
+        'capabilities' => 'local/fivedays:viewquizattempts',
     ),
 
-    'local_activity_utils_provision_users' => array(
-        'classname' => 'local_activity_utils\external\provision\provision_users',
+    'local_fivedays_provision_users' => array(
+        'classname' => 'local_fivedays\external\provision\provision_users',
         'methodname' => 'execute',
         'description' => 'Create or switch Moodle Google-OAuth users and issue FiveDays tokens',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision',
+        'capabilities' => 'local/fivedays:provision',
     ),
-    'local_activity_utils_rebind_user_email' => array(
-        'classname' => 'local_activity_utils\external\provision\rebind_user_email',
+    'local_fivedays_rebind_user_email' => array(
+        'classname' => 'local_fivedays\external\provision\rebind_user_email',
         'methodname' => 'execute',
         'description' => 'Rebind a Moodle Google-OAuth user to a new email and issue a FiveDays token',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision',
+        'capabilities' => 'local/fivedays:provision',
     ),
-    'local_activity_utils_ensure_course' => array(
-        'classname' => 'local_activity_utils\external\provision\ensure_course',
+    'local_fivedays_ensure_course' => array(
+        'classname' => 'local_fivedays\external\provision\ensure_course',
         'methodname' => 'execute',
         'description' => 'Reuse or create a Moodle course by idnumber (termId:semesterModuleId)',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision',
+        'capabilities' => 'local/fivedays:provision',
     ),
-    'local_activity_utils_enrol_users' => array(
-        'classname' => 'local_activity_utils\external\provision\enrol_users',
+    'local_fivedays_enrol_users' => array(
+        'classname' => 'local_fivedays\external\provision\enrol_users',
         'methodname' => 'execute',
         'description' => 'Manually enrol users in a course as editingteacher or student',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision',
+        'capabilities' => 'local/fivedays:provision',
     ),
-    'local_activity_utils_unenrol_users' => array(
-        'classname' => 'local_activity_utils\external\provision\unenrol_users',
+    'local_fivedays_unenrol_users' => array(
+        'classname' => 'local_fivedays\external\provision\unenrol_users',
         'methodname' => 'execute',
         'description' => 'Manually unenrol users from a course',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision',
+        'capabilities' => 'local/fivedays:provision',
     ),
-    'local_activity_utils_delete_course' => array(
-        'classname' => 'local_activity_utils\external\provision\delete_course',
+    'local_fivedays_delete_course' => array(
+        'classname' => 'local_fivedays\external\provision\delete_course',
         'methodname' => 'execute',
         'description' => 'Delete a course and all its content',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision, moodle/course:delete',
+        'capabilities' => 'local/fivedays:provision, moodle/course:delete',
     ),
-    'local_activity_utils_get_draft_files' => array(
-        'classname' => 'local_activity_utils\external\file\get_draft_files',
+    'local_fivedays_get_draft_files' => array(
+        'classname' => 'local_fivedays\external\file\get_draft_files',
         'methodname' => 'execute',
         'description' => 'Get the calling user\'s draft-area files as base64',
         'type' => 'read',
         'ajax' => true,
     ),
-    'local_activity_utils_create_draft_files' => array(
-        'classname' => 'local_activity_utils\external\file\create_draft_files',
+    'local_fivedays_create_draft_files' => array(
+        'classname' => 'local_fivedays\external\file\create_draft_files',
         'methodname' => 'execute',
         'description' => 'Save base64 files into the calling user\'s draft area',
         'type' => 'write',
         'ajax' => true,
     ),
-    'local_activity_utils_ensure_google_login' => array(
-        'classname' => 'local_activity_utils\external\provision\ensure_google_login',
+    'local_fivedays_ensure_google_login' => array(
+        'classname' => 'local_fivedays\external\provision\ensure_google_login',
         'methodname' => 'execute',
         'description' => 'Enable Google OAuth login without auto-registration and keep the password form',
         'type' => 'write',
         'ajax' => true,
-        'capabilities' => 'local/activity_utils:provision',
+        'capabilities' => 'local/fivedays:provision',
     ),
 );
 

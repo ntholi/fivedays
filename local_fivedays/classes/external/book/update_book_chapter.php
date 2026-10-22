@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\book;
+namespace local_fivedays\external\book;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -53,7 +53,7 @@ class update_book_chapter extends external_api {
         $coursecontext = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:updatebook', $coursecontext);
+        require_capability('local/fivedays:updatebook', $coursecontext);
         require_capability('mod/book:edit', $context);
 
         $transaction = $DB->start_delegated_transaction();

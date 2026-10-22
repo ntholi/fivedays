@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/activity_utils/db" VERSION="20260828" COMMENT="XMLDB file for Moodle local/activity_utils"
+<XMLDB PATH="local/fivedays/db" VERSION="20261022" COMMENT="XMLDB file for Moodle local/fivedays"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
   <TABLES>
-    <TABLE NAME="quiz_attempt_feedback" COMMENT="Overall lecturer feedback for a quiz attempt">
+    <TABLE NAME="local_fivedays_quizfeedback" COMMENT="Overall lecturer feedback for a quiz attempt">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="attemptid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Foreign key references quiz_attempts.id. One feedback row per attempt."/>

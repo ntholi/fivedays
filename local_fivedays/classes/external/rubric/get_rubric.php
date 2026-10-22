@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\rubric;
+namespace local_fivedays\external\rubric;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -28,7 +28,7 @@ class get_rubric extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:managerubric', $context);
+        require_capability('local/fivedays:managerubric', $context);
 
         $gradingmanager = get_grading_manager($context, 'mod_assign', 'submissions');
         $activemethod = $gradingmanager->get_active_method();

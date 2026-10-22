@@ -1,12 +1,12 @@
 <?php
-namespace local_activity_utils\external\assignment;
+namespace local_fivedays\external\assignment;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\helper;
+use local_fivedays\helper;
 
 class release_assignment_grades extends external_api {
 
@@ -38,7 +38,7 @@ class release_assignment_grades extends external_api {
 
         [$assignment, , , $context] = helper::get_assign($params['assignmentid']);
         self::validate_context($context);
-        require_capability('local/activity_utils:gradeassignment', $context);
+        require_capability('local/fivedays:gradeassignment', $context);
         require_capability('mod/assign:grade', $context);
 
         $commentsbyuser = [];

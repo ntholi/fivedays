@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\rubric;
+namespace local_fivedays\external\rubric;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -50,7 +50,7 @@ class fill_rubric extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:graderubric', $context);
+        require_capability('local/fivedays:graderubric', $context);
         require_capability('mod/assign:grade', $context);
 
         $user = $DB->get_record('user', ['id' => $params['userid']], '*', MUST_EXIST);
@@ -137,7 +137,7 @@ class fill_rubric extends external_api {
             $transaction->rollback(new \invalid_parameter_exception('This rubric has no scores to calculate a grade'));
         }
 
-        $saved = \local_activity_utils\helper::save_assignment_grade(
+        $saved = \local_fivedays\helper::save_assignment_grade(
             $assignment,
             $params['userid'],
             (float)$gradevalue

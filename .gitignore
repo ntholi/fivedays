@@ -1,19 +1,11 @@
 /.claude
 /CLAUDE.md
-
-# Build artifacts
 /build
 /dist
 *.zip
-
-# IDE
 .idea/
 .vscode/
 *.sublime-*
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Node (if using for JS build)
 node_modules/

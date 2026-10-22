@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -48,7 +48,7 @@ class add_question_to_quiz extends external_api {
         
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('local/activity_utils:managequizquestions', $context);
+        require_capability('local/fivedays:managequizquestions', $context);
         require_capability('mod/quiz:manage', $context);
         \mod_quiz\quiz_settings::create($quiz->id)->get_structure()->check_can_be_edited();
 

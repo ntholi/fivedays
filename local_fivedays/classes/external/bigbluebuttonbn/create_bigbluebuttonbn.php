@@ -1,11 +1,11 @@
 <?php
-namespace local_activity_utils\external\bigbluebuttonbn;
+namespace local_fivedays\external\bigbluebuttonbn;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\helper;
+use local_fivedays\helper;
 
 
 class create_bigbluebuttonbn extends external_api {
@@ -142,7 +142,7 @@ class create_bigbluebuttonbn extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:createbigbluebuttonbn', $context);
+        require_capability('local/fivedays:createbigbluebuttonbn', $context);
         require_capability('mod/bigbluebuttonbn:addinstance', $context);
 
         if ($params['openingtime'] && $params['closingtime'] && $params['closingtime'] <= $params['openingtime']) {

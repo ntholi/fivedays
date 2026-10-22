@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -23,12 +23,12 @@ class get_quiz extends external_api {
         ]);
 
         
-        [$quiz, $cm] = \local_activity_utils\helper::require_activity('quiz', $params['quizid']);
+        [$quiz, $cm] = \local_fivedays\helper::require_activity('quiz', $params['quizid']);
 
         
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('local/activity_utils:viewquiz', $context);
+        require_capability('local/fivedays:viewquiz', $context);
         require_capability('mod/quiz:view', $context);
 
         

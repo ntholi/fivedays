@@ -1,16 +1,16 @@
 <?php
-namespace local_activity_utils\tests;
+namespace local_fivedays\tests;
 
 defined('MOODLE_INTERNAL') || die();
 
 use advanced_testcase;
-use local_activity_utils\external\provision\delete_course;
-use local_activity_utils\external\provision\enrol_users;
-use local_activity_utils\external\provision\ensure_course;
-use local_activity_utils\external\provision\ensure_google_login;
-use local_activity_utils\external\provision\provision_users;
-use local_activity_utils\external\provision\rebind_user_email;
-use local_activity_utils\external\provision\unenrol_users;
+use local_fivedays\external\provision\delete_course;
+use local_fivedays\external\provision\enrol_users;
+use local_fivedays\external\provision\ensure_course;
+use local_fivedays\external\provision\ensure_google_login;
+use local_fivedays\external\provision\provision_users;
+use local_fivedays\external\provision\rebind_user_email;
+use local_fivedays\external\provision\unenrol_users;
 
 class provision_test extends advanced_testcase {
 
@@ -151,7 +151,7 @@ class provision_test extends advanced_testcase {
         $this->assertTrue($DB->record_exists('user_enrolments', ['userid' => $fromid]));
         $this->assertTrue($this->has_linked_login($fromid, $toemail));
         $this->assertFalse($this->has_linked_login($fromid, $fromemail));
-        $this->assertNull(\local_activity_utils\provision_helper::find_user_by_email($fromemail));
+        $this->assertNull(\local_fivedays\provision_helper::find_user_by_email($fromemail));
     }
 
     public function test_rebind_retry_with_original_emails_succeeds(): void {
@@ -266,7 +266,7 @@ class provision_test extends advanced_testcase {
         $this->assertSame($toemail, $result['email']);
         $this->assertEquals(1, $DB->get_field('user', 'deleted', ['id' => $fromid]));
         $this->assertEquals(0, $DB->get_field('user', 'deleted', ['id' => $toid]));
-        $this->assertNull(\local_activity_utils\provision_helper::find_user_by_email($fromemail));
+        $this->assertNull(\local_fivedays\provision_helper::find_user_by_email($fromemail));
     }
 
     public function test_rebind_deletes_unenrolled_target_and_keeps_from_user(): void {
@@ -441,14 +441,14 @@ class provision_test extends advanced_testcase {
 
     public function test_delete_course_refuses_site_course(): void {
         $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('cannotdeletesitecourse', 'local_activity_utils'));
+        $this->expectExceptionMessage(get_string('cannotdeletesitecourse', 'local_fivedays'));
 
         delete_course::execute((int) SITEID);
     }
 
     public function test_delete_course_refuses_missing_course(): void {
         $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('coursenotfound', 'local_activity_utils'));
+        $this->expectExceptionMessage(get_string('coursenotfound', 'local_fivedays'));
 
         delete_course::execute(999999);
     }

@@ -1,11 +1,11 @@
 <?php
-namespace local_activity_utils\external\page;
+namespace local_fivedays\external\page;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\helper;
+use local_fivedays\helper;
 
 class create_page extends external_api {
 
@@ -46,7 +46,7 @@ class create_page extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:createpage', $context);
+        require_capability('local/fivedays:createpage', $context);
         require_capability('mod/page:addinstance', $context);
 
         $moduleinfo = helper::create_module($course, 'page', $params['section'], $params['name'], $params['visible'], [

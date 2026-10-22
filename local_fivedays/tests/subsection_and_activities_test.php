@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\tests;
+namespace local_fivedays\tests;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -8,10 +8,10 @@ require_once($CFG->libdir . '/externallib.php');
 
 use advanced_testcase;
 use context_course;
-use local_activity_utils\external\assignment\create_assignment;
-use local_activity_utils\external\file\create_file;
-use local_activity_utils\external\page\create_page;
-use local_activity_utils\external\section\create_subsection;
+use local_fivedays\external\assignment\create_assignment;
+use local_fivedays\external\file\create_file;
+use local_fivedays\external\page\create_page;
+use local_fivedays\external\section\create_subsection;
 
 class subsection_and_activities_test extends advanced_testcase {
 

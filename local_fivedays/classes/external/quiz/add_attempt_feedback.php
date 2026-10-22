@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -29,21 +29,21 @@ class add_attempt_feedback extends external_api {
         $cm = get_coursemodule_from_instance('quiz', $quiz->id, 0, false, MUST_EXIST);
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('local/activity_utils:gradequizattempts', $context);
+        require_capability('local/fivedays:gradequizattempts', $context);
         require_capability('mod/quiz:grade', $context);
 
         if ($attempt->state !== 'finished') {
             throw new \moodle_exception('attemptnotfinished', 'quiz');
         }
 
-        $existing = $DB->get_record('quiz_attempt_feedback', ['attemptid' => $params['attemptid']]);
+        $existing = $DB->get_record('local_fivedays_quizfeedback', ['attemptid' => $params['attemptid']]);
 
         if ($existing) {
             $existing->feedback = $params['feedback'];
             $existing->feedbackformat = FORMAT_HTML;
             $existing->timemodified = time();
             $existing->userid = $USER->id;
-            $DB->update_record('quiz_attempt_feedback', $existing);
+            $DB->update_record('local_fivedays_quizfeedback', $existing);
         } else {
             $record = new \stdClass();
             $record->attemptid = $params['attemptid'];
@@ -52,7 +52,7 @@ class add_attempt_feedback extends external_api {
             $record->timecreated = time();
             $record->timemodified = time();
             $record->userid = $USER->id;
-            $DB->insert_record('quiz_attempt_feedback', $record);
+            $DB->insert_record('local_fivedays_quizfeedback', $record);
         }
 
         return [

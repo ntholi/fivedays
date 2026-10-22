@@ -1,11 +1,11 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\helper;
+use local_fivedays\helper;
 
 class create_quiz extends external_api {
 
@@ -172,7 +172,7 @@ class create_quiz extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:createquiz', $context);
+        require_capability('local/fivedays:createquiz', $context);
         require_capability('mod/quiz:addinstance', $context);
 
         

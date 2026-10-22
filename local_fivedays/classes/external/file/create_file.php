@@ -1,11 +1,11 @@
 <?php
-namespace local_activity_utils\external\file;
+namespace local_fivedays\external\file;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\helper;
+use local_fivedays\helper;
 
 class create_file extends external_api {
 
@@ -53,7 +53,7 @@ class create_file extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:createfile', $context);
+        require_capability('local/fivedays:createfile', $context);
         require_capability('mod/resource:addinstance', $context);
 
         $hasdraft = !empty($params['draftitemid']);
@@ -62,7 +62,7 @@ class create_file extends external_api {
 
         if (!$hasdraft && !$hascontent) {
             if (empty($filename)) {
-                throw new \moodle_exception('invalidfilename', 'local_activity_utils');
+                throw new \moodle_exception('invalidfilename', 'local_fivedays');
             }
             throw new \invalid_parameter_exception('File content or draft item id is required');
         }

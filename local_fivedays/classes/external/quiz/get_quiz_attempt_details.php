@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -29,7 +29,7 @@ class get_quiz_attempt_details extends external_api {
         $cm = get_coursemodule_from_instance('quiz', $quiz->id, 0, false, MUST_EXIST);
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('local/activity_utils:viewquizattempts', $context);
+        require_capability('local/fivedays:viewquizattempts', $context);
         require_capability('mod/quiz:viewreports', $context);
 
         $quba = \question_engine::load_questions_usage_by_activity($attempt->uniqueid);

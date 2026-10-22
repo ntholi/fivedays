@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -30,7 +30,7 @@ class update_quiz_slot_mark extends external_api {
         $quizobj = \mod_quiz\quiz_settings::create($params['quizid']);
         $context = $quizobj->get_context();
         self::validate_context($context);
-        require_capability('local/activity_utils:managequizquestions', $context);
+        require_capability('local/fivedays:managequizquestions', $context);
         require_capability('mod/quiz:manage', $context);
 
         $slotrecord = $DB->get_record('quiz_slots', [

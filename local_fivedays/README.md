@@ -1,4 +1,4 @@
-# Activity Utils
+# FiveDays (local_fivedays)
 
 REST API endpoints for programmatic Moodle course content management.
 
@@ -31,7 +31,7 @@ This plugin requires the **gradingform_fivedays** plugin to be installed for rub
 ## Quick Setup
 
 1. Install `gradingform_fivedays` plugin to `grade/grading/form/fivedays`
-2. Copy this plugin to `local/activity_utils`
+2. Copy this plugin to `local/fivedays`
 3. Run Moodle upgrade via **Site Administration > Notifications**
 4. Enable web services: **Site Administration > Advanced features**
 5. Enable REST protocol: **Site Administration > Plugins > Web services > Manage protocols**
@@ -58,7 +58,7 @@ POST https://yourmoodle.com/webservice/rest/server.php
 
 ### Create Section
 
-`local_activity_utils_create_section`
+`local_fivedays_create_section`
 
 | Parameter    | Type   | Required |
 | ------------ | ------ | -------- |
@@ -69,7 +69,7 @@ POST https://yourmoodle.com/webservice/rest/server.php
 
 ### Create Subsection
 
-`local_activity_utils_create_subsection`
+`local_fivedays_create_subsection`
 
 | Parameter       | Type   | Required |
 | --------------- | ------ | -------- |
@@ -83,13 +83,13 @@ POST https://yourmoodle.com/webservice/rest/server.php
 
 ### Update Section/Subsection
 
-`local_activity_utils_update_section` / `local_activity_utils_update_subsection`
+`local_fivedays_update_section` / `local_fivedays_update_subsection`
 
 Parameters: `sectionid` (required), `name`, `summary`, `visible`
 
 ### Delete Section
 
-`local_activity_utils_delete_section`
+`local_fivedays_delete_section`
 
 | Parameter    | Type | Required | Description              |
 | ------------ | ---- | -------- | ------------------------ |
@@ -100,7 +100,7 @@ Parameters: `sectionid` (required), `name`, `summary`, `visible`
 
 ### Delete Subsection
 
-`local_activity_utils_delete_subsection`
+`local_fivedays_delete_subsection`
 
 Parameters: `cmid` (course module ID)
 
@@ -110,7 +110,7 @@ Parameters: `cmid` (course module ID)
 
 ### Create Assignment
 
-`local_activity_utils_create_assignment`
+`local_fivedays_create_assignment`
 
 | Parameter                  | Type   | Required | Description         |
 | -------------------------- | ------ | -------- | ------------------- |
@@ -131,19 +131,19 @@ Parameters: `cmid` (course module ID)
 
 ### Update Assignment
 
-`local_activity_utils_update_assignment`
+`local_fivedays_update_assignment`
 
 Parameters: `assignmentid` (required), `name`, `intro`, `activity`, `allowsubmissionsfromdate`, `duedate`, `cutoffdate`, `idnumber`, `grademax`, `introfiles` (JSON array base64; when sent, replaces all intro attachments), `visible`
 
 ### Delete Assignment
 
-`local_activity_utils_delete_assignment`
+`local_fivedays_delete_assignment`
 
 Parameters: `cmid` (course module ID)
 
 ### Get Assignment Grades
 
-`local_activity_utils_get_assignment_grades`
+`local_fivedays_get_assignment_grades`
 
 | Parameter      | Type | Required |
 | -------------- | ---- | -------- |
@@ -153,7 +153,7 @@ Each grade includes `userid`, `grade` (`-1` if none), and `releasestate`: `notgr
 
 ### Save Assignment Grade
 
-`local_activity_utils_save_assignment_grade`
+`local_fivedays_save_assignment_grade`
 
 Saves or overrides the overall mark. Does not release it. Changing a released grade sets `beingedited` (hidden again).
 
@@ -165,7 +165,7 @@ Saves or overrides the overall mark. Does not release it. Changing a released gr
 
 ### Release Assignment Grades
 
-`local_activity_utils_release_assignment_grades`
+`local_fivedays_release_assignment_grades`
 
 Releases unpublished grades (`notreleased` and `beingedited`) for the given user IDs so those students can see them. Already released or ungraded students in the list are skipped. Optional comments are written as Moodle feedback comments only when non-empty.
 
@@ -181,7 +181,7 @@ Releases unpublished grades (`notreleased` and `beingedited`) for the given user
 
 ### Create Page
 
-`local_activity_utils_create_page`
+`local_fivedays_create_page`
 
 | Parameter  | Type   | Required |
 | ---------- | ------ | -------- |
@@ -194,13 +194,13 @@ Releases unpublished grades (`notreleased` and `beingedited`) for the given user
 
 ### Update Page
 
-`local_activity_utils_update_page`
+`local_fivedays_update_page`
 
 Parameters: `pageid` (required), `name`, `intro`, `content`, `visible`
 
 ### Delete Page
 
-`local_activity_utils_delete_page`
+`local_fivedays_delete_page`
 
 Parameters: `cmid` (course module ID)
 
@@ -210,7 +210,7 @@ Parameters: `cmid` (course module ID)
 
 ### Create File
 
-`local_activity_utils_create_file`
+`local_fivedays_create_file`
 
 | Parameter     | Type   | Required     |
 | ------------- | ------ | ------------ |
@@ -224,13 +224,13 @@ Parameters: `cmid` (course module ID)
 
 ### Update File
 
-`local_activity_utils_update_file`
+`local_fivedays_update_file`
 
 Parameters: `resourceid` (required), `name`, `intro`, `filename`, `filecontent`, `visible`
 
 ### Delete File
 
-`local_activity_utils_delete_file`
+`local_fivedays_delete_file`
 
 Parameters: `cmid` (course module ID)
 
@@ -240,7 +240,7 @@ Parameters: `cmid` (course module ID)
 
 ### Create URL
 
-`local_activity_utils_create_url`
+`local_fivedays_create_url`
 
 | Parameter     | Type   | Required | Description                               |
 | ------------- | ------ | -------- | ----------------------------------------- |
@@ -254,13 +254,13 @@ Parameters: `cmid` (course module ID)
 
 ### Update URL
 
-`local_activity_utils_update_url`
+`local_fivedays_update_url`
 
 Parameters: `urlid` (required), `name`, `externalurl`, `intro`, `display`, `visible`
 
 ### Delete URL
 
-`local_activity_utils_delete_url`
+`local_fivedays_delete_url`
 
 Parameters: `cmid` (course module ID)
 
@@ -270,7 +270,7 @@ Parameters: `cmid` (course module ID)
 
 ### Create Book
 
-`local_activity_utils_create_book`
+`local_fivedays_create_book`
 
 | Parameter      | Type   | Required | Description                              |
 | -------------- | ------ | -------- | ---------------------------------------- |
@@ -288,31 +288,31 @@ Parameters: `cmid` (course module ID)
 
 ### Add Book Chapter
 
-`local_activity_utils_add_book_chapter`
+`local_fivedays_add_book_chapter`
 
 Parameters: `bookid` (required), `title` (required), `content`, `subchapter`, `hidden`, `pagenum`, `tags`
 
 ### Get Book
 
-`local_activity_utils_get_book`
+`local_fivedays_get_book`
 
 Parameters: `bookid`
 
 ### Update Book
 
-`local_activity_utils_update_book`
+`local_fivedays_update_book`
 
 Parameters: `bookid` (required), `name`, `intro`, `numbering`, `navstyle`, `customtitles`, `visible`
 
 ### Update Book Chapter
 
-`local_activity_utils_update_book_chapter`
+`local_fivedays_update_book_chapter`
 
 Parameters: `chapterid` (required), `title`, `content`, `subchapter`, `hidden`, `tags`
 
 ### Delete Book
 
-`local_activity_utils_delete_book`
+`local_fivedays_delete_book`
 
 Parameters: `cmid` (course module ID)
 
@@ -333,7 +333,7 @@ Advanced rubric management using the FiveDays grading form plugin. This provides
 
 ### Create Rubric
 
-`local_activity_utils_create_rubric`
+`local_fivedays_create_rubric`
 
 Creates a FiveDays rubric for an assignment, switching it from simple direct grading to FiveDays advanced grading.
 
@@ -410,7 +410,7 @@ Creates a FiveDays rubric for an assignment, switching it from simple direct gra
 
 ### Get Rubric
 
-`local_activity_utils_get_rubric`
+`local_fivedays_get_rubric`
 
 Returns the rubric definition and current grading method for an assignment.
 
@@ -464,7 +464,7 @@ Parameters: `cmid`
 
 ### Update Rubric
 
-`local_activity_utils_update_rubric`
+`local_fivedays_update_rubric`
 
 Parameters: `cmid` (required), `name`, `description`, `criteria`, `options`
 
@@ -472,7 +472,7 @@ Parameters: `cmid` (required), `name`, `description`, `criteria`, `options`
 
 ### Delete Rubric
 
-`local_activity_utils_delete_rubric`
+`local_fivedays_delete_rubric`
 
 Deletes the FiveDays rubric and reverts the assignment to simple direct grading.
 
@@ -489,7 +489,7 @@ Parameters: `cmid`
 
 ### Copy Rubric
 
-`local_activity_utils_copy_rubric`
+`local_fivedays_copy_rubric`
 
 Copies a FiveDays rubric from one assignment to another. The target assignment will switch to FiveDays grading.
 
@@ -507,7 +507,7 @@ Parameters: `sourcecmid`, `targetcmid`
 
 ### Fill Rubric (Grade Student)
 
-`local_activity_utils_fill_rubric`
+`local_fivedays_fill_rubric`
 
 Grade a student's assignment submission using the FiveDays rubric. Supports both level selection and custom scores.
 
@@ -581,7 +581,7 @@ Grade a student's assignment submission using the FiveDays rubric. Supports both
 
 ### Get Rubric Filling
 
-`local_activity_utils_get_rubric_filling`
+`local_fivedays_get_rubric_filling`
 
 Retrieve how a teacher graded a student using the FiveDays rubric.
 
@@ -635,7 +635,7 @@ Retrieve how a teacher graded a student using the FiveDays rubric.
 
 ### Create BigBlueButton
 
-`local_activity_utils_create_bigbluebuttonbn`
+`local_fivedays_create_bigbluebuttonbn`
 
 | Parameter                       | Type   | Required | Description                                       |
 | ------------------------------- | ------ | -------- | ------------------------------------------------- |
@@ -687,13 +687,13 @@ Retrieve how a teacher graded a student using the FiveDays rubric.
 
 ### Update BigBlueButton
 
-`local_activity_utils_update_bigbluebuttonbn`
+`local_fivedays_update_bigbluebuttonbn`
 
 Parameters: `bigbluebuttonbnid` (required), plus any field from create (all optional)
 
 ### Delete BigBlueButton
 
-`local_activity_utils_delete_bigbluebuttonbn`
+`local_fivedays_delete_bigbluebuttonbn`
 
 Parameters: `cmid` (course module ID)
 
@@ -703,7 +703,7 @@ Parameters: `cmid` (course module ID)
 
 ### Create Forum
 
-`local_activity_utils_create_forum`
+`local_fivedays_create_forum`
 
 | Parameter  | Type   | Required | Description                                                                         |
 | ---------- | ------ | -------- | ----------------------------------------------------------------------------------- |
@@ -738,7 +738,7 @@ Parameters: `cmid` (course module ID)
 
 ### Delete Forum
 
-`local_activity_utils_delete_forum`
+`local_fivedays_delete_forum`
 
 Parameters: `cmid` (course module ID)
 
@@ -750,7 +750,7 @@ Complete quiz management API for Moodle 5.0+. These functions fill gaps not cove
 
 ### Create Quiz
 
-`local_activity_utils_create_quiz`
+`local_fivedays_create_quiz`
 
 Creates a new quiz with full configuration options.
 
@@ -825,7 +825,7 @@ Creates a new quiz with full configuration options.
 
 ### Update Quiz
 
-`local_activity_utils_update_quiz`
+`local_fivedays_update_quiz`
 
 Updates an existing quiz. All parameters except `quizid` are optional - only provided fields are updated.
 
@@ -836,7 +836,7 @@ Updates an existing quiz. All parameters except `quizid` are optional - only pro
 
 ### Delete Quiz
 
-`local_activity_utils_delete_quiz`
+`local_fivedays_delete_quiz`
 
 | Parameter | Type | Required |
 | --------- | ---- | -------- |
@@ -844,7 +844,7 @@ Updates an existing quiz. All parameters except `quizid` are optional - only pro
 
 ### Get Quiz
 
-`local_activity_utils_get_quiz`
+`local_fivedays_get_quiz`
 
 Retrieves complete quiz details including all questions, sections, settings, answers, and question-type-specific options.
 
@@ -936,7 +936,7 @@ Retrieves complete quiz details including all questions, sections, settings, ans
 
 ### Add Question to Quiz
 
-`local_activity_utils_add_question_to_quiz`
+`local_fivedays_add_question_to_quiz`
 
 Adds an existing question from the question bank to a quiz.
 
@@ -963,7 +963,7 @@ Adds an existing question from the question bank to a quiz.
 
 ### Remove Question from Quiz
 
-`local_activity_utils_remove_question_from_quiz`
+`local_fivedays_remove_question_from_quiz`
 
 | Parameter | Type | Required | Description           |
 | --------- | ---- | -------- | --------------------- |
@@ -974,7 +974,7 @@ Adds an existing question from the question bank to a quiz.
 
 ### Update Quiz Slot Mark
 
-`local_activity_utils_update_quiz_slot_mark`
+`local_fivedays_update_quiz_slot_mark`
 
 | Parameter | Type  | Required | Description                   |
 | --------- | ----- | -------- | ----------------------------- |
@@ -986,7 +986,7 @@ Adds an existing question from the question bank to a quiz.
 
 ### Reorder Quiz Questions
 
-`local_activity_utils_reorder_quiz_questions`
+`local_fivedays_reorder_quiz_questions`
 
 Reorders questions within a quiz by specifying new slot positions.
 
@@ -1022,7 +1022,7 @@ API for viewing quiz attempts, grading essay questions, and managing feedback.
 
 ### Get Quiz Attempts
 
-`local_activity_utils_get_quiz_attempts`
+`local_fivedays_get_quiz_attempts`
 
 Gets all quiz attempts for a quiz with student info.
 
@@ -1059,7 +1059,7 @@ Gets all quiz attempts for a quiz with student info.
 
 ### Get Quiz Attempt Details
 
-`local_activity_utils_get_quiz_attempt_details`
+`local_fivedays_get_quiz_attempt_details`
 
 Gets detailed attempt with question responses.
 
@@ -1114,7 +1114,7 @@ Gets detailed attempt with question responses.
 
 ### Grade Essay Question
 
-`local_activity_utils_grade_essay_question`
+`local_fivedays_grade_essay_question`
 
 Manually grades an essay or other manually-graded question.
 
@@ -1138,7 +1138,7 @@ Manually grades an essay or other manually-graded question.
 
 ### Add Attempt Feedback
 
-`local_activity_utils_add_attempt_feedback`
+`local_fivedays_add_attempt_feedback`
 
 Adds overall feedback to a quiz attempt.
 
@@ -1158,7 +1158,7 @@ Adds overall feedback to a quiz attempt.
 
 ### Get Attempt Feedback
 
-`local_activity_utils_get_attempt_feedback`
+`local_fivedays_get_attempt_feedback`
 
 Gets the overall feedback for a quiz attempt.
 
@@ -1183,7 +1183,7 @@ Complete question bank management API for creating and managing questions in Moo
 
 ### Get or Create Question Category
 
-`local_activity_utils_get_or_create_question_category`
+`local_fivedays_get_or_create_question_category`
 
 Gets an existing category or creates a new one if it doesn't exist.
 
@@ -1209,7 +1209,7 @@ Gets an existing category or creates a new one if it doesn't exist.
 
 ### List Question Categories
 
-`local_activity_utils_list_question_categories`
+`local_fivedays_list_question_categories`
 
 | Parameter  | Type | Required |
 | ---------- | ---- | -------- |
@@ -1242,7 +1242,7 @@ Every `create_*_question` call below also accepts an optional `questionbankentry
 
 ### Create Multiple Choice Question
 
-`local_activity_utils_create_multichoice_question`
+`local_fivedays_create_multichoice_question`
 
 Creates a multiple choice question supporting both single and multiple answer modes.
 
@@ -1308,7 +1308,7 @@ Creates a multiple choice question supporting both single and multiple answer mo
 
 ### Create True/False Question
 
-`local_activity_utils_create_truefalse_question`
+`local_fivedays_create_truefalse_question`
 
 | Parameter         | Type   | Required | Default | Description                  |
 | ----------------- | ------ | -------- | ------- | ---------------------------- |
@@ -1325,7 +1325,7 @@ Creates a multiple choice question supporting both single and multiple answer mo
 
 ### Create Short Answer Question
 
-`local_activity_utils_create_shortanswer_question`
+`local_fivedays_create_shortanswer_question`
 
 | Parameter         | Type   | Required | Default | Description                     |
 | ----------------- | ------ | -------- | ------- | ------------------------------- |
@@ -1347,7 +1347,7 @@ Creates a multiple choice question supporting both single and multiple answer mo
 
 ### Create Essay Question
 
-`local_activity_utils_create_essay_question`
+`local_fivedays_create_essay_question`
 
 | Parameter             | Type   | Required | Default  | Description                                           |
 | --------------------- | ------ | -------- | -------- | ----------------------------------------------------- |
@@ -1372,7 +1372,7 @@ Creates a multiple choice question supporting both single and multiple answer mo
 
 ### Create Numerical Question
 
-`local_activity_utils_create_numerical_question`
+`local_fivedays_create_numerical_question`
 
 | Parameter         | Type   | Required | Default | Description                                                     |
 | ----------------- | ------ | -------- | ------- | --------------------------------------------------------------- |
@@ -1421,7 +1421,7 @@ Creates a multiple choice question supporting both single and multiple answer mo
 
 ### Get Questions
 
-`local_activity_utils_get_questions`
+`local_fivedays_get_questions`
 
 Get questions in a category for browsing and selection.
 
@@ -1461,7 +1461,7 @@ Get questions in a category for browsing and selection.
 
 ### Delete Question
 
-`local_activity_utils_delete_question`
+`local_fivedays_delete_question`
 
 | Parameter             | Type | Required | Description            |
 | --------------------- | ---- | -------- | ---------------------- |
@@ -1477,7 +1477,7 @@ Get questions in a category for browsing and selection.
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_create_assignment&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_create_assignment&moodlewsrestformat=json" \
   -d "courseid=2&name=Week 1 Assignment&duedate=1735689600"
 ```
 
@@ -1485,7 +1485,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_create_bigbluebuttonbn&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_create_bigbluebuttonbn&moodlewsrestformat=json" \
   -d "courseid=2&name=Live Class&type=0&record=1&wait=1&openingtime=1735689600"
 ```
 
@@ -1493,7 +1493,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_create_forum&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_create_forum&moodlewsrestformat=json" \
   -d "courseid=2&name=General Discussion&type=general&section=0"
 ```
 
@@ -1501,7 +1501,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_create_rubric&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_create_rubric&moodlewsrestformat=json" \
   -d "cmid=123&name=Essay Rubric" \
   -d "criteria[0][description]=Content&criteria[0][levels][0][score]=0&criteria[0][levels][0][definition]=Poor" \
   -d "criteria[0][levels][1][score]=10&criteria[0][levels][1][definition]=Excellent"
@@ -1511,7 +1511,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_fill_rubric&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_fill_rubric&moodlewsrestformat=json" \
   -d "cmid=123&userid=456" \
   -d "fillings[0][criterionid]=1&fillings[0][levelid]=3&fillings[0][remark]=Good work" \
   -d "overallremark=Well done!"
@@ -1521,7 +1521,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_create_quiz&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_create_quiz&moodlewsrestformat=json" \
   -d "courseid=2&name=Week 1 Quiz&intro=<p>Test your knowledge</p>" \
   -d "timelimit=3600&attempts=3&grademethod=1&grade=100"
 ```
@@ -1530,7 +1530,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_add_question_to_quiz&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_add_question_to_quiz&moodlewsrestformat=json" \
   -d "quizid=1&questionbankentryid=123&maxmark=10"
 ```
 
@@ -1538,7 +1538,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_get_quiz&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_get_quiz&moodlewsrestformat=json" \
   -d "quizid=1"
 ```
 
@@ -1546,7 +1546,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_get_or_create_question_category&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_get_or_create_question_category&moodlewsrestformat=json" \
   -d "courseid=2&name=Week 1 Questions"
 ```
 
@@ -1554,7 +1554,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_create_multichoice_question&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_create_multichoice_question&moodlewsrestformat=json" \
   -d "categoryid=123&name=Capital Question&questiontext=<p>What is the capital of France?</p>" \
   -d "answers[0][text]=Paris&answers[0][fraction]=1" \
   -d "answers[1][text]=London&answers[1][fraction]=0" \
@@ -1565,7 +1565,7 @@ curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
 
 ```bash
 curl -X POST "https://yourmoodle.com/webservice/rest/server.php" \
-  -d "wstoken=TOKEN&wsfunction=local_activity_utils_get_questions&moodlewsrestformat=json" \
+  -d "wstoken=TOKEN&wsfunction=local_fivedays_get_questions&moodlewsrestformat=json" \
   -d "categoryid=123&limit=50"
 ```
 
@@ -1577,47 +1577,47 @@ All capabilities granted to **editing teachers** and **managers** by default.
 
 | Capability                                    | Description                       |
 | --------------------------------------------- | --------------------------------- |
-| `local/activity_utils:createassignment`       | Create assignments                |
-| `local/activity_utils:updateassignment`       | Update assignments                |
-| `local/activity_utils:deleteassignment`       | Delete assignments                |
-| `local/activity_utils:createsection`          | Create sections                   |
-| `local/activity_utils:updatesection`          | Update sections                   |
-| `local/activity_utils:deletesection`          | Delete sections                   |
-| `local/activity_utils:createsubsection`       | Create subsections                |
-| `local/activity_utils:updatesubsection`       | Update subsections                |
-| `local/activity_utils:deletesubsection`       | Delete subsections                |
-| `local/activity_utils:createpage`             | Create pages                      |
-| `local/activity_utils:updatepage`             | Update pages                      |
-| `local/activity_utils:deletepage`             | Delete pages                      |
-| `local/activity_utils:createfile`             | Create files                      |
-| `local/activity_utils:updatefile`             | Update files                      |
-| `local/activity_utils:deletefile`             | Delete files                      |
-| `local/activity_utils:createurl`              | Create URLs                       |
-| `local/activity_utils:updateurl`              | Update URLs                       |
-| `local/activity_utils:deleteurl`              | Delete URLs                       |
-| `local/activity_utils:createbook`             | Create books                      |
-| `local/activity_utils:updatebook`             | Update books                      |
-| `local/activity_utils:deletebook`             | Delete books                      |
-| `local/activity_utils:readbook`               | Read books (includes students)    |
-| `local/activity_utils:managerubric`           | Manage FiveDays rubrics           |
-| `local/activity_utils:graderubric`            | Grade using FiveDays rubrics      |
-| `local/activity_utils:viewrubricfilling`      | View rubric gradings              |
-| `local/activity_utils:createbigbluebuttonbn`  | Create BigBlueButton              |
-| `local/activity_utils:updatebigbluebuttonbn`  | Update BigBlueButton              |
-| `local/activity_utils:deletebigbluebuttonbn`  | Delete BigBlueButton              |
-| `local/activity_utils:createforum`            | Create forums                     |
-| `local/activity_utils:deleteforum`            | Delete forums                     |
-| `local/activity_utils:createquiz`             | Create quizzes                    |
-| `local/activity_utils:updatequiz`             | Update quizzes                    |
-| `local/activity_utils:deletequiz`             | Delete quizzes                    |
-| `local/activity_utils:viewquiz`               | View quiz details (teachers+)     |
-| `local/activity_utils:managequizquestions`    | Add/remove/reorder quiz questions |
-| `local/activity_utils:managequestioncategory` | Manage question categories        |
-| `local/activity_utils:createquestion`         | Create questions                  |
-| `local/activity_utils:viewquestions`          | View questions (teachers+)        |
-| `local/activity_utils:deletequestion`         | Delete questions                  |
-| `local/activity_utils:viewquizattempts`       | View quiz attempts                |
-| `local/activity_utils:gradequizattempts`      | Grade quiz attempts               |
+| `local/fivedays:createassignment`       | Create assignments                |
+| `local/fivedays:updateassignment`       | Update assignments                |
+| `local/fivedays:deleteassignment`       | Delete assignments                |
+| `local/fivedays:createsection`          | Create sections                   |
+| `local/fivedays:updatesection`          | Update sections                   |
+| `local/fivedays:deletesection`          | Delete sections                   |
+| `local/fivedays:createsubsection`       | Create subsections                |
+| `local/fivedays:updatesubsection`       | Update subsections                |
+| `local/fivedays:deletesubsection`       | Delete subsections                |
+| `local/fivedays:createpage`             | Create pages                      |
+| `local/fivedays:updatepage`             | Update pages                      |
+| `local/fivedays:deletepage`             | Delete pages                      |
+| `local/fivedays:createfile`             | Create files                      |
+| `local/fivedays:updatefile`             | Update files                      |
+| `local/fivedays:deletefile`             | Delete files                      |
+| `local/fivedays:createurl`              | Create URLs                       |
+| `local/fivedays:updateurl`              | Update URLs                       |
+| `local/fivedays:deleteurl`              | Delete URLs                       |
+| `local/fivedays:createbook`             | Create books                      |
+| `local/fivedays:updatebook`             | Update books                      |
+| `local/fivedays:deletebook`             | Delete books                      |
+| `local/fivedays:readbook`               | Read books (includes students)    |
+| `local/fivedays:managerubric`           | Manage FiveDays rubrics           |
+| `local/fivedays:graderubric`            | Grade using FiveDays rubrics      |
+| `local/fivedays:viewrubricfilling`      | View rubric gradings              |
+| `local/fivedays:createbigbluebuttonbn`  | Create BigBlueButton              |
+| `local/fivedays:updatebigbluebuttonbn`  | Update BigBlueButton              |
+| `local/fivedays:deletebigbluebuttonbn`  | Delete BigBlueButton              |
+| `local/fivedays:createforum`            | Create forums                     |
+| `local/fivedays:deleteforum`            | Delete forums                     |
+| `local/fivedays:createquiz`             | Create quizzes                    |
+| `local/fivedays:updatequiz`             | Update quizzes                    |
+| `local/fivedays:deletequiz`             | Delete quizzes                    |
+| `local/fivedays:viewquiz`               | View quiz details (teachers+)     |
+| `local/fivedays:managequizquestions`    | Add/remove/reorder quiz questions |
+| `local/fivedays:managequestioncategory` | Manage question categories        |
+| `local/fivedays:createquestion`         | Create questions                  |
+| `local/fivedays:viewquestions`          | View questions (teachers+)        |
+| `local/fivedays:deletequestion`         | Delete questions                  |
+| `local/fivedays:viewquizattempts`       | View quiz attempts                |
+| `local/fivedays:gradequizattempts`      | Grade quiz attempts               |
 
 ---
 

@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\url;
+namespace local_fivedays\external\url;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -49,7 +49,7 @@ class update_url extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:updateurl', $context);
+        require_capability('local/fivedays:updateurl', $context);
         require_capability('mod/url:addinstance', $context);
 
         

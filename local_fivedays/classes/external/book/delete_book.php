@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\book;
+namespace local_fivedays\external\book;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -50,7 +50,7 @@ class delete_book extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:deletebook', $context);
+        require_capability('local/fivedays:deletebook', $context);
         require_capability('moodle/course:manageactivities', $context);
 
         $bookname = $book->name;

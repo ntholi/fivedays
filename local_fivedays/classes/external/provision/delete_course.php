@@ -1,11 +1,11 @@
 <?php
-namespace local_activity_utils\external\provision;
+namespace local_fivedays\external\provision;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_activity_utils\provision_helper;
+use local_fivedays\provision_helper;
 
 class delete_course extends external_api {
 
@@ -27,12 +27,12 @@ class delete_course extends external_api {
 
         $courseid = (int) $params['courseid'];
         if ($courseid === (int) SITEID) {
-            throw new \moodle_exception('cannotdeletesitecourse', 'local_activity_utils');
+            throw new \moodle_exception('cannotdeletesitecourse', 'local_fivedays');
         }
 
         $course = $DB->get_record('course', ['id' => $courseid]);
         if (!$course) {
-            throw new \moodle_exception('coursenotfound', 'local_activity_utils');
+            throw new \moodle_exception('coursenotfound', 'local_fivedays');
         }
 
         $context = \context_course::instance($course->id);

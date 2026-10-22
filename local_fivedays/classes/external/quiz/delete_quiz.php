@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\quiz;
+namespace local_fivedays\external\quiz;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -53,7 +53,7 @@ class delete_quiz extends external_api {
         
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('local/activity_utils:deletequiz', $context);
+        require_capability('local/fivedays:deletequiz', $context);
         require_capability('moodle/course:manageactivities', $context);
 
         $quizname = $quiz->name;

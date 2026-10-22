@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\question;
+namespace local_fivedays\external\question;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -39,7 +39,7 @@ class get_or_create_category extends external_api {
         $coursecontext = \context_course::instance($course->id);
 
         self::validate_context($coursecontext);
-        require_capability('local/activity_utils:managequestioncategory', $coursecontext);
+        require_capability('local/fivedays:managequestioncategory', $coursecontext);
         require_capability('moodle/question:managecategory', $coursecontext);
 
         

@@ -2,7 +2,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = array(
-    'local/activity_utils:createassignment' => array(
+    'local/fivedays:createassignment' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createassignment',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -11,7 +12,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deleteassignment' => array(
+    'local/fivedays:deleteassignment' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deleteassignment',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -20,7 +22,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createsection' => array(
+    'local/fivedays:createsection' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createsection',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -29,7 +32,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createpage' => array(
+    'local/fivedays:createpage' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createpage',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -38,7 +42,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createfile' => array(
+    'local/fivedays:createfile' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createfile',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -47,7 +52,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createsubsection' => array(
+    'local/fivedays:createsubsection' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createsubsection',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -56,7 +62,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createbook' => array(
+    'local/fivedays:createbook' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createbook',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -65,7 +72,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:readbook' => array(
+    'local/fivedays:readbook' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:readbook',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_COURSE,
@@ -76,7 +84,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updateassignment' => array(
+    'local/fivedays:updateassignment' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updateassignment',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -85,7 +94,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:viewassignment' => array(
+    'local/fivedays:viewassignment' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:viewassignment',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -95,7 +105,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:viewassignmentcomments' => array(
+    'local/fivedays:viewassignmentcomments' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:viewassignmentcomments',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -105,7 +116,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:manageassignmentcomments' => array(
+    'local/fivedays:manageassignmentcomments' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:manageassignmentcomments',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -115,7 +127,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatepage' => array(
+    'local/fivedays:updatepage' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatepage',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -124,7 +137,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletepage' => array(
+    'local/fivedays:deletepage' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletepage',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -133,7 +147,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatebook' => array(
+    'local/fivedays:updatebook' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatebook',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -142,7 +157,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletebook' => array(
+    'local/fivedays:deletebook' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletebook',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -151,7 +167,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatefile' => array(
+    'local/fivedays:updatefile' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatefile',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -160,7 +177,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletefile' => array(
+    'local/fivedays:deletefile' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletefile',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -169,7 +187,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatesection' => array(
+    'local/fivedays:updatesection' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatesection',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -178,7 +197,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletesection' => array(
+    'local/fivedays:deletesection' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletesection',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -187,7 +207,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatesubsection' => array(
+    'local/fivedays:updatesubsection' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatesubsection',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -196,7 +217,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletesubsection' => array(
+    'local/fivedays:deletesubsection' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletesubsection',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -205,7 +227,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:managerubric' => array(
+    'local/fivedays:managerubric' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:managerubric',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -214,7 +237,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:graderubric' => array(
+    'local/fivedays:graderubric' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:graderubric',
         'riskbitmask' => RISK_SPAM,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -224,7 +248,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:viewrubricfilling' => array(
+    'local/fivedays:viewrubricfilling' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:viewrubricfilling',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -234,7 +259,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:gradeassignment' => array(
+    'local/fivedays:gradeassignment' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:gradeassignment',
         'riskbitmask' => RISK_SPAM,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -244,7 +270,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createbigbluebuttonbn' => array(
+    'local/fivedays:createbigbluebuttonbn' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createbigbluebuttonbn',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -253,7 +280,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatebigbluebuttonbn' => array(
+    'local/fivedays:updatebigbluebuttonbn' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatebigbluebuttonbn',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -262,7 +290,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletebigbluebuttonbn' => array(
+    'local/fivedays:deletebigbluebuttonbn' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletebigbluebuttonbn',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -271,7 +300,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createforum' => array(
+    'local/fivedays:createforum' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createforum',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -280,7 +310,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deleteforum' => array(
+    'local/fivedays:deleteforum' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deleteforum',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -289,7 +320,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createurl' => array(
+    'local/fivedays:createurl' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createurl',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -298,7 +330,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updateurl' => array(
+    'local/fivedays:updateurl' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updateurl',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -307,7 +340,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deleteurl' => array(
+    'local/fivedays:deleteurl' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deleteurl',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -317,7 +351,9 @@ $capabilities = array(
         )
     ),
 
-    'local/activity_utils:createquiz' => array(
+    'local/fivedays:createquiz' => array(
+
+        'clonepermissionsfrom' => 'local/activity_utils:createquiz',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -326,7 +362,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:updatequiz' => array(
+    'local/fivedays:updatequiz' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:updatequiz',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -335,7 +372,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletequiz' => array(
+    'local/fivedays:deletequiz' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletequiz',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -344,7 +382,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:viewquiz' => array(
+    'local/fivedays:viewquiz' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:viewquiz',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -354,7 +393,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:managequizquestions' => array(
+    'local/fivedays:managequizquestions' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:managequizquestions',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -364,7 +404,9 @@ $capabilities = array(
         )
     ),
 
-    'local/activity_utils:managequestioncategory' => array(
+    'local/fivedays:managequestioncategory' => array(
+
+        'clonepermissionsfrom' => 'local/activity_utils:managequestioncategory',
         'riskbitmask' => RISK_SPAM,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -373,7 +415,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:createquestion' => array(
+    'local/fivedays:createquestion' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:createquestion',
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -382,7 +425,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:viewquestions' => array(
+    'local/fivedays:viewquestions' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:viewquestions',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_COURSE,
@@ -392,7 +436,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:deletequestion' => array(
+    'local/fivedays:deletequestion' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:deletequestion',
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
@@ -402,7 +447,9 @@ $capabilities = array(
         )
     ),
 
-    'local/activity_utils:viewquizattempts' => array(
+    'local/fivedays:viewquizattempts' => array(
+
+        'clonepermissionsfrom' => 'local/activity_utils:viewquizattempts',
         'riskbitmask' => 0,
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -412,7 +459,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:gradequizattempts' => array(
+    'local/fivedays:gradequizattempts' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:gradequizattempts',
         'riskbitmask' => RISK_SPAM,
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
@@ -422,7 +470,8 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
-    'local/activity_utils:provision' => array(
+    'local/fivedays:provision' => array(
+        'clonepermissionsfrom' => 'local/activity_utils:provision',
         'riskbitmask' => RISK_SPAM | RISK_PERSONAL | RISK_CONFIG,
         'captype' => 'write',
         'contextlevel' => CONTEXT_SYSTEM,

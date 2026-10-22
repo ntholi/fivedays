@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\file;
+namespace local_fivedays\external\file;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -53,7 +53,7 @@ class update_file extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:updatefile', \context_course::instance($course->id));
+        require_capability('local/fivedays:updatefile', \context_course::instance($course->id));
         require_capability('moodle/course:manageactivities', $context);
 
         $transaction = $DB->start_delegated_transaction();
@@ -104,7 +104,7 @@ class update_file extends external_api {
                 $newfilename = $currentfilename;
             }
             if (empty($newfilename)) {
-                throw new \moodle_exception('invalidfilename', 'local_activity_utils');
+                throw new \moodle_exception('invalidfilename', 'local_fivedays');
             }
             $newfilename = clean_param($newfilename, PARAM_FILE);
 

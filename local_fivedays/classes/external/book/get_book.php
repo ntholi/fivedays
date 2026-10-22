@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\book;
+namespace local_fivedays\external\book;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -35,7 +35,7 @@ class get_book extends external_api {
         
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
-        require_capability('local/activity_utils:readbook', \context_course::instance($cm->course));
+        require_capability('local/fivedays:readbook', \context_course::instance($cm->course));
         require_capability('mod/book:read', $context);
 
         

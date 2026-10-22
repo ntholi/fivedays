@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\bigbluebuttonbn;
+namespace local_fivedays\external\bigbluebuttonbn;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -50,7 +50,7 @@ class delete_bigbluebuttonbn extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:deletebigbluebuttonbn', $context);
+        require_capability('local/fivedays:deletebigbluebuttonbn', $context);
         require_capability('moodle/course:manageactivities', $context);
 
         $activityname = $bigbluebuttonbn->name;

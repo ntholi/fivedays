@@ -1,4 +1,13 @@
-# Activity Utils changelog
+# FiveDays changelog
+
+Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
+
+## 2026-10-22
+
+### Changed
+- `local_activity_utils` is now `local_fivedays` (shown in Moodle as "FiveDays"). Web-service functions are `local_fivedays_*`, capabilities `local/fivedays:*`, and capability names read "… via FiveDays".
+- Quiz attempt feedback moved from `quiz_attempt_feedback` to `local_fivedays_quizfeedback`. Installing `local_fivedays` copies the old rows, and each capability copies its role permissions from the matching `local/activity_utils:*` one. Uninstall `local_activity_utils` afterwards.
+- `local_fivedays` and `gradingform_fivedays` now live in one repo, `ntholi/fivedays`.
 
 ## 2026-10-15
 

@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\file;
+namespace local_fivedays\external\file;
 
 use core_external\external_api;
 use core_external\external_function_parameters;

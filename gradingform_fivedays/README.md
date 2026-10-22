@@ -34,23 +34,16 @@ This allows a teacher to select "Fair" but award 18, 21, 25, or any score in the
 
 ## Installation
 
-### Method 1: Using install.bat (Windows)
-
-1. Clone or download this plugin
-2. Edit `install.bat` if your Moodle path differs from the default
-3. Run `install.bat`
-4. Log in to Moodle as admin and complete the upgrade
-
-### Method 2: Manual Installation
+### Method 1: Manual Installation
 
 1. Copy the `fivedays` folder to: `{MOODLE_ROOT}/grade/grading/form/`
 2. Log in to Moodle as admin
 3. Navigate to Site Administration > Notifications
 4. Follow the upgrade process
 
-### Method 3: ZIP Upload
+### Method 2: ZIP Upload
 
-1. Run `build.bat` to create `gradingform_fivedays.zip`
+1. Zip this folder as `fivedays/` (for example `gradingform_fivedays.zip`)
 2. Log in to Moodle as admin
 3. Go to Site Administration > Plugins > Install plugins
 4. Upload the ZIP file
@@ -100,8 +93,6 @@ fivedays/
 ├── js/
 │   ├── fivedays.js      # Grading UI JavaScript
 │   └── fivedayseditor.js # Editor UI JavaScript
-├── build.bat            # Build script (Windows)
-├── install.bat          # Install script (Windows)
 └── README.md            # This file
 ```
 

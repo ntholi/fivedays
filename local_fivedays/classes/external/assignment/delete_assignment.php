@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\assignment;
+namespace local_fivedays\external\assignment;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -51,7 +51,7 @@ class delete_assignment extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:deleteassignment', $context);
+        require_capability('local/fivedays:deleteassignment', $context);
         require_capability('moodle/course:manageactivities', $context);
 
         $assignname = $assign->name;

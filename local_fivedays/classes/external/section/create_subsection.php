@@ -1,5 +1,5 @@
 <?php
-namespace local_activity_utils\external\section;
+namespace local_fivedays\external\section;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
@@ -42,12 +42,12 @@ class create_subsection extends external_api {
         $context = \context_course::instance($course->id);
 
         self::validate_context($context);
-        require_capability('local/activity_utils:createsubsection', $context);
+        require_capability('local/fivedays:createsubsection', $context);
         require_capability('moodle/course:update', $context);
 
         $subsectionmodule = $DB->get_record('modules', ['name' => 'subsection']);
         if (!$subsectionmodule) {
-            throw new \moodle_exception('subsectionmodulenotfound', 'local_activity_utils');
+            throw new \moodle_exception('subsectionmodulenotfound', 'local_fivedays');
         }
 
         $DB->get_record('course_sections', [
