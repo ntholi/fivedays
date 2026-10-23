@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-23 (3)
+
+### Changed
+- `sync_assignment_groups` no longer creates a group with no members enrolled in the assignment's course, and removes ones it made before. The app sends a module's groups to every class course, so each course now only shows its own class's groups.
+
 ## 2026-10-23 (2)
 
 ### Changed

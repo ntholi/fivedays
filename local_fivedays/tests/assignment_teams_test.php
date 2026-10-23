@@ -86,6 +86,28 @@ class assignment_teams_test extends advanced_testcase {
         $this->assertNotFalse(groups_get_group_by_idnumber($this->course->id, 'fivedays-a' . $this->assign->id . '-u' . $this->id(3)));
     }
 
+    public function test_sync_skips_groups_with_nobody_enrolled_here(): void {
+        $outsider = $this->getDataGenerator()->create_user();
+        sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+            ['key' => 'g2', 'name' => 'Group 2', 'userids' => [$this->id(3)]],
+        ]);
+
+        $result = sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+            ['key' => 'g2', 'name' => 'Group 2', 'userids' => []],
+            ['key' => 'g3', 'name' => 'Group 3', 'userids' => [(int)$outsider->id]],
+        ]);
+
+        $this->assertSame(3, $result['groups']);
+        $this->assertSame([(int)$outsider->id], $result['skipped']);
+        $this->assertSame([
+            'Group 1 · Essay' => [$this->id(1), $this->id(2)],
+            'S3 Student · Essay' => [$this->id(3)],
+            'S4 Student · Essay' => [$this->id(4)],
+        ], $this->teams()['teams']);
+    }
+
     public function test_resync_is_idempotent_and_moves_members(): void {
         $groups = [
             ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],

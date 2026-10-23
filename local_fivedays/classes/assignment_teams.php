@@ -289,6 +289,10 @@ class assignment_teams {
                 }
                 $members[] = $userid;
             }
+            // The app sends every class's groups to each class course; a group with nobody here is another class's.
+            if (!$members) {
+                continue;
+            }
             $desired[$idnumber] = [
                 'name' => self::truncate($group['name'] . ' · ' . $instance->name),
                 'userids' => $members,
