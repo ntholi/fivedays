@@ -41,7 +41,7 @@ class add_assignment_comment extends external_api {
         }
 
         helper::enable_assignment_comments($assignment);
-        $submission = $assignment->get_user_submission($params['userid'], true);
+        $submission = helper::comment_submission($assignment, $params['userid'], true);
         $manager = helper::assignment_comment_manager($assignment, $cm, $course, (int)$submission->id);
         $added = $manager->add($text, FORMAT_MOODLE);
         $comment = $DB->get_record('comments', ['id' => $added->id], '*', MUST_EXIST);

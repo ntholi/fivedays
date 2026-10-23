@@ -162,6 +162,22 @@ Saves or overrides the overall mark. Does not release it. Changing a released gr
 | `assignmentid` | int   | Yes      |
 | `userid`       | int   | Yes      |
 | `grade`        | float | Yes      |
+| `alsouserids`  | int[] | No       |
+
+`alsouserids` get the same grade in the same transaction (group members); those not enrolled are skipped. Returns `grade`, `releasestate`, `applieduserids` (the primary user and every also-user graded), `success`, `message`.
+
+### Group Assignments (Team Submission)
+
+`local_fivedays_get_assignment_teams` — `assignmentid`. Returns `teamsubmission`, `hassubmissions` (any submission whose status is not `new`) and `teams[{ groupid, name, userids[] }]`, the groups of the assignment's team grouping (empty when team submission is off). Needs `local/fivedays:viewassignment` and `mod/assign:view`.
+
+`local_fivedays_sync_assignment_groups` — `assignmentid`, `enabled`, `groups[{ key, name, userids[] }]` (default `[]`). Needs `local/fivedays:provision` and `moodle/course:managegroups`.
+
+- `enabled=true`: keeps the grouping `fivedays-assign-<id>` with one group per given group (idnumber `fivedays-a<id>-<key>`, name `<name> · <assignment>`) plus a one-person group (`u<userid>`) for every enrolled submitter not listed. Names and members are reconciled and stale `fivedays-a<id>-*` groups deleted. Sets `teamsubmission=1`, `teamsubmissiongroupingid`, `preventsubmissionnotingroup=0`, `requireallteammemberssubmit=0`.
+- `enabled=false`: turns team submission off and deletes the grouping and its `fivedays-a<id>-*` groups.
+- Changing the mode when the assignment has submissions fails with `assignmenthassubmissions`. A user listed in two groups fails with an invalid parameter error.
+- Returns `teamsubmission`, `groups` (groups now in the grouping) and `skipped` (listed users not enrolled in the course).
+
+In team mode, grades are listed per member from their latest grade, and assignment comments use the group submission so members share one thread.
 
 ### Release Assignment Grades
 
@@ -517,6 +533,9 @@ Grade a student's assignment submission using the FiveDays rubric. Supports both
 | `userid`        | int    | Yes      | User ID of the student being graded |
 | `fillings`      | array  | Yes      | Array of rubric fillings            |
 | `overallremark` | string | No       | Overall feedback/remark             |
+| `alsouserids`   | int[]  | No       | Other students who get the same fillings and grade (each their own grading instance); those not enrolled are skipped |
+
+The response includes `applieduserids`: the primary user and every also-user graded.
 
 **Filling object:**
 - `criterionid` (int, required): Criterion ID

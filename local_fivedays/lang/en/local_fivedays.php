@@ -12,6 +12,7 @@ $string['fivedays:createsubsection'] = 'Create subsections via FiveDays';
 $string['fivedays:createbook'] = 'Create book resources via FiveDays';
 $string['fivedays:readbook'] = 'Read book resources via FiveDays';
 $string['fivedays:updateassignment'] = 'Update assignments via FiveDays';
+$string['assignmenthassubmissions'] = 'This assignment already has submissions, so its group setting cannot change.';
 $string['activitynotfound'] = 'The activity no longer exists.';
 $string['cannotdeletesitecourse'] = 'The site course cannot be deleted.';
 $string['coursenotfound'] = 'The course does not exist.';

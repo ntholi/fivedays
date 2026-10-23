@@ -82,6 +82,22 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:gradeassignment',
     ),
+    'local_fivedays_get_assignment_teams' => array(
+        'classname' => 'local_fivedays\external\assignment\get_assignment_teams',
+        'methodname' => 'execute',
+        'description' => 'Get an assignment\'s team submission setting, whether it has submissions, and its team groups',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:viewassignment, mod/assign:view',
+    ),
+    'local_fivedays_sync_assignment_groups' => array(
+        'classname' => 'local_fivedays\external\assignment\sync_assignment_groups',
+        'methodname' => 'execute',
+        'description' => 'Turn team submission on or off for an assignment and sync its groups',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:provision, moodle/course:managegroups',
+    ),
     'local_fivedays_release_assignment_grades' => array(
         'classname' => 'local_fivedays\external\assignment\release_assignment_grades',
         'methodname' => 'execute',

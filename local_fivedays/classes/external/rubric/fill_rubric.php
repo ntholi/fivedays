@@ -23,6 +23,12 @@ class fill_rubric extends external_api {
                 'Rubric fillings (selected levels/scores and remarks for each criterion)'
             ),
             'overallremark' => new external_value(PARAM_RAW, 'Overall feedback/remark for the grading', VALUE_DEFAULT, ''),
+            'alsouserids' => new external_multiple_structure(
+                new external_value(PARAM_INT, 'Other student user ID'),
+                'Other students who get the same fillings and grade; those not enrolled are skipped',
+                VALUE_DEFAULT,
+                []
+            ),
         ]);
     }
 
@@ -30,7 +36,8 @@ class fill_rubric extends external_api {
         int $cmid,
         int $userid,
         array $fillings,
-        string $overallremark = ''
+        string $overallremark = '',
+        array $alsouserids = []
     ): array {
         global $CFG, $DB, $USER;
 
@@ -44,6 +51,7 @@ class fill_rubric extends external_api {
             'userid' => $userid,
             'fillings' => $fillings,
             'overallremark' => $overallremark,
+            'alsouserids' => $alsouserids,
         ]);
 
         $cm = get_coursemodule_from_id('assign', $params['cmid'], 0, false, MUST_EXIST);
@@ -72,7 +80,6 @@ class fill_rubric extends external_api {
         }
 
         $assignment = new \assign($context, $cm, $cm->course);
-        $assignment->get_user_submission($params['userid'], true);
 
         $criteria = $controller->get_definition()->fivedays_criteria;
 
@@ -107,8 +114,45 @@ class fill_rubric extends external_api {
             ];
         }
 
+        $also = \local_fivedays\helper::enrolled_also_userids($context, $params['userid'], $params['alsouserids']);
+
         $transaction = $DB->start_delegated_transaction();
-        $grade = $assignment->get_user_grade($params['userid'], true);
+        $assignment = \local_fivedays\helper::ensure_marking_workflow($assignment);
+        [$instance, $saved] = self::grade_user($assignment, $controller, $posted, $params['userid'], $transaction);
+        foreach ($also as $alsouserid) {
+            self::grade_user($assignment, $controller, $posted, $alsouserid, $transaction);
+        }
+        $transaction->allow_commit();
+
+        return [
+            'instanceid' => (int)$instance->get_id(),
+            'grade' => $saved['grade'],
+            'releasestate' => $saved['releasestate'],
+            'applieduserids' => array_merge([$params['userid']], $also),
+            'success' => true,
+            'message' => 'FiveDays rubric filled and grade saved successfully',
+        ];
+    }
+
+    /**
+     * Grades one student through their own grading instance, so each group member
+     * keeps a rubric filling of their own.
+     *
+     * @return array [grading instance, saved grade]
+     */
+    private static function grade_user(
+        \assign $assignment,
+        \gradingform_controller $controller,
+        array $posted,
+        int $userid,
+        \moodle_transaction $transaction
+    ): array {
+        global $USER;
+
+        if (empty($assignment->get_instance()->teamsubmission)) {
+            $assignment->get_user_submission($userid, true);
+        }
+        $grade = $assignment->get_user_grade($userid, true);
 
         // Instance id 0 makes a new instance for this rater, copied from the current active one, like core assign grading.
         $instance = $controller->get_or_create_instance(0, $USER->id, $grade->id);
@@ -137,20 +181,8 @@ class fill_rubric extends external_api {
             $transaction->rollback(new \invalid_parameter_exception('This rubric has no scores to calculate a grade'));
         }
 
-        $saved = \local_fivedays\helper::save_assignment_grade(
-            $assignment,
-            $params['userid'],
-            (float)$gradevalue
-        );
-        $transaction->allow_commit();
-
-        return [
-            'instanceid' => (int)$instance->get_id(),
-            'grade' => $saved['grade'],
-            'releasestate' => $saved['releasestate'],
-            'success' => true,
-            'message' => 'FiveDays rubric filled and grade saved successfully',
-        ];
+        $saved = \local_fivedays\helper::save_assignment_grade($assignment, $userid, (float)$gradevalue);
+        return [$instance, $saved];
     }
 
     private static function failure(string $message): array {
@@ -158,6 +190,7 @@ class fill_rubric extends external_api {
             'instanceid' => 0,
             'grade' => 0,
             'releasestate' => 'notgraded',
+            'applieduserids' => [],
             'success' => false,
             'message' => $message,
         ];
@@ -168,6 +201,10 @@ class fill_rubric extends external_api {
             'instanceid' => new external_value(PARAM_INT, 'Grading instance ID'),
             'grade' => new external_value(PARAM_FLOAT, 'Calculated grade from rubric'),
             'releasestate' => new external_value(PARAM_ALPHA, 'notgraded, notreleased, released, or beingedited'),
+            'applieduserids' => new external_multiple_structure(
+                new external_value(PARAM_INT, 'User ID'),
+                'The primary user and every also-user the rubric was applied to'
+            ),
             'success' => new external_value(PARAM_BOOL, 'Success status'),
             'message' => new external_value(PARAM_TEXT, 'Response message'),
         ]);

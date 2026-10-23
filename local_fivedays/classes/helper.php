@@ -269,10 +269,50 @@ class helper {
         ];
     }
 
+    /**
+     * Also-users enrolled in the assignment's course, without the primary user or duplicates.
+     * Users who are not enrolled are skipped silently: the app may list a group
+     * member who has since left the class.
+     */
+    public static function enrolled_also_userids(\context $context, int $primaryuserid, array $alsouserids): array {
+        $out = [];
+        foreach ($alsouserids as $userid) {
+            $userid = (int)$userid;
+            if ($userid <= 0 || $userid === $primaryuserid || isset($out[$userid])) {
+                continue;
+            }
+            if (is_enrolled($context, $userid)) {
+                $out[$userid] = $userid;
+            }
+        }
+        return array_values($out);
+    }
+
     public static function list_assignment_grades(\assign $assignment): array {
         global $DB;
 
         $instance = $assignment->get_instance();
+        if (!empty($instance->teamsubmission)) {
+            // Team grading creates only the group submission (userid 0), so a
+            // member's latest grade cannot be matched to a submission of their own.
+            $rows = $DB->get_records_sql(
+                "SELECT g.userid, g.grade, f.workflowstate
+                   FROM {assign_grades} g
+              LEFT JOIN {assign_user_flags} f
+                     ON f.assignment = g.assignment
+                    AND f.userid = g.userid
+                  WHERE g.assignment = :assignid
+                    AND g.attemptnumber = (
+                        SELECT MAX(g2.attemptnumber)
+                          FROM {assign_grades} g2
+                         WHERE g2.assignment = g.assignment
+                           AND g2.userid = g.userid
+                    )",
+                ['assignid' => $instance->id]
+            );
+            return self::format_grade_rows($rows);
+        }
+
         $rows = $DB->get_records_sql(
             "SELECT g.userid, g.grade, f.workflowstate
                FROM {assign_grades} g
@@ -287,7 +327,10 @@ class helper {
               WHERE g.assignment = :assignid",
             ['assignid' => $instance->id]
         );
+        return self::format_grade_rows($rows);
+    }
 
+    private static function format_grade_rows(array $rows): array {
         $out = [];
         foreach ($rows as $row) {
             $grade = $row->grade === null || $row->grade === '' ? null : (float)$row->grade;
@@ -415,10 +458,21 @@ class helper {
         ];
     }
 
+    /**
+     * The submission a student's comment thread hangs on. In team mode members
+     * share the group submission, so they share one thread.
+     */
+    public static function comment_submission(\assign $assignment, int $userid, bool $create): \stdClass|false|null {
+        if (!empty($assignment->get_instance()->teamsubmission)) {
+            return $assignment->get_group_submission($userid, 0, $create);
+        }
+        return $assignment->get_user_submission($userid, $create);
+    }
+
     public static function list_assignment_comments(\assign $assignment, int $userid): array {
         global $DB;
 
-        $submission = $assignment->get_user_submission($userid, false);
+        $submission = self::comment_submission($assignment, $userid, false);
         if (!$submission) {
             return [];
         }
