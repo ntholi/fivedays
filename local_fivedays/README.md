@@ -168,14 +168,16 @@ Saves or overrides the overall mark. Does not release it. Changing a released gr
 
 ### Group Assignments (Team Submission)
 
-`local_fivedays_get_assignment_teams` — `assignmentid`. Returns `teamsubmission`, `hassubmissions` (any submission whose status is not `new`) and `teams[{ groupid, name, userids[] }]`, the groups of the assignment's team grouping (empty when team submission is off). Needs `local/fivedays:viewassignment` and `mod/assign:view`.
+`local_fivedays_get_assignment_teams` — `assignmentid`. Returns `teamsubmission`, `canchangemode` (no submissions or grades yet) and `teams[{ groupid, name, submitted, userids[] }]`, the groups of the assignment's team grouping (empty when team submission is off).  `submitted` means the group submission moved past `new`. Needs `local/fivedays:viewassignment` and `mod/assign:view`.
 
 `local_fivedays_sync_assignment_groups` — `assignmentid`, `enabled`, `groups[{ key, name, userids[] }]` (default `[]`). Needs `local/fivedays:provision` and `moodle/course:managegroups`.
 
-- `enabled=true`: keeps the grouping `fivedays-assign-<id>` with one group per given group (idnumber `fivedays-a<id>-<key>`, name `<name> · <assignment>`) plus a one-person group (`u<userid>`) for every enrolled submitter not listed. Names and members are reconciled and stale `fivedays-a<id>-*` groups deleted. Sets `teamsubmission=1`, `teamsubmissiongroupingid`, `preventsubmissionnotingroup=0`, `requireallteammemberssubmit=0`.
-- `enabled=false`: turns team submission off and deletes the grouping and its `fivedays-a<id>-*` groups.
-- Changing the mode when the assignment has submissions fails with `assignmenthassubmissions`. A user listed in two groups fails with an invalid parameter error.
-- Returns `teamsubmission`, `groups` (groups now in the grouping) and `skipped` (listed users not enrolled in the course).
+- The mode follows `enabled` only while the assignment has no submissions or grades (core's `has_submissions_or_grades`); otherwise the current mode stays and `locked` is returned true.
+- Team mode: keeps the grouping `fivedays-assign-<id>` with one group per given group (idnumber `fivedays-a<id>-<key>`, name `<name> · <assignment>`) plus a one-person group (`u<userid>`) for every enrolled submitter not listed. Names and members are reconciled and stale `fivedays-a<id>-*` groups deleted. Sets `teamsubmission=1`, `teamsubmissiongroupingid`, `preventsubmissionnotingroup=1`, `requireallteammemberssubmit=0`.
+- Individual mode: team submission off; the grouping and its `fivedays-a<id>-*` groups are deleted.
+- Team mode kept on although `enabled=false`: the groups stay as they are; only submitters in no group get a one-person group.
+- A group whose submission moved past `new` must keep exactly its members: some wanted group (app group or one-person group) must have the same members, and that group then takes over the existing Moodle group (idnumber and name), so its submission stays visible. Otherwise the call fails with `groupsubmitted` and changes nothing. A submitted group with no members left is ignored. A user listed in two groups fails with an invalid parameter error.
+- Returns `teamsubmission`, `groups` (groups now in the grouping), `skipped` (listed users not enrolled in the course) and `locked`.
 
 In team mode, grades are listed per member from their latest grade, and assignment comments use the group submission so members share one thread.
 

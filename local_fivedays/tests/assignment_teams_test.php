@@ -63,7 +63,7 @@ class assignment_teams_test extends advanced_testcase {
         $grouping = groups_get_grouping_by_idnumber($this->course->id, 'fivedays-assign-' . $this->assign->id);
         $this->assertEquals(1, $instance->teamsubmission);
         $this->assertEquals($grouping->id, $instance->teamsubmissiongroupingid);
-        $this->assertEquals(0, $instance->preventsubmissionnotingroup);
+        $this->assertEquals(1, $instance->preventsubmissionnotingroup);
         $this->assertEquals(0, $instance->requireallteammemberssubmit);
         $this->assertSame('Essay groups', $grouping->name);
 
@@ -107,29 +107,124 @@ class assignment_teams_test extends advanced_testcase {
         ]);
     }
 
-    public function test_sync_refuses_mode_change_when_submissions_exist(): void {
+    private function submit(int $userid, int $groupid): void {
         global $DB;
 
         $DB->insert_record('assign_submission', (object)[
             'assignment' => $this->assign->id,
-            'userid' => $this->id(1),
-            'groupid' => 0,
+            'userid' => $userid,
+            'groupid' => $groupid,
             'status' => 'submitted',
             'latest' => 1,
             'attemptnumber' => 0,
             'timecreated' => time(),
             'timemodified' => time(),
         ]);
+    }
 
-        $this->assertTrue(get_assignment_teams::execute((int)$this->assign->id)['hassubmissions']);
-        try {
-            sync_assignment_groups::execute((int)$this->assign->id, true, []);
-            $this->fail('Expected assignmenthassubmissions');
-        } catch (\moodle_exception $e) {
-            $this->assertSame('assignmenthassubmissions', $e->errorcode);
-        }
+    private function group_id(string $key): int {
+        $group = groups_get_group_by_idnumber($this->course->id, 'fivedays-a' . $this->assign->id . '-' . $key);
+        return (int)$group->id;
+    }
+
+    public function test_enable_is_locked_when_submissions_exist(): void {
+        global $DB;
+
+        $this->submit($this->id(1), 0);
+
+        $this->assertFalse(get_assignment_teams::execute((int)$this->assign->id)['canchangemode']);
+        $result = sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+        ]);
+        $this->assertFalse($result['teamsubmission']);
+        $this->assertTrue($result['locked']);
         $this->assertEquals(0, $DB->get_field('assign', 'teamsubmission', ['id' => $this->assign->id]));
         $this->assertFalse(groups_get_grouping_by_idnumber($this->course->id, 'fivedays-assign-' . $this->assign->id));
+    }
+
+    public function test_enable_is_locked_when_grades_exist(): void {
+        save_assignment_grade::execute((int)$this->assign->id, $this->id(1), 50);
+
+        $result = sync_assignment_groups::execute((int)$this->assign->id, true, []);
+        $this->assertFalse($result['teamsubmission']);
+        $this->assertTrue($result['locked']);
+    }
+
+    public function test_disable_keeps_team_mode_after_a_group_submitted(): void {
+        global $DB;
+
+        $groups = [['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]]];
+        sync_assignment_groups::execute((int)$this->assign->id, true, $groups);
+        $this->submit(0, $this->group_id('g1'));
+
+        $result = sync_assignment_groups::execute((int)$this->assign->id, false, $groups);
+        $this->assertTrue($result['teamsubmission']);
+        $this->assertTrue($result['locked']);
+        $this->assertEquals(1, $DB->get_field('assign', 'teamsubmission', ['id' => $this->assign->id]));
+        $this->assertSame([$this->id(1), $this->id(2)], $this->teams()['teams']['Group 1 · Essay']);
+    }
+
+    public function test_submitted_groups_keep_their_members(): void {
+        sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+        ]);
+        $this->submit(0, $this->group_id('g1'));
+        $this->submit(0, $this->group_id('u' . $this->id(3)));
+
+        $submitted = [];
+        foreach (get_assignment_teams::execute((int)$this->assign->id)['teams'] as $team) {
+            $submitted[$team['name']] = $team['submitted'];
+        }
+        ksort($submitted);
+        $this->assertSame(['Group 1 · Essay' => true, 'S3 Student · Essay' => true, 'S4 Student · Essay' => false], $submitted);
+
+        $attempts = [
+            [['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2), $this->id(4)]]],
+            [['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+             ['key' => 'g2', 'name' => 'Group 2', 'userids' => [$this->id(3), $this->id(4)]]],
+            [],
+        ];
+        foreach ($attempts as $groups) {
+            try {
+                sync_assignment_groups::execute((int)$this->assign->id, true, $groups);
+                $this->fail('Expected groupsubmitted');
+            } catch (\moodle_exception $e) {
+                $this->assertSame('groupsubmitted', $e->errorcode);
+            }
+        }
+
+        $result = sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Team A', 'userids' => [$this->id(2), $this->id(1)]],
+        ]);
+        $this->assertSame(3, $result['groups']);
+        $this->assertSame([$this->id(1), $this->id(2)], $this->teams()['teams']['Team A · Essay']);
+    }
+
+    public function test_new_app_group_with_the_same_members_keeps_the_submitted_group(): void {
+        sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+        ]);
+        $groupid = $this->group_id('g1');
+        $this->submit(0, $groupid);
+
+        sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g9', 'name' => 'Group 9', 'userids' => [$this->id(2), $this->id(1)]],
+        ]);
+        $teams = [];
+        foreach (get_assignment_teams::execute((int)$this->assign->id)['teams'] as $team) {
+            $teams[$team['name']] = $team['groupid'];
+        }
+        $this->assertSame($groupid, $teams['Group 9 · Essay']);
+    }
+
+    public function test_new_submitter_gets_a_solo_group_while_team_mode_is_kept(): void {
+        $groups = [['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]]];
+        sync_assignment_groups::execute((int)$this->assign->id, true, $groups);
+        $this->submit(0, $this->group_id('g1'));
+        $late = $this->getDataGenerator()->create_and_enrol($this->course, 'student', ['firstname' => 'Late', 'lastname' => 'Student']);
+
+        sync_assignment_groups::execute((int)$this->assign->id, false, $groups);
+        $this->assertSame([(int)$late->id], $this->teams()['teams']['Late Student · Essay']);
     }
 
     public function test_disable_removes_grouping_and_groups_only(): void {

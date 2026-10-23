@@ -27,6 +27,7 @@ class get_assignment_teams extends external_api {
         ]);
 
         [$instance, $cm] = helper::require_activity('assign', $params['assignmentid']);
+        [$assign] = helper::get_assign((int)$instance->id);
 
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
@@ -35,7 +36,7 @@ class get_assignment_teams extends external_api {
 
         return [
             'teamsubmission' => !empty($instance->teamsubmission),
-            'hassubmissions' => assignment_teams::has_submissions((int)$instance->id),
+            'canchangemode' => assignment_teams::can_change_mode($assign),
             'teams' => assignment_teams::list_teams($instance, (int)$cm->course),
         ];
     }
@@ -43,11 +44,12 @@ class get_assignment_teams extends external_api {
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'teamsubmission' => new external_value(PARAM_BOOL, 'Whether team submission is on'),
-            'hassubmissions' => new external_value(PARAM_BOOL, 'Whether any submission has moved past "new"'),
+            'canchangemode' => new external_value(PARAM_BOOL, 'Whether team submission can still be switched (no submissions or grades yet)'),
             'teams' => new external_multiple_structure(
                 new external_single_structure([
                     'groupid' => new external_value(PARAM_INT, 'Moodle group ID'),
                     'name' => new external_value(PARAM_TEXT, 'Group name'),
+                    'submitted' => new external_value(PARAM_BOOL, 'Whether the group submission moved past "new"; its members cannot change'),
                     'userids' => new external_multiple_structure(
                         new external_value(PARAM_INT, 'Member user ID')
                     ),

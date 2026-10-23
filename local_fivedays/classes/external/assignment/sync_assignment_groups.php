@@ -15,7 +15,7 @@ class sync_assignment_groups extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'assignmentid' => new external_value(PARAM_INT, 'Assignment instance ID'),
-            'enabled' => new external_value(PARAM_BOOL, 'Turn team submission on (true) or off (false)'),
+            'enabled' => new external_value(PARAM_BOOL, 'Wanted team submission mode; applied only while the assignment has no submissions or grades'),
             'groups' => new external_multiple_structure(
                 new external_single_structure([
                     'key' => new external_value(PARAM_ALPHANUMEXT, 'Stable app key for the group'),
@@ -27,7 +27,7 @@ class sync_assignment_groups extends external_api {
                         []
                     ),
                 ]),
-                'Groups to sync; ignored when enabled is false',
+                'Groups to sync; also used when team submission stays on although enabled is false',
                 VALUE_DEFAULT,
                 []
             ),
@@ -51,7 +51,7 @@ class sync_assignment_groups extends external_api {
             $cm,
             $course,
             (bool)$params['enabled'],
-            $params['enabled'] ? $params['groups'] : []
+            $params['groups']
         );
     }
 
@@ -62,6 +62,7 @@ class sync_assignment_groups extends external_api {
             'skipped' => new external_multiple_structure(
                 new external_value(PARAM_INT, 'Listed user ID not enrolled in the course')
             ),
+            'locked' => new external_value(PARAM_BOOL, 'The wanted mode was not applied because the assignment has submissions or grades'),
         ]);
     }
 }

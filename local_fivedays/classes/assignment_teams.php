@@ -4,8 +4,10 @@ namespace local_fivedays;
 /**
  * Moodle team submission for assignments whose groups are owned by the app.
  * The app's groups are copied into one grouping per assignment; every other
- * submitter gets a one-person group so Moodle never falls back to its shared
- * "Default group".
+ * submitter gets a one-person group so nobody shares Moodle's "Default group".
+ *
+ * Moodle keeps work on the group submission, so once anything is submitted or
+ * graded the mode never changes, and a group that has submitted keeps its members.
  */
 class assignment_teams {
 
@@ -17,16 +19,9 @@ class assignment_teams {
         return 'fivedays-a' . $assignmentid . '-';
     }
 
-    public static function has_submissions(int $assignmentid): bool {
-        global $CFG, $DB;
-
-        require_once($CFG->dirroot . '/mod/assign/locallib.php');
-
-        return $DB->record_exists_select(
-            'assign_submission',
-            'assignment = :assignment AND status <> :status',
-            ['assignment' => $assignmentid, 'status' => ASSIGN_SUBMISSION_STATUS_NEW]
-        );
+    /** Core's rule for when the assignment form freezes team submission. */
+    public static function can_change_mode(\assign $assign): bool {
+        return !$assign->has_submissions_or_grades();
     }
 
     /**
@@ -53,11 +48,13 @@ class assignment_teams {
         }
         $members->close();
 
+        $submitted = self::submitted_group_ids((int)$instance->id);
         $out = [];
         foreach ($groups as $group) {
             $out[] = [
                 'groupid' => (int)$group->id,
                 'name' => (string)$group->name,
+                'submitted' => isset($submitted[(int)$group->id]),
                 'userids' => $userids[(int)$group->id] ?? [],
             ];
         }
@@ -66,39 +63,38 @@ class assignment_teams {
 
     /**
      * @param array $groups [['key' => string, 'name' => string, 'userids' => int[]]]
-     * @return array ['teamsubmission' => bool, 'groups' => int, 'skipped' => int[]]
+     * @return array ['teamsubmission' => bool, 'groups' => int, 'skipped' => int[], 'locked' => bool]
      */
     public static function sync(\stdClass $instance, \stdClass $cm, \stdClass $course, bool $enabled, array $groups): array {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/group/lib.php');
         require_once($CFG->dirroot . '/course/lib.php');
+        require_once($CFG->dirroot . '/mod/assign/locallib.php');
+
+        $assign = new \assign(\context_module::instance($cm->id), $cm, $course);
+        $isteam = !empty($instance->teamsubmission);
+        $team = $enabled === $isteam || self::can_change_mode($assign) ? $enabled : $isteam;
+        $locked = $team !== $enabled;
+
+        if (!$team) {
+            $transaction = $DB->start_delegated_transaction();
+            self::remove($instance, (int)$course->id);
+            $transaction->allow_commit();
+            return ['teamsubmission' => false, 'groups' => 0, 'skipped' => [], 'locked' => $locked];
+        }
 
         $assignmentid = (int)$instance->id;
-        $isteam = !empty($instance->teamsubmission);
-        if ($enabled !== $isteam && self::has_submissions($assignmentid)) {
-            throw new \moodle_exception('assignmenthassubmissions', 'local_fivedays');
-        }
+        $existing = self::existing_groups($course->id, $assignmentid);
+        // Kept on only because work exists: the app no longer owns these groups, so they stay as they are.
+        [$desired, $skipped] = $enabled
+            ? self::desired_groups($instance, $cm, $course, $groups)
+            : [self::frozen_groups($instance, $cm, $existing), []];
+        $desired = self::keep_submitted_groups($assignmentid, $existing, $desired);
 
         $transaction = $DB->start_delegated_transaction();
-
-        if (!$enabled) {
-            foreach (self::existing_groups($course->id, $assignmentid) as $group) {
-                groups_delete_group($group);
-            }
-            $grouping = groups_get_grouping_by_idnumber($course->id, self::grouping_idnumber($assignmentid));
-            if ($grouping) {
-                groups_delete_grouping($grouping);
-            }
-            self::set_team_settings($instance, $course->id, 0, 0);
-            $transaction->allow_commit();
-            return ['teamsubmission' => false, 'groups' => 0, 'skipped' => []];
-        }
-
         $groupingid = self::ensure_grouping($course->id, $assignmentid, (string)$instance->name);
-        [$desired, $skipped] = self::desired_groups($instance, $cm, $course, $groups);
 
-        $existing = self::existing_groups($course->id, $assignmentid);
         $byidnumber = [];
         foreach ($existing as $group) {
             $byidnumber[$group->idnumber] = $group;
@@ -136,7 +132,105 @@ class assignment_teams {
         $count = $DB->count_records('groupings_groups', ['groupingid' => $groupingid]);
         $transaction->allow_commit();
 
-        return ['teamsubmission' => true, 'groups' => $count, 'skipped' => $skipped];
+        return ['teamsubmission' => true, 'groups' => $count, 'skipped' => $skipped, 'locked' => $locked];
+    }
+
+    private static function remove(\stdClass $instance, int $courseid): void {
+        $assignmentid = (int)$instance->id;
+        foreach (self::existing_groups($courseid, $assignmentid) as $group) {
+            groups_delete_group($group);
+        }
+        $grouping = groups_get_grouping_by_idnumber($courseid, self::grouping_idnumber($assignmentid));
+        if ($grouping) {
+            groups_delete_grouping($grouping);
+        }
+        self::set_team_settings($instance, $courseid, 0, 0);
+    }
+
+    /** Group ids whose shared submission moved past "new". */
+    private static function submitted_group_ids(int $assignmentid): array {
+        global $CFG, $DB;
+
+        require_once($CFG->dirroot . '/mod/assign/locallib.php');
+
+        $ids = $DB->get_fieldset_select(
+            'assign_submission',
+            'DISTINCT groupid',
+            'assignment = :assignment AND userid = 0 AND groupid > 0 AND status <> :status',
+            ['assignment' => $assignmentid, 'status' => ASSIGN_SUBMISSION_STATUS_NEW]
+        );
+        return array_fill_keys(array_map('intval', $ids), true);
+    }
+
+    /**
+     * Deleting a group that has submitted, or changing its members, leaves its
+     * submission on a group nobody is in, so Moodle stops showing that work.
+     * A submitted group is kept when some wanted group has exactly its members;
+     * that wanted group takes over its idnumber so the Moodle group survives.
+     */
+    private static function keep_submitted_groups(int $assignmentid, array $existing, array $desired): array {
+        global $DB;
+
+        $submitted = self::submitted_group_ids($assignmentid);
+        $lost = [];
+        foreach ($existing as $group) {
+            if (!isset($submitted[(int)$group->id])) {
+                continue;
+            }
+            $members = array_map('intval', $DB->get_fieldset_select('groups_members', 'userid', 'groupid = ?', [$group->id]));
+            if (!$members) {
+                continue;
+            }
+            $match = null;
+            foreach ($desired as $idnumber => $want) {
+                if (self::same_members($want['userids'], $members)) {
+                    $match = $idnumber;
+                    break;
+                }
+            }
+            if ($match === null) {
+                $lost[] = (string)$group->name;
+                continue;
+            }
+            if ($match !== $group->idnumber) {
+                $displaced = $desired[$group->idnumber] ?? null;
+                $desired[$group->idnumber] = $desired[$match];
+                unset($desired[$match]);
+                if ($displaced !== null) {
+                    $desired[$match] = $displaced;
+                }
+            }
+        }
+        if ($lost) {
+            throw new \moodle_exception('groupsubmitted', 'local_fivedays', '', implode(', ', $lost));
+        }
+        return $desired;
+    }
+
+    private static function same_members(array $a, array $b): bool {
+        $a = array_map('intval', $a);
+        $b = array_map('intval', $b);
+        sort($a);
+        sort($b);
+        return $a === $b;
+    }
+
+    /**
+     * The groups as they are now, plus a one-person group for each submitter in none.
+     */
+    private static function frozen_groups(\stdClass $instance, \stdClass $cm, array $existing): array {
+        global $DB;
+
+        $desired = [];
+        $placed = [];
+        foreach ($existing as $group) {
+            $members = array_map('intval', $DB->get_fieldset_select('groups_members', 'userid', 'groupid = ?', [$group->id]));
+            foreach ($members as $userid) {
+                $placed[$userid] = true;
+            }
+            $desired[$group->idnumber] = ['name' => (string)$group->name, 'userids' => $members];
+        }
+        return self::add_solo_groups($instance, $cm, $desired, $placed);
     }
 
     private static function existing_groups(int $courseid, int $assignmentid): array {
@@ -201,6 +295,16 @@ class assignment_teams {
             ];
         }
 
+        $desired = self::add_solo_groups($instance, $cm, $desired, $placed);
+        return [$desired, $skipped];
+    }
+
+    /**
+     * A one-person group for every submitter not placed yet, so nobody shares
+     * Moodle's default group.
+     */
+    private static function add_solo_groups(\stdClass $instance, \stdClass $cm, array $desired, array $placed): array {
+        $prefix = self::group_idnumber_prefix((int)$instance->id);
         $namefields = \core_user\fields::for_name()->get_sql('u', false, '', '', false)->selects;
         $submitters = get_enrolled_users(
             \context_module::instance($cm->id),
@@ -213,7 +317,7 @@ class assignment_teams {
                 continue;
             }
             $idnumber = $prefix . 'u' . $user->id;
-            if (isset($desired[$idnumber])) {
+            if (!empty($desired[$idnumber]['userids'])) {
                 throw new \invalid_parameter_exception('Group key u' . $user->id . ' is reserved for a one-person group');
             }
             $desired[$idnumber] = [
@@ -222,7 +326,7 @@ class assignment_teams {
             ];
         }
 
-        return [$desired, $skipped];
+        return $desired;
     }
 
     private static function set_members(int $groupid, array $userids): void {
@@ -243,7 +347,8 @@ class assignment_teams {
         $wanted = [
             'teamsubmission' => $teamsubmission,
             'teamsubmissiongroupingid' => $groupingid,
-            'preventsubmissionnotingroup' => 0,
+            // A student not given a group yet waits instead of sharing the default group's submission.
+            'preventsubmissionnotingroup' => $teamsubmission,
             'requireallteammemberssubmit' => 0,
         ];
         $changed = false;
