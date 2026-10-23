@@ -5,6 +5,7 @@ Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fi
 ## 2026-10-23
 
 ### Added
+- `get_rubric` returns `gradedcount` on every criterion: how many students have an active assessment that filled that criterion. The app uses it to ask for a typed confirmation before deleting an assessed criterion.
 - `get_assignment_teams` returns whether an assignment uses team submission, whether it has submissions (any status other than `new`), and the groups of its team grouping with their members. Requires `local/fivedays:viewassignment` and `mod/assign:view`.
 - `sync_assignment_groups` turns team submission on or off for an assignment and keeps its groups in step with the app: one grouping `fivedays-assign-<id>`, one group per app group (`fivedays-a<id>-<key>`) and a one-person group for every other submitter. It reconciles names and members, deletes stale groups, and returns the users it skipped because they are not enrolled. Changing the mode once the assignment has submissions fails with `assignmenthassubmissions`. Requires `local/fivedays:provision` and `moodle/course:managegroups`.
 - `save_assignment_grade` and `fill_rubric` take optional `alsouserids`: the same grade (or rubric fillings, each in its own grading instance) is saved for those enrolled students in the same transaction. Both return `applieduserids`.

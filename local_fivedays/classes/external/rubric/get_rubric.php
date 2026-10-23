@@ -83,6 +83,19 @@ class get_rubric extends external_api {
         $definition = $controller->get_definition();
         $criteria = $DB->get_records('gradingform_fivedays_criteria', ['definitionid' => $definition->id], 'sortorder ASC');
 
+        $gradedcounts = $DB->get_records_sql_menu(
+            'SELECT f.criterionid, COUNT(DISTINCT f.instanceid)
+               FROM {gradingform_fivedays_fillings} f
+               JOIN {grading_instances} gi ON gi.id = f.instanceid
+              WHERE gi.definitionid = :definitionid AND gi.status IN (:active, :needsupdate)
+           GROUP BY f.criterionid',
+            [
+                'definitionid' => $definition->id,
+                'active' => \gradingform_instance::INSTANCE_STATUS_ACTIVE,
+                'needsupdate' => \gradingform_instance::INSTANCE_STATUS_NEEDUPDATE,
+            ]
+        );
+
         $criteriaresult = [];
         $maxscore = 0;
 
@@ -106,6 +119,7 @@ class get_rubric extends external_api {
                 'id' => (int)$criterion->id,
                 'description' => $criterion->description,
                 'sortorder' => (int)$criterion->sortorder,
+                'gradedcount' => (int)($gradedcounts[$criterion->id] ?? 0),
                 'levels' => $levelsresult,
             ];
 
@@ -156,6 +170,7 @@ class get_rubric extends external_api {
                     'id' => new external_value(PARAM_INT, 'Criterion ID'),
                     'description' => new external_value(PARAM_RAW, 'Criterion description'),
                     'sortorder' => new external_value(PARAM_INT, 'Sort order'),
+                    'gradedcount' => new external_value(PARAM_INT, 'Students already assessed with this criterion'),
                     'levels' => new external_multiple_structure(
                         new external_single_structure([
                             'id' => new external_value(PARAM_INT, 'Level ID'),
