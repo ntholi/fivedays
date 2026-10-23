@@ -47,6 +47,16 @@ class assignment_teams_test extends advanced_testcase {
         return ['result' => $result, 'teams' => $teams];
     }
 
+    public function test_teams_return_course_and_base_due_date(): void {
+        global $DB;
+        $DB->set_field('assign', 'duedate', 1798761600, ['id' => $this->assign->id]);
+
+        $result = get_assignment_teams::execute((int)$this->assign->id);
+
+        $this->assertSame((int)$this->course->id, $result['courseid']);
+        $this->assertSame(1798761600, $result['duedate']);
+    }
+
     public function test_sync_creates_grouping_groups_and_solo_groups(): void {
         global $DB;
 

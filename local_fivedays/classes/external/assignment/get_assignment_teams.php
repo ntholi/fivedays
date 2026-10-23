@@ -35,6 +35,8 @@ class get_assignment_teams extends external_api {
         require_capability('mod/assign:view', $context);
 
         return [
+            'courseid' => (int)$cm->course,
+            'duedate' => (int)$instance->duedate,
             'teamsubmission' => !empty($instance->teamsubmission),
             'canchangemode' => assignment_teams::can_change_mode($assign),
             'teams' => assignment_teams::list_teams($instance, (int)$cm->course),
@@ -43,6 +45,8 @@ class get_assignment_teams extends external_api {
 
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
+            'courseid' => new external_value(PARAM_INT, 'Course ID'),
+            'duedate' => new external_value(PARAM_INT, 'Base due date (Unix time; 0 when none; overrides ignored)'),
             'teamsubmission' => new external_value(PARAM_BOOL, 'Whether team submission is on'),
             'canchangemode' => new external_value(PARAM_BOOL, 'Whether team submission can still be switched (no submissions or grades yet)'),
             'teams' => new external_multiple_structure(

@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-23 (2)
+
+### Changed
+- `get_assignment_teams` also returns `courseid` and `duedate` (the assignment's base due date, 0 when none; user and group overrides are ignored). The app uses them to stop group leaders changing members after the due date.
+
 ## 2026-10-23
 
 ### Added
