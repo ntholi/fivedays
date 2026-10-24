@@ -15,6 +15,8 @@ for v in MOODLE_COMMIT OBJECTFS_COMMIT PHP_VERSION PHPREDIS_VERSION COMPOSER_VER
   build_args+=(--build-arg "$v=${!v}")
 done
 build_args+=(--build-arg "POSTGRES_MAJOR=${POSTGRES_VERSION%%.*}")
+# just release --patch: fresh base images and OS packages for the same commit.
+[[ "${BUILD_PULL:-0}" == "1" ]] && build_args+=(--pull --no-cache)
 
 log "building $image:$tag (Moodle $MOODLE_COMMIT)"
 docker build "${build_args[@]}" --target app -t "$image:$tag" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"

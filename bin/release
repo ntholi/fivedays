@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# just release [--patch] (D25): builds, tests and pushes immutable images to the public GHCR repo.
+#   just release           sha-<short> (+ -web, -transfer) of the pushed HEAD
+#   just release --patch   sha-<short>-<yyyymmdd>: the same commit rebuilt with --pull for OS patches
+# Refuses a dirty tree, an unpushed HEAD or a tag that already exists. Tags are never overwritten.
+# <short> is `git rev-parse --short HEAD`, the same value registry-web's deploy-prod.ts looks for.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+start_log release
+
+patch=0
+for a in "$@"; do
+  case "$a" in
+    --patch) patch=1 ;;
+    *) die "Unknown argument \"$a\"" "Run: just release   or   just release --patch" ;;
+  esac
+done
+
+image="ghcr.io/ntholi/fivedays-moodle"
+need_cmd gh "Install the GitHub CLI and run: gh auth login"
+cd "$FIVEDAYS_ROOT"
+
+[[ -z "$(git status --porcelain)" ]] || die "The fivedays tree has uncommitted changes" "Commit or stash them, then rerun."
+git fetch -q origin main
+[[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] ||
+  die "HEAD is not the pushed origin/main" "Push main first (git push origin main), then rerun."
+ok "tree clean, HEAD $(git rev-parse --short HEAD) is pushed"
+
+short="$(git rev-parse --short HEAD)"
+tag="sha-$short"
+(( patch )) && tag="$tag-$(date +%Y%m%d)"
+
+gh auth status 2>&1 | grep -q "write:packages" ||
+  die "The gh token lacks the write:packages scope" "Run: gh auth refresh -s write:packages"
+if ! docker login ghcr.io </dev/null >/dev/null 2>&1; then
+  gh auth token | docker login ghcr.io -u "$(gh api user -q .login)" --password-stdin >/dev/null ||
+    die "docker login to ghcr.io failed" "Run: gh auth refresh -s write:packages, then rerun."
+fi
+ok "logged in to ghcr.io"
+
+for suffix in "" -web -transfer; do
+  if docker manifest inspect "$image:$tag$suffix" >/dev/null 2>&1; then
+    die "$image:$tag$suffix already exists; tags are never overwritten" \
+      "Deploy it as it is, or make a new commit (or just release --patch on another day)."
+  fi
+done
+ok "$image:$tag is not on GHCR yet"
+
+log "building $image:$tag"
+BUILD_PULL="$patch" "$FIVEDAYS_ROOT/bin/build" "$tag"
+log "testing $image:$tag"
+"$FIVEDAYS_ROOT/bin/test" "$tag"
+"$FIVEDAYS_ROOT/bin/phpunit" "$tag"
+
+for suffix in "" -web -transfer; do
+  docker push "$image:$tag$suffix" >/dev/null || die "Pushing $image:$tag$suffix failed" "Rerun just release (tags not pushed yet are pushed then)."
+  ok "pushed $image:$tag$suffix"
+done
+docker manifest inspect "$image:$tag" >/dev/null || die "$image:$tag is not readable on GHCR after the push" "Check https://github.com/ntholi?tab=packages"
+ok "released $image:$tag (deploy with: just deploy <host> $tag)"
