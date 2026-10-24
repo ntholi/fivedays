@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# just upgrade: reruns the migrate service on the local stack (upgrade.php when pending, then setup.php).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+load_env "$FIVEDAYS_ROOT/.env"
+compose_local up -d --force-recreate --no-deps migrate >/dev/null
+id="$(compose_local ps -a -q migrate)"
+code="$(docker wait "$id")"
+compose_local logs --no-log-prefix migrate | grep -E '^\[migrate|^(ok|changed|FAIL) '
+[[ "$code" == "0" ]] || die "migrate exited $code" "Read the FAIL line above."
+ok "upgrade and setup finished"

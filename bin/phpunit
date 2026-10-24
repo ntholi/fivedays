@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# just phpunit [tag] [phpunit args...]: plugin PHPUnit tests in the `test` image against a throwaway
+# Postgres. With the local tag the working-tree plugins are mounted, so edits are tested without a rebuild.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+tag="${1:-local}"
+shift || true
+image="${IMAGE:-ghcr.io/ntholi/fivedays-moodle}"
+set -a
+# shellcheck disable=SC1091
+source "$FIVEDAYS_ROOT/versions.env"
+set +a
+
+if [[ "$tag" == "local" ]]; then
+  "$FIVEDAYS_ROOT/bin/build" local
+fi
+docker image inspect "$image:$tag-test" >/dev/null 2>&1 || die "Image $image:$tag-test not found" "Run: just build $tag"
+
+name="fivedays-phpunit-$$"
+password="$(openssl rand -hex 16)"
+cleanup() { docker rm -f "$name-db" >/dev/null 2>&1 || true; docker network rm "$name" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+docker network create "$name" >/dev/null
+docker run -d --name "$name-db" --network "$name" --network-alias db --tmpfs /var/lib/postgresql/data \
+  -e POSTGRES_DB=moodle -e POSTGRES_USER=moodle -e POSTGRES_PASSWORD="$password" \
+  "postgres:${POSTGRES_VERSION}-bookworm" >/dev/null
+for _ in $(seq 1 30); do docker exec "$name-db" pg_isready -q -U moodle && break; sleep 1; done
+
+mounts=()
+if [[ "$tag" == "local" ]]; then
+  mounts=(-v "$FIVEDAYS_ROOT/plugins/local_fivedays:/var/www/moodle/public/local/fivedays:ro"
+    -v "$FIVEDAYS_ROOT/plugins/gradingform_fivedays:/var/www/moodle/public/grade/grading/form/fivedays:ro")
+fi
+log "installing the PHPUnit site and running the plugin tests"
+docker run --rm --network "$name" "${mounts[@]}" \
+  -e MOODLE_DB_PASSWORD="$password" -e MOODLE_WWWROOT=http://localhost -e MOODLE_REDIS_PASSWORD=unused \
+  "$image:$tag-test" sh -c 'php public/admin/tool/phpunit/cli/init.php --disable-composer >/tmp/init.log 2>&1 ||
+    { tail -30 /tmp/init.log; echo "PHPUnit init failed"; exit 1; }
+    vendor/bin/phpunit --testsuite local_fivedays_testsuite,gradingform_fivedays_testsuite "$@"' sh "$@"
+ok "plugin PHPUnit tests passed"

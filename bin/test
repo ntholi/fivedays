@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# just test [tag]: proves an image in throwaway compose projects, never touching the local stack's data.
+#   1. fresh install (MOODLE_ALLOW_INSTALL=1) with an S3 stand-in bucket → login page, router URL,
+#      contract test of every FiveDays service function, objectfs push and read-back (D16);
+#   2. upgrade: the local stack's database (pg_dump, read-only) restored into a second project, then
+#      migrate runs its pre-upgrade dump, upgrade.php and setup.php.
+# Default tag "local" builds the working tree first. Volumes of these projects are deleted at the end.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+start_log test
+
+tag="${1:-local}"
+image="${IMAGE:-ghcr.io/ntholi/fivedays-moodle}"
+[[ "$tag" == "local" ]] && "$FIVEDAYS_ROOT/bin/build" local
+for suffix in "" -web; do
+  docker image inspect "$image:$tag$suffix" >/dev/null 2>&1 || die "Image $image:$tag$suffix not found" "Run: just build $tag"
+done
+
+workdir="$(mktemp -d)"
+projects=()
+cleanup() {
+  local project
+  for project in "${projects[@]}"; do
+    [[ "$project" == fivedays-test-* ]] || continue
+    tcompose "$project" down --remove-orphans >/dev/null 2>&1 || true
+    for v in moodledata pgdata caddydata backups; do docker volume rm "${project}_$v" >/dev/null 2>&1 || true; done
+  done
+  rm -rf "$workdir"
+}
+trap cleanup EXIT
+
+free_port() {
+  local port
+  for port in $(seq 8100 8199); do
+    ss -ltn | grep -q ":$port " || { echo "$port"; return; }
+  done
+  die "No free port in 8100-8199" "Stop something listening there and rerun."
+}
+
+tcompose() {
+  local project="$1"; shift
+  docker compose --project-directory "$FIVEDAYS_ROOT" --env-file "$FIVEDAYS_ROOT/versions.env" \
+    --env-file "$workdir/$project.env" -f "$FIVEDAYS_ROOT/compose.yaml" -f "$FIVEDAYS_ROOT/compose.test.yaml" "$@"
+}
+
+# new_project <name>: writes its env file, creates its volumes and sets $project.
+new_project() {
+  local port
+  project="fivedays-test-$1-$$"
+  port="$(free_port)"
+  umask 077
+  cat >"$workdir/$project.env" <<ENV
+COMPOSE_PROJECT_NAME=$project
+IMAGE_TAG=$tag
+LOCAL_PORT=$port
+MOODLE_WWWROOT=http://localhost:$port
+SITE_ADDRESS=http://:$port
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+REDIS_PASSWORD=$(openssl rand -hex 16)
+MOODLE_ALLOW_INSTALL=1
+MOODLE_ADMIN_PASSWORD=$(openssl rand -hex 16)
+MOODLE_ADMIN_EMAIL=admin@example.com
+MOODLE_SITE_NAME="FiveDays test"
+MOODLE_SITE_SHORTNAME=FDTEST
+MOODLE_GOOGLE_CLIENT_ID=test-client-id
+MOODLE_GOOGLE_CLIENT_SECRET=test-client-secret
+MOODLE_BUCKET=fivedays-test
+MOODLE_BUCKET_KEY=test
+MOODLE_BUCKET_SECRET=test
+ENV
+  for v in moodledata pgdata caddydata backups; do docker volume create "${project}_$v" >/dev/null; done
+  projects+=("$project")
+}
+
+wait_migrate() {
+  local project="$1" id state
+  id="$(tcompose "$project" ps -a -q migrate)"
+  [[ -n "$id" ]] || die "$project: no migrate container" "Read the log above."
+  state="$(docker wait "$id")"
+  if [[ "$state" != "0" ]]; then
+    tcompose "$project" logs --tail 40 migrate
+    die "$project: migrate exited $state (last 40 lines above)" "Fix the FAIL line above, then rerun: just test"
+  fi
+  tcompose "$project" logs --no-log-prefix migrate | grep -E '^\[migrate|^(ok|changed|FAIL) ' || true
+}
+
+wait_login() {
+  local project="$1" port code=""
+  port="$(grep '^LOCAL_PORT=' "$workdir/$project.env" | cut -d= -f2)"
+  for _ in $(seq 1 60); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$port/login/index.php" || true)"
+    [[ "$code" == "200" ]] && { ok "$project: login page 200"; return; }
+    sleep 2
+  done
+  die "$project: login page returned $code" "Run the stack with just up and read just logs web / app."
+}
+
+contract_run() {
+  local project="$1" port
+  shift
+  port="$(grep '^LOCAL_PORT=' "$workdir/$project.env" | cut -d= -f2)"
+  tcompose "$project" run --rm --no-deps -T -v "$FIVEDAYS_ROOT/docker/contract:/contract:ro" app "$@" \
+    "http://web:$port" "localhost:$port"
+}
+
+# 1. Fresh install.
+new_project fresh
+fresh="$project"
+log "1/2 fresh install in $fresh"
+tcompose "$fresh" up -d >/dev/null 2>&1 || true
+wait_migrate "$fresh"
+wait_login "$fresh"
+
+port="$(grep '^LOCAL_PORT=' "$workdir/$fresh.env" | cut -d= -f2)"
+router="$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "http://localhost:$port/api/rest/v2/question/counts")"
+[[ "$router" == *application/json* ]] || die "Router URL answered \"$router\", not Moodle's JSON" "Check the Caddyfile's /r.php fallback and \$CFG->routerconfigured."
+ok "$fresh: router URL reaches Moodle ($router)"
+
+contract_run "$fresh" php /contract/run.php || die "Contract test failed (FAIL lines above)" "Fix the function, its capability or its case in docker/contract/cases."
+tcompose "$fresh" run --rm --no-deps -T -v "$FIVEDAYS_ROOT/docker/contract:/contract:ro" app php /contract/objectfs-check.php ||
+  die "objectfs check failed (D16)" "objectfs does not work on this Moodle: stop and ask the user (D16), don't swap plugins."
+
+# 2. Upgrade of the local stack's data.
+if [[ -f "$FIVEDAYS_ROOT/.env" ]] && compose_local ps -q db 2>/dev/null | grep -q .; then
+  new_project upgrade
+  upgrade="$project"
+  log "2/2 upgrade: local database → $upgrade"
+  tcompose "$upgrade" up -d db >/dev/null 2>&1
+  for _ in $(seq 1 30); do tcompose "$upgrade" exec -T db pg_isready -q -U moodle && break; sleep 1; done
+  compose_local exec -T db pg_dump -U moodle -d moodle -Fc >"$workdir/local.dump"
+  tcompose "$upgrade" exec -T db pg_restore -U moodle -d moodle --no-owner <"$workdir/local.dump"
+  # The containers run as www-data; the private work dir stays 700, this subdirectory only holds the tarball.
+  mkdir -m 777 "$workdir/share"
+  compose_local run --rm --no-deps -T -v "$workdir/share:/out" app sh -c 'tar -C /var/moodledata -cf /out/moodledata.tar .'
+  tcompose "$upgrade" run --rm --no-deps -T -v "$workdir/share:/in:ro" app sh -c 'tar -C /var/moodledata -xf /in/moodledata.tar'
+  sed -i 's/^MOODLE_ALLOW_INSTALL=1/MOODLE_ALLOW_INSTALL=0/' "$workdir/$upgrade.env"
+  tcompose "$upgrade" up -d >/dev/null 2>&1 || true
+  wait_migrate "$upgrade"
+  wait_login "$upgrade"
+else
+  warn "2/2 skipped: the local stack is not running (just up), so there is no local data to upgrade"
+fi
+
+ok "all tests passed for $image:$tag"

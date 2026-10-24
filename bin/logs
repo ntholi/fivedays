@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# just logs [service]: follows the local stack's logs.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+load_env "$FIVEDAYS_ROOT/.env"
+if [[ -n "${1:-}" ]]; then compose_local logs -f --tail 100 "$1"; else compose_local logs -f --tail 100; fi

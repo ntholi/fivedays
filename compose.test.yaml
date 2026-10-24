@@ -1,0 +1,32 @@
+# `just test` only: a throwaway project on a free local port, with SeaweedFS standing in for the
+# Lightsail bucket (virtual-host bucket names resolve through the network alias).
+x-test-env: &test-env
+  MOODLE_NOEMAIL: "1"
+  MOODLE_BUCKET_ENDPOINT: http://s3:8333
+
+services:
+  migrate:
+    environment:
+      <<: *test-env
+    depends_on:
+      s3:
+        condition: service_healthy
+  app:
+    environment:
+      <<: *test-env
+  cron:
+    profiles: [cron]
+  web:
+    ports: !override
+      - "${LOCAL_PORT}:${LOCAL_PORT}"
+  s3:
+    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:?SEAWEEDFS_VERSION is not set}
+    command: ["server", "-s3", "-s3.domainName=s3", "-dir=/data"]
+    networks:
+      default:
+        aliases: ["${MOODLE_BUCKET}.s3"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/ || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30

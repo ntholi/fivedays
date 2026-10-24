@@ -1,0 +1,139 @@
+# Prod/base stack. Local adds compose.dev.yaml. Values come from .env (written by `just init`) and
+# versions.env (passed by bin/ scripts with --env-file).
+name: ${COMPOSE_PROJECT_NAME:-fivedays}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 20m
+    max-file: "5"
+
+x-moodle: &moodle
+  image: ${IMAGE:-ghcr.io/ntholi/fivedays-moodle}:${IMAGE_TAG:?IMAGE_TAG is not set}
+  environment: &moodle-env
+    IMAGE_TAG: ${IMAGE_TAG}
+    MOODLE_WWWROOT: ${MOODLE_WWWROOT:?MOODLE_WWWROOT is not set}
+    MOODLE_DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set}
+    MOODLE_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is not set}
+    MOODLE_NOEMAIL: ${MOODLE_NOEMAIL:-0}
+    MOODLE_BUCKET: ${MOODLE_BUCKET:--}
+    MOODLE_BUCKET_KEY: ${MOODLE_BUCKET_KEY:-}
+    MOODLE_BUCKET_SECRET: ${MOODLE_BUCKET_SECRET:-}
+    FPM_MAX_CHILDREN: ${FPM_MAX_CHILDREN:-10}
+  volumes:
+    - moodledata:/var/moodledata
+  logging: *logging
+
+services:
+  migrate:
+    <<: *moodle
+    command: ["moodle-migrate"]
+    restart: "no"
+    environment:
+      <<: *moodle-env
+      MOODLE_ALLOW_INSTALL: ${MOODLE_ALLOW_INSTALL:-0}
+      MOODLE_ADMIN_PASSWORD: ${MOODLE_ADMIN_PASSWORD:-}
+      MOODLE_ADMIN_EMAIL: ${MOODLE_ADMIN_EMAIL:-}
+      MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-}
+      MOODLE_SITE_SHORTNAME: ${MOODLE_SITE_SHORTNAME:-}
+      MOODLE_GOOGLE_CLIENT_ID: ${MOODLE_GOOGLE_CLIENT_ID:-}
+      MOODLE_GOOGLE_CLIENT_SECRET: ${MOODLE_GOOGLE_CLIENT_SECRET:-}
+      MOODLE_PUSH: ${MOODLE_PUSH:-0}
+    volumes:
+      - moodledata:/var/moodledata
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  app:
+    <<: *moodle
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q pong"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  cron:
+    <<: *moodle
+    command: ["moodle-cron"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: ${IMAGE:-ghcr.io/ntholi/fivedays-moodle}:${IMAGE_TAG}-web
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS is not set}
+      ACME_EMAIL: ${MOODLE_ADMIN_EMAIL:-admin@localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+      - "127.0.0.1:8080:8081"
+    volumes:
+      - caddydata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8081/caddy-health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    logging: *logging
+    depends_on:
+      app:
+        condition: service_healthy
+
+  db:
+    image: postgres:${POSTGRES_VERSION:?POSTGRES_VERSION is not set}-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: moodle
+      POSTGRES_USER: moodle
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moodle -d moodle"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis:${REDIS_VERSION:?REDIS_VERSION is not set}-bookworm
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    logging: *logging
+
+# Created by `just init`; external so `docker compose down -v` can never delete them.
+volumes:
+  moodledata:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-fivedays}_moodledata
+  pgdata:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-fivedays}_pgdata
+  caddydata:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-fivedays}_caddydata
+  backups:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-fivedays}_backups

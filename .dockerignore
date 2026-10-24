@@ -1,0 +1,9 @@
+.git
+.github
+.claude
+.env
+.env.*
+logs
+precheck
+bin
+*.zip

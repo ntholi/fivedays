@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(rsync:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker compose down -v*)",
+      "Bash(docker system prune*)",
+      "Bash(aws:*)",
+      "Bash(docker run * amazon/aws-cli*)"
+    ],
+    "ask": [
+      "Bash(just cutover*)",
+      "Bash(just deploy*)",
+      "Bash(just rehearse*)",
+      "Bash(just cutover-rollback*)"
+    ]
+  }
+}

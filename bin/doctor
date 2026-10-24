@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Checks the laptop has what the other commands need. Changes nothing.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+failed=0
+fail() { printf '[%s] FAIL  %s\n      Install: %s\n' "$(date +%H:%M:%S)" "$1" "$2"; failed=1; }
+
+if command -v docker >/dev/null 2>&1; then
+  ok "docker $(docker version --format '{{.Client.Version}}' 2>/dev/null || echo '?')"
+  if docker info >/dev/null 2>&1; then ok "docker daemon reachable"; else fail "docker daemon not reachable" "sudo systemctl start docker && sudo usermod -aG docker \$USER (then log out and in)"; fi
+else
+  fail "docker not installed" "https://docs.docker.com/engine/install/ubuntu/"
+fi
+
+if compose="$(docker compose version --short 2>/dev/null)"; then
+  if version_ge "$compose" "2.24.4"; then ok "docker compose $compose"; else fail "docker compose $compose is older than 2.24.4 (needed for !override in compose.dev.yaml)" "sudo apt install docker-compose-plugin"; fi
+else
+  fail "docker compose plugin not installed" "sudo apt install docker-compose-plugin"
+fi
+
+if command -v just >/dev/null 2>&1; then ok "$(just --version)"; else fail "just not installed" "sudo apt install just"; fi
+
+ssh_key="${SSH_KEY:-$HOME/.ssh/LightsailDefaultKey-eu-central-1.pem}"
+if [[ -f "$ssh_key" ]]; then
+  mode="$(stat -c %a "$ssh_key")"
+  if [[ "$mode" == "600" || "$mode" == "400" ]]; then ok "ssh key $ssh_key"; else fail "ssh key $ssh_key has mode $mode" "chmod 600 $ssh_key"; fi
+else
+  fail "ssh key $ssh_key not found" "Download the Lightsail default key for eu-central-1 to that path, or set SSH_KEY"
+fi
+
+for env_file in "$FIVEDAYS_ROOT/.env" "$FIVEDAYS_ROOT/.env.prod"; do
+  name="$(basename "$env_file")"
+  if [[ -f "$env_file" ]]; then
+    mode="$(stat -c %a "$env_file")"
+    if [[ "$mode" == "600" ]]; then ok "$name mode 600"; else fail "$name has mode $mode" "chmod 600 $env_file"; fi
+  else
+    ok "$name not created yet (just init creates it)"
+  fi
+done
+
+if (( failed )); then
+  printf '\nSome checks failed. Install what is listed above, then rerun: just doctor\n'
+  exit 1
+fi
+printf '\nAll checks passed.\n'

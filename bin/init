@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# just init <local|prod> [--flag=value ...]: writes the env file and creates the external volumes.
+# Local → .env, prod → .env.prod (both mode 600, never committed). Refuses to overwrite an existing
+# file: its passwords already guard a database.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+target="${1:-}"
+[[ "$target" == "local" || "$target" == "prod" ]] || die "Unknown target \"$target\"" "Run: just init local   or   just init prod"
+shift
+start_log "init-$target"
+
+declare -A arg=()
+for a in "$@"; do
+  [[ "$a" == --*=* ]] || die "Bad argument \"$a\"" "Use --name=value, e.g. --admin-email=me@example.com"
+  key="${a%%=*}"; arg["${key#--}"]="${a#*=}"
+done
+
+# ask <flag> "<question>" [default] [optional]: flag value, else prompt (needs a terminal).
+ask() {
+  local flag="$1" question="$2" default="${3:-}" optional="${4:-}" answer
+  if [[ -v "arg[$flag]" ]]; then printf '%s' "${arg[$flag]}"; return; fi
+  [[ -t 0 ]] || die "--$flag is missing and there is no terminal to ask" "Pass --$flag=<value>."
+  local hint=""; [[ -n "$default" ]] && hint=" [$default]"; [[ -n "$optional" ]] && hint="$hint (Enter to skip)"
+  read -r -p "$question$hint: " answer </dev/tty
+  answer="${answer:-$default}"
+  [[ -n "$answer" || -n "$optional" ]] || die "No answer for --$flag" "Rerun and answer every question."
+  printf '%s' "$answer"
+}
+secret() { openssl rand -hex 24; }
+
+need_cmd openssl
+if [[ "$target" == "local" ]]; then env_file="$FIVEDAYS_ROOT/.env"; project=fivedays-local; else env_file="$FIVEDAYS_ROOT/.env.prod"; project=fivedays; fi
+[[ ! -e "$env_file" ]] || die "$env_file already exists; it holds the passwords of an existing database" \
+  "Keep it. Only if this environment has never been started and you want to start over, ask the user to move the file away first."
+
+admin_email="$(ask admin-email 'Admin email' 'ntholi.nkhatho@limkokwing.ac.ls')"
+site_name="$(ask site-name 'Site name' 'Limkokwing FiveDays')"
+site_short="$(ask site-shortname 'Site short name' 'FiveDays')"
+if [[ "$target" == "local" ]]; then
+  google_id="$(ask google-client-id 'Google OAuth client ID' '' optional)"
+  google_secret="$(ask google-client-secret 'Google OAuth client secret' '' optional)"
+  port="${arg[port]:-8080}"
+  [[ "$port" =~ ^[0-9]+$ ]] || die "--port=$port is not a number" "Pass e.g. --port=8080"
+else
+  domain="$(ask domain 'Domain' 'luct.click')"
+  google_id="$(ask google-client-id 'Google OAuth client ID')"
+  google_secret="$(ask google-client-secret 'Google OAuth client secret')"
+  bucket="$(ask bucket 'Prod bucket name' 'fivedays-moodle')"
+  bucket_key="$(ask bucket-key "Access key ID for $bucket")"
+  bucket_secret="$(ask bucket-secret "Secret access key for $bucket")"
+  rehearsal_bucket="$(ask rehearsal-bucket 'Rehearsal bucket name' 'fivedays-moodle-rehearsal')"
+  [[ "$rehearsal_bucket" != "$bucket" ]] || die "The rehearsal bucket is the prod bucket" "Use the separate fivedays-moodle-rehearsal bucket."
+  rehearsal_key="$(ask rehearsal-bucket-key "Access key ID for $rehearsal_bucket")"
+  rehearsal_secret="$(ask rehearsal-bucket-secret "Secret access key for $rehearsal_bucket")"
+  aws_key="$(ask aws-key 'Access key ID of the fivedays-cutover IAM user (static IP only)')"
+  aws_secret="$(ask aws-secret 'Secret access key of the fivedays-cutover IAM user')"
+fi
+
+umask 077
+{
+  echo "# Written by just init $target on $(date +%F). Keep a copy in the password manager."
+  echo "COMPOSE_PROJECT_NAME=$project"
+  echo "POSTGRES_PASSWORD=$(secret)"
+  echo "REDIS_PASSWORD=$(secret)"
+  echo "MOODLE_ADMIN_PASSWORD=$(secret)"
+  echo "MOODLE_ADMIN_EMAIL=$admin_email"
+  echo "MOODLE_SITE_NAME=\"$site_name\""
+  echo "MOODLE_SITE_SHORTNAME=\"$site_short\""
+  echo "MOODLE_GOOGLE_CLIENT_ID=$google_id"
+  echo "MOODLE_GOOGLE_CLIENT_SECRET=$google_secret"
+  if [[ "$target" == "local" ]]; then
+    echo "IMAGE_TAG=local"
+    echo "LOCAL_PORT=$port"
+    echo "MOODLE_WWWROOT=http://localhost:$port"
+    echo "SITE_ADDRESS=http://:$port"
+    echo "MOODLE_ALLOW_INSTALL=1"
+  else
+    echo "MOODLE_WWWROOT=https://$domain"
+    echo "SITE_ADDRESS=$domain"
+    echo "MOODLE_ALLOW_INSTALL=0"
+    echo "MOODLE_PUSH=1"
+    echo "MOODLE_BUCKET=$bucket"
+    echo "MOODLE_BUCKET_KEY=$bucket_key"
+    echo "MOODLE_BUCKET_SECRET=$bucket_secret"
+    echo "REHEARSAL_BUCKET=$rehearsal_bucket"
+    echo "REHEARSAL_BUCKET_KEY=$rehearsal_key"
+    echo "REHEARSAL_BUCKET_SECRET=$rehearsal_secret"
+    echo "CUTOVER_AWS_ACCESS_KEY_ID=$aws_key"
+    echo "CUTOVER_AWS_SECRET_ACCESS_KEY=$aws_secret"
+  fi
+} >"$env_file"
+chmod 600 "$env_file"
+ok "wrote $env_file (mode 600)"
+
+if [[ "$target" == "local" ]]; then
+  for v in moodledata pgdata caddydata backups; do
+    if docker volume inspect "${project}_$v" >/dev/null 2>&1; then ok "volume ${project}_$v exists"; else docker volume create "${project}_$v" >/dev/null; ok "created volume ${project}_$v"; fi
+  done
+else
+  log "prod volumes are created on the host by just provision"
+fi
+printf '\nNext: open %s and paste its contents into the password manager.\n' "$env_file"

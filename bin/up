@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# just up: builds the local image and starts the local stack at MOODLE_WWWROOT (http://localhost:8080 by default).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+start_log up
+
+load_env "$FIVEDAYS_ROOT/.env"
+[[ "${IMAGE_TAG:-}" == "local" ]] || die ".env is not a local env file (IMAGE_TAG=${IMAGE_TAG:-unset})" "just up is local only. Run: just init local"
+for v in moodledata pgdata caddydata backups; do
+  docker volume inspect "${COMPOSE_PROJECT_NAME}_$v" >/dev/null 2>&1 || die "Volume ${COMPOSE_PROJECT_NAME}_$v is missing" "Run: just init local"
+done
+
+"$FIVEDAYS_ROOT/bin/build" local
+compose_local up -d --remove-orphans
+
+log "waiting for migrate to finish (first install takes a few minutes)"
+migrate_id="$(compose_local ps -a -q migrate)"
+[[ -n "$migrate_id" ]] || die "No migrate container was created" "Run: just logs"
+for _ in $(seq 1 450); do
+  [[ "$(docker inspect -f '{{.State.Status}}' "$migrate_id")" == "exited" ]] && break
+  sleep 2
+done
+migrate_exit="$(docker inspect -f '{{.State.Status}} {{.State.ExitCode}}' "$migrate_id")"
+[[ "$migrate_exit" == "exited 0" ]] || {
+  compose_local logs --tail 40 migrate
+  die "migrate did not finish cleanly ($migrate_exit; last 40 lines above)" "Read the FAIL line above. app, cron and web were not started."
+}
+ok "migrate finished"
+
+for _ in $(seq 1 60); do
+  code="$(curl -s -o /dev/null -w '%{http_code}' $MOODLE_WWWROOT/login/index.php || true)"
+  [[ "$code" == "200" ]] && { ok "Moodle is up: $MOODLE_WWWROOT (admin password in .env)"; exit 0; }
+  sleep 2
+done
+compose_local ps
+die "$MOODLE_WWWROOT/login/index.php did not return 200 within 120 s (last: $code)" "Run: just logs web   and   just logs app"

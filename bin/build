@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# just build [tag]: builds the app and web images from versions.env (default tag: local).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+tag="${1:-local}"
+image="${IMAGE:-ghcr.io/ntholi/fivedays-moodle}"
+set -a
+# shellcheck disable=SC1091
+source "$FIVEDAYS_ROOT/versions.env"
+set +a
+
+build_args=(--network=host)
+for v in MOODLE_COMMIT OBJECTFS_COMMIT PHP_VERSION PHPREDIS_VERSION COMPOSER_VERSION CADDY_VERSION; do
+  build_args+=(--build-arg "$v=${!v}")
+done
+build_args+=(--build-arg "POSTGRES_MAJOR=${POSTGRES_VERSION%%.*}")
+
+log "building $image:$tag (Moodle $MOODLE_COMMIT)"
+docker build "${build_args[@]}" --target app -t "$image:$tag" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
+docker build "${build_args[@]}" --target web -t "$image:$tag-web" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
+docker build "${build_args[@]}" --target transfer -t "$image:$tag-transfer" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
+docker build "${build_args[@]}" --target test -t "$image:$tag-test" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
+ok "built $image:$tag and its -web, -transfer and -test images"

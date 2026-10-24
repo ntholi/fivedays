@@ -1,0 +1,31 @@
+# Local only: http://localhost:${LOCAL_PORT} (8080 by default), live plugin edits, no email or push.
+x-dev-env: &dev-env
+  MOODLE_NOEMAIL: "1"
+  PHP_OPCACHE_VALIDATE: "1"
+
+x-moodle-dev: &moodle-dev
+  environment:
+    <<: *dev-env
+  volumes: !override
+    - moodledata:/var/moodledata
+    - ./plugins/local_fivedays:/var/www/moodle/public/local/fivedays:ro
+    - ./plugins/gradingform_fivedays:/var/www/moodle/public/grade/grading/form/fivedays:ro
+
+services:
+  migrate:
+    environment:
+      <<: *dev-env
+    volumes: !override
+      - moodledata:/var/moodledata
+      - backups:/backups
+      - ./plugins/local_fivedays:/var/www/moodle/public/local/fivedays:ro
+      - ./plugins/gradingform_fivedays:/var/www/moodle/public/grade/grading/form/fivedays:ro
+  app: *moodle-dev
+  cron: *moodle-dev
+  web:
+    ports: !override
+      - "${LOCAL_PORT:-8080}:${LOCAL_PORT:-8080}"
+    volumes: !override
+      - caddydata:/data
+      - ./plugins/local_fivedays:/var/www/moodle/public/local/fivedays:ro
+      - ./plugins/gradingform_fivedays:/var/www/moodle/public/grade/grading/form/fivedays:ro

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# just precheck <host>: runs bin/precheck.sh (read-only) on the host and saves precheck/<host>-<date>.md.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+host="${1:-}"
+[[ -n "$host" ]] || die "No host given" "Run: just precheck luct.click"
+start_log "precheck-$host"
+
+ssh_key="${SSH_KEY:-$HOME/.ssh/LightsailDefaultKey-eu-central-1.pem}"
+[[ -f "$ssh_key" ]] || die "SSH key $ssh_key not found" "Run: just doctor"
+
+out_dir="$FIVEDAYS_ROOT/precheck"
+out="$out_dir/$host-$(date +%Y-%m-%d).md"
+mkdir -p "$out_dir"
+
+log "running bin/precheck.sh on ubuntu@$host (read-only)"
+ssh -i "$ssh_key" -o BatchMode=yes -o ConnectTimeout=15 "ubuntu@$host" 'sudo bash -s' <"$FIVEDAYS_ROOT/bin/precheck.sh" >"$out.tmp" ||
+  die "The pre-check script failed on $host (partial output in $out.tmp)" "Show the user the end of $out.tmp and ask how to proceed."
+
+# Skipped: headings, indented bare words (config key names such as passwordsaltmain) and
+# "<table><TAB><count>" rows (table names such as mdl_user_password_history). None hold values.
+grep -vP '^(#|\s+\w+$|\w+\t[0-9]+$)' "$out.tmp" | grep -qiE 'password|secret|BEGIN .*PRIVATE KEY' &&
+  die "The report mentions a password, secret or key, so it was not saved" "Show the user the matching lines of $out.tmp, then delete that file."
+mv "$out.tmp" "$out"
+ok "report saved: $out"

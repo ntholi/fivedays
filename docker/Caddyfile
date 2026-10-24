@@ -1,0 +1,35 @@
+{
+	admin off
+	email {$ACME_EMAIL:admin@localhost}
+}
+
+(moodle) {
+	root * /var/www/moodle/public
+	request_body {
+		max_size 25MB
+	}
+	encode zstd gzip
+	@hidden path /.* */.*
+	respond @hidden 404
+}
+
+# Public site: prod "luct.click" (automatic HTTPS), local "http://:8080".
+{$SITE_ADDRESS} {
+	import moodle
+	php_fastcgi app:9000 {
+		try_files {path} {path}/index.php /r.php
+	}
+	file_server
+}
+
+# Internal listener, published only on the host's 127.0.0.1. Health checks, deploys and cutover smoke
+# tests use it before the new host has a certificate; HTTPS=on makes Moodle treat it as https wwwroot.
+http://:8081 {
+	respond /caddy-health 200
+	import moodle
+	php_fastcgi app:9000 {
+		try_files {path} {path}/index.php /r.php
+		env HTTPS on
+	}
+	file_server
+}

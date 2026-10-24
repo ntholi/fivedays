@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# just contract: runs the web-service contract test (docker/contract) against the local stack.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+load_env "$FIVEDAYS_ROOT/.env"
+compose_local run --rm --no-deps -T -e CONTRACT_ONLY="${CONTRACT_ONLY:-}" -v "$FIVEDAYS_ROOT/docker/contract:/contract:ro" app \
+  php /contract/run.php "http://web:${LOCAL_PORT}" "localhost:${LOCAL_PORT}"
