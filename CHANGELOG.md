@@ -2,6 +2,17 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-24 (2)
+
+### Added
+- Quiz section calls. Each returns `success` and `message`; a refused change returns `success` false with the reason instead of throwing. All need `local/fivedays:managequizquestions` and `mod/quiz:manage`.
+- `add_quiz_section(quizid, slot, heading)` starts a section at a question slot and returns `sectionid` and `firstslot`. Slot 1 and a slot that already starts a section are refused. If the slot is not first on its page, the page is split first.
+- `update_quiz_section(sectionid, heading, shufflequestions)` changes either or both. It works after students have attempted the quiz, like Moodle's own heading and shuffle edits. An empty heading is allowed only for the first section.
+- `remove_quiz_section(sectionid)` removes only the heading, so the questions join the section above. The first section cannot be removed.
+- `delete_quiz_section(sectionid)` deletes the section and all its questions in one transaction and returns `deletedslots`. Deleting the first section moves the next section's heading and shuffle setting onto it. A quiz with one section is refused.
+- `set_quiz_structure(quizid, sections)` takes every section with its slot ids in the wanted order and renumbers slots, pages and section start slots in one transaction. The first listed section must stay the one that starts at slot 1.
+- Every call that changes the structure (all except `update_quiz_section`) is refused once the quiz has attempts.
+
 ## 2026-10-24
 
 ### Added

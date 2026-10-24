@@ -8,7 +8,7 @@ REST API endpoints for programmatic Moodle course content management.
 
 ## Features
 
-60 web service functions:
+65 web service functions:
 
 - **Sections** (6): create, update, delete sections and subsections
 - **Assignments** (6): create, update, delete, get grades, save grade, release grades
@@ -19,7 +19,7 @@ REST API endpoints for programmatic Moodle course content management.
 - **Rubrics** (7): create, get, update, delete, copy, fill (grade), get filling - **uses FiveDays grading form**
 - **BigBlueButton** (3): create, update, delete
 - **Forums** (2): create, delete
-- **Quizzes** (7): create, update, delete, get, add/remove/reorder questions
+- **Quizzes** (12): create, update, delete, get, add/remove/reorder questions, add/update/remove/delete sections, set structure
 - **Quiz Attempts** (5): get attempts, get attempt details, grade essay, add/get feedback
 - **Question Categories** (2): get/create, list
 - **Questions** (7): create multichoice/truefalse/shortanswer/essay/numerical, get, delete
@@ -1034,6 +1034,20 @@ Reorders questions within a quiz by specifying new slot positions.
   ]
 }
 ```
+
+### Quiz Sections
+
+All five need `local/fivedays:managequizquestions` and `mod/quiz:manage`. They return `success` and `message`; a refused change (not found, rules below) returns `success` false with the reason instead of throwing. Except `update_quiz_section`, they are refused once the quiz has attempts (Moodle's `check_can_be_edited()`; previews do not count). Section 1 is the section that starts at slot 1.
+
+`local_fivedays_add_quiz_section` (`quizid`, `slot` >= 2, `heading` non-empty): starts a section at that slot. Slot 1 and a slot that already starts a section are refused. If the slot is not first on its page, the page is split first. Returns `sectionid`, `firstslot`.
+
+`local_fivedays_update_quiz_section` (`sectionid`, optional `heading`, optional `shufflequestions` 0/1): works with attempts. An empty heading is allowed only for section 1. Returns `heading`, `shufflequestions`.
+
+`local_fivedays_remove_quiz_section` (`sectionid`): removes only the heading; its questions join the section above. Section 1 is refused. Returns `movedslots`.
+
+`local_fivedays_delete_quiz_section` (`sectionid`): deletes the section and its questions in one transaction. Deleting section 1 moves the next section's heading and shuffle setting onto it. A one-section quiz is refused. Returns `deletedslots`.
+
+`local_fivedays_set_quiz_structure` (`quizid`, `sections`: list of `{sectionid, slotids[]}`): every section id and every slot id (`quiz_slots.id`) exactly once, no empty section, and the first listed section must be the one that starts at slot 1. Renumbers slots 1..N in the given order, sets `page` = slot and every section's first slot. Returns `slotcount`, `sectioncount`.
 
 ---
 

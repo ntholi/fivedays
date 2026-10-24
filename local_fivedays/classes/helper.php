@@ -716,4 +716,83 @@ class helper {
 
         return [$comment, $submission, $assignment, $cm, $course, $context];
     }
+
+    public const QUIZ_HEADING_MAXLENGTH = 1333;
+
+    /**
+     * Loads a quiz for a structure call, or null when the quiz or its course module is gone.
+     * The caller still has to validate the context and the capabilities.
+     */
+    public static function find_quiz_settings(int $quizid): ?\mod_quiz\quiz_settings {
+        global $CFG, $DB;
+
+        require_once($CFG->dirroot . '/mod/quiz/locallib.php');
+
+        $quiz = $DB->get_record('quiz', ['id' => $quizid], 'id', IGNORE_MISSING);
+        if (!$quiz || !get_coursemodule_from_instance('quiz', $quiz->id, 0, false, IGNORE_MISSING)) {
+            return null;
+        }
+        return \mod_quiz\quiz_settings::create($quiz->id);
+    }
+
+    public static function require_quiz_structure_caps(\context $context): void {
+        require_capability('local/fivedays:managequizquestions', $context);
+        require_capability('mod/quiz:manage', $context);
+    }
+
+    /**
+     * Moodle refuses structure changes once a student has attempted the quiz (previews do not count).
+     * Returns the reason, or null when the structure can be changed.
+     */
+    public static function quiz_structure_lock_message(\mod_quiz\structure $structure): ?string {
+        try {
+            $structure->check_can_be_edited();
+        } catch (\moodle_exception $e) {
+            if ($e->errorcode !== 'cannoteditafterattempts') {
+                throw $e;
+            }
+            return 'The quiz has attempts, so questions and sections can no longer be added, moved or deleted';
+        }
+        return null;
+    }
+
+    /** Re-reads slots and sections from the database; a loaded structure goes stale after heading changes. */
+    public static function reload_quiz_structure(\mod_quiz\quiz_settings $quizobj): \mod_quiz\structure {
+        return \mod_quiz\structure::create_for_quiz($quizobj);
+    }
+
+    /** Returns null when the heading is acceptable, otherwise the reason. */
+    public static function quiz_heading_problem(string $heading, bool $allowempty): ?string {
+        if ($heading === '' && !$allowempty) {
+            return 'A section needs a heading';
+        }
+        if (\core_text::strlen($heading) > self::QUIZ_HEADING_MAXLENGTH) {
+            return 'The heading is longer than ' . self::QUIZ_HEADING_MAXLENGTH . ' characters';
+        }
+        return null;
+    }
+
+    /** Sections of a quiz keyed by id, in slot order. */
+    public static function quiz_sections_in_order(int $quizid): array {
+        global $DB;
+
+        return $DB->get_records('quiz_sections', ['quizid' => $quizid], 'firstslot');
+    }
+
+    /**
+     * Slot numbers of every slot in each section, keyed by section id. A section runs from its
+     * firstslot to the slot before the next section's firstslot.
+     */
+    public static function quiz_section_slot_numbers(int $quizid): array {
+        global $DB;
+
+        $sections = array_values(self::quiz_sections_in_order($quizid));
+        $maxslot = (int)$DB->get_field_sql('SELECT MAX(slot) FROM {quiz_slots} WHERE quizid = ?', [$quizid]);
+        $result = [];
+        foreach ($sections as $i => $section) {
+            $end = isset($sections[$i + 1]) ? (int)$sections[$i + 1]->firstslot - 1 : $maxslot;
+            $result[$section->id] = $end >= (int)$section->firstslot ? range((int)$section->firstslot, $end) : [];
+        }
+        return $result;
+    }
 }
