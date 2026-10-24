@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-24 (3)
+
+### Added
+- `get_grading_queue(courseid)` lists the assignments and quizzes in a course that have work waiting to be graded: `type` (`assign` or `quiz`), `instanceid`, `cmid`, `name`, `waiting` (submissions Moodle counts as needing grading, or finished attempts with a question awaiting a manual mark) and `oldest` (when the oldest waiting item arrived, 0 when unknown). Activities with nothing waiting are left out, as are activities the caller cannot grade. Needs the new course capability `local/fivedays:viewgradingqueue`, given to teachers, editing teachers and managers.
+
 ## 2026-10-24 (2)
 
 ### Added

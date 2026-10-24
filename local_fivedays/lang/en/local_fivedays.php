@@ -61,6 +61,7 @@ $string['fivedays:viewquestions'] = 'View questions via FiveDays';
 $string['fivedays:deletequestion'] = 'Delete questions via FiveDays';
 
 $string['fivedays:viewquizattempts'] = 'View quiz attempts via FiveDays';
+$string['fivedays:viewgradingqueue'] = 'View the grading queue of a course via FiveDays';
 $string['fivedays:gradequizattempts'] = 'Grade quiz attempts via FiveDays';
 $string['fivedays:provision'] = 'Provision Moodle users, courses, and enrolments via FiveDays';
 $string['googleissuermissing'] = 'Google OAuth issuer is not configured';

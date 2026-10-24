@@ -422,6 +422,16 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
+    'local/fivedays:viewgradingqueue' => array(
+        'riskbitmask' => 0,
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => array(
+            'teacher' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
     'local/fivedays:provision' => array(
         'riskbitmask' => RISK_SPAM | RISK_PERSONAL | RISK_CONFIG,
         'captype' => 'write',

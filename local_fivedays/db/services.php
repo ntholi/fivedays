@@ -702,5 +702,12 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:provision',
     ),
+    'local_fivedays_get_grading_queue' => array(
+        'classname' => 'local_fivedays\external\course\get_grading_queue',
+        'methodname' => 'execute',
+        'description' => 'List the assignments and quizzes in a course that have submissions or attempts waiting to be graded',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:viewgradingqueue',
+    ),
 );
-
