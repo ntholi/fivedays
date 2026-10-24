@@ -362,7 +362,7 @@ class helper {
 
         if ($subsection_cm) {
             $final_visibility = $requested_visibility && $subsection_cm->visible ? 1 : 0;
-            set_coursemodule_visible($cmid, $final_visibility, 1, false);
+            \core_courseformat\formatactions::cm((int) $delegated_section->course)->set_visibility($cmid, $final_visibility, 1, false);
         }
     }
 

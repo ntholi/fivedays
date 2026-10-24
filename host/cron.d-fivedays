@@ -1,0 +1,7 @@
+# Installed by just deploy as /etc/cron.d/fivedays (mode 644, root). Host clock is UTC (Maseru = UTC+2).
+# Nightly backup (D23) at 01:30 UTC; restore test on the 3rd of each month at 04:30 UTC.
+# There is no failure alert (D23): just backup --status <host> reads /opt/fivedays/backup.status.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+30 1 * * * root FIVEDAYS_DIR=/opt/fivedays bash /opt/fivedays/host/backup.sh >>/var/log/fivedays-backup.log 2>&1
+30 4 3 * * root FIVEDAYS_DIR=/opt/fivedays bash /opt/fivedays/host/restore-test.sh >>/var/log/fivedays-backup.log 2>&1

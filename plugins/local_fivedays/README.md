@@ -54,6 +54,8 @@ POST https://yourmoodle.com/webservice/rest/server.php
 
 **Important:** Boolean parameters must be passed as integers (`0` = false, `1` = true) when calling via REST API, not JSON booleans.
 
+**Deleting and hiding activities:** every `delete_*` call that removes an activity, and the `visible` parameter of `update_page`, `update_file`, `update_quiz` and `update_bigbluebuttonbn`, go through Moodle's `core_courseformat\local\cmactions` (`delete()` and `set_visibility()`). A delete finishes before the call returns (it is not queued as a background task); when the course recycle bin is on, a copy is kept there first. Hiding or showing an activity also hides or shows its grade items and calendar events.
+
 ---
 
 ## Sections

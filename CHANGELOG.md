@@ -2,6 +2,12 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-24 (5)
+
+### Changed
+- `local_fivedays` 2026102405 deletes, hides and shows activities through `core_courseformat\local\cmactions` (`formatactions::cm($courseid)->delete()` and `->set_visibility()`) instead of `course_delete_module()` (deprecated in Moodle 5.2, removed in 6.0) and `set_coursemodule_visible()`. The calls behave as before: `delete_assignment`, `delete_book`, `delete_file`, `delete_forum`, `delete_page`, `delete_quiz`, `delete_url`, `delete_bigbluebuttonbn` and `delete_subsection` still delete at once (not in a background task), keep a recycle-bin copy when the course recycle bin is on, and fire `course_module_deleted`; the `visible` parameter of `update_page`, `update_file`, `update_quiz` and `update_bigbluebuttonbn`, and activities added to a hidden subsection, still set `visible` and `visibleold` and hide or show the grade items and calendar events. No database change.
+- The grading-queue test finishes its quiz attempt with `process_submit()` and `process_grade_submission()` instead of the deprecated `process_finish()`.
+
 ## 2026-10-24 (4)
 
 ### Added

@@ -96,7 +96,8 @@ class grading_queue_test extends advanced_testcase {
         quiz_attempt_save_started($quizobj, $quba, $attempt);
         $attemptobj = \mod_quiz\quiz_attempt::create($attempt->id);
         $attemptobj->process_submitted_actions($time, false, [1 => ['answer' => 'My answer', 'answerformat' => FORMAT_HTML]]);
-        $attemptobj->process_finish($time, false);
+        $attemptobj->process_submit($time, false);
+        $attemptobj->process_grade_submission($time);
 
         $items = $this->queue();
 

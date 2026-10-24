@@ -356,7 +356,7 @@ class update_quiz extends external_api {
         }
 
         if ($params['visible'] !== null) {
-            set_coursemodule_visible($cm->id, $params['visible'] ? 1 : 0, 1, false);
+            \core_courseformat\formatactions::cm((int) $cm->course)->set_visibility((int) $cm->id, $params['visible'] ? 1 : 0, 1, false);
         }
 
         if ($params['idnumber'] !== null) {

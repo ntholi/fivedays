@@ -1,0 +1,303 @@
+#!/usr/bin/env bash
+# just update [--major] [--dry-run]: raises every pin in versions.env to the newest upstream release in
+# its series (D5), shows "old → new", asks for "update", then builds and tests the local tag and commits
+# versions.env only if all of it passes. Any failure puts versions.env back as it was.
+#   --major    also take newer series (Moodle stable branch, PHP minor, Redis minor, objectfs branch …).
+#              Postgres stays on its major: a new major cannot read the existing pgdata volume.
+#   --dry-run  print the table and stop.
+# Until cutover.done exists, MOODLE_COMMIT and OBJECTFS_COMMIT are held: the cutover's dbtransfer needs
+# the image's schema to equal prod's exactly (lib/dtl/database_exporter.php:137).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+major=0
+dry_run=0
+for arg in "$@"; do
+  case "$arg" in
+    --major) major=1 ;;
+    --dry-run) dry_run=1 ;;
+    *) die "Unknown argument \"$arg\"" "Run: just update [--major] [--dry-run]" ;;
+  esac
+done
+
+start_log update
+need_cmd curl
+need_cmd jq
+need_cmd git
+need_cmd gh "Install the GitHub CLI and run: gh auth login"
+
+versions_file="$FIVEDAYS_ROOT/versions.env"
+[[ -f "$versions_file" ]] || die "$versions_file not found" "Restore it from git: git checkout versions.env"
+
+MOODLE_REPO=https://github.com/moodle/moodle
+OBJECTFS_REPO=catalyst/moodle-tool_objectfs
+# D16: objectfs follows this branch unless versions.env names another (written by --major).
+OBJECTFS_DEFAULT_BRANCH=MOODLE_404_STABLE
+
+declare -A pins=()
+pin_order=()
+while IFS= read -r line; do
+  [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.*)$ ]] || continue
+  pins["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+  pin_order+=("${BASH_REMATCH[1]}")
+done <"$versions_file"
+[[ ${#pin_order[@]} -gt 0 ]] || die "No pins found in $versions_file" "Restore it from git: git checkout versions.env"
+
+# ---- upstream lookups --------------------------------------------------------------------------------
+
+# hub_tags <namespace/repo> <name filter>: tag names from Docker Hub, newest pushes first. Anonymous
+# requests may read only the first 1000 tags (10 pages); ordered by last push, those hold every recent
+# release, so the rest is not needed.
+hub_tags() {
+  local repo="$1" filter="$2" url page=0 body
+  url="https://hub.docker.com/v2/namespaces/${repo%/*}/repositories/${repo#*/}/tags?page_size=100&ordering=last_updated&name=$filter"
+  while [[ -n "$url" && "$url" != null ]]; do
+    page=$((page + 1))
+    [[ $page -le 10 ]] || return 0
+    body="$(curl -fsS --retry 3 --max-time 30 "$url")" || die "Docker Hub did not answer for $repo" "Check the network and rerun."
+    jq -r '.results[].name' <<<"$body"
+    url="$(jq -r '.next' <<<"$body")"
+  done
+}
+
+# hub_versions <repo> <name filter> <tag suffix>: the plain x.y[.z] versions that have <version><suffix>.
+hub_versions() {
+  local repo="$1" filter="$2" suffix="$3" tag
+  hub_tags "$repo" "$filter" | while IFS= read -r tag; do
+    [[ "$tag" == *"$suffix" ]] || continue
+    tag="${tag%"$suffix"}"
+    if [[ "$tag" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then printf '%s\n' "$tag"; fi
+  done | sort -uV
+}
+
+# released_on_hub <github owner/repo> <hub namespace/repo> <pin>: release tags from GitHub (the hub repo
+# has too many tags to list anonymously) that are newer than the pin and have an image on Docker Hub.
+released_on_hub() {
+  local github="$1" hub="$2" pin="$3" tags v code
+  tags="$(git ls-remote --tags --refs "https://github.com/$github")" || die "git ls-remote $github failed" "Check the network and rerun."
+  printf '%s\n' "$pin"
+  for v in $(sed -nE 's#^.*refs/tags/v?([0-9]+(\.[0-9]+)+)$#\1#p' <<<"$tags" | sort -uV); do
+    version_gt "$v" "$pin" || continue
+    code="$(curl -s -o /dev/null -w '%{http_code}' --retry 3 --max-time 30 \
+      "https://hub.docker.com/v2/namespaces/${hub%/*}/repositories/${hub#*/}/tags/$v")"
+    if [[ "$code" == 200 ]]; then printf '%s\n' "$v"; fi
+  done
+}
+
+pecl_versions() {
+  curl -fsS --retry 3 --max-time 30 "https://pecl.php.net/rest/r/$1/allreleases.xml" |
+    grep -o '<r><v>[^<]*</v><s>stable</s></r>' | sed -E 's#<r><v>([^<]*)</v>.*#\1#' |
+    grep -E '^[0-9]+(\.[0-9]+)+$' | sort -uV || die "PECL did not answer for $1" "Check the network and rerun."
+}
+
+# series <version> <depth>: the first <depth> parts (8.3.36 2 → 8.3).
+series() { cut -d. -f"1-$2" <<<"$1"; }
+version_gt() { [[ "$1" != "$2" ]] && version_ge "$1" "$2"; }
+
+# Result of each check: avail[KEY] (newest upstream that may be taken), new[KEY] (what update writes),
+# note[KEY] (why it differs from avail, or what else exists).
+declare -A avail=() new=() note=()
+
+# pick <KEY> <depth> <may take majors: 0|1> <reason majors are refused> <upstream versions, one per line>.
+# The caller assigns the lookup to a variable first, so a failed lookup stops the script (set -e) and
+# pick runs in this shell, not in a pipe's subshell.
+pick() {
+  local key="$1" depth="$2" allow_major="$3" refuse="$4" old="${pins[$1]}" parts upstream sorted in_series newest
+  parts="$(tr -cd . <<<"$old" | wc -c)"
+  # Only versions with as many parts as the pin, so floating tags such as 8.3 or 2.10 are never taken.
+  upstream="$(grep -E "^[0-9]+(\.[0-9]+){$parts}\$" <<<"$5" || true)"
+  [[ -n "$upstream" ]] || die "$key: no upstream versions found" "Check the network, or the tag naming upstream, and rerun."
+  # The pin is in the list, so neither result can be older than it.
+  sorted="$(printf '%s\n%s\n' "$old" "$upstream" | sort -uV)"
+  newest="$(tail -n1 <<<"$sorted")"
+  in_series="$(awk -v p="$(series "$old" "$depth")." 'index($0, p) == 1' <<<"$sorted" | tail -n1)"
+  avail[$key]="$in_series"
+  new[$key]="$in_series"
+  if [[ "$(series "$newest" "$depth")" != "$(series "$old" "$depth")" ]]; then
+    if [[ "$allow_major" == 1 && $major == 1 ]]; then
+      avail[$key]="$newest"
+      new[$key]="$newest"
+    elif [[ "$allow_major" == 1 ]]; then
+      note[$key]="$newest available with --major"
+    else
+      note[$key]="$newest exists; $refuse"
+    fi
+  fi
+}
+
+moodle_branch_of() {
+  local sha="$1" body
+  body="$(curl -fsS --retry 3 --max-time 30 "https://raw.githubusercontent.com/moodle/moodle/$sha/public/version.php" ||
+    curl -fsS --retry 3 --max-time 30 "https://raw.githubusercontent.com/moodle/moodle/$sha/version.php")" ||
+    die "Could not read Moodle's version.php at $sha" "Check the network and that MOODLE_COMMIT exists upstream."
+  sed -nE "s/^\\\$branch *= *'([0-9]+)'.*/\1/p" <<<"$body"
+}
+
+# stable_heads <git url>: "<number> <sha>" for each MOODLE_<number>_STABLE branch.
+stable_heads() {
+  git ls-remote --heads "$1" 'MOODLE_*_STABLE' | sed -nE 's#^([0-9a-f]{40})\trefs/heads/MOODLE_([0-9]+)_STABLE$#\2 \1#p' | sort -n ||
+    die "git ls-remote $1 failed" "Check the network and rerun."
+}
+
+check_moodle() {
+  local old="${pins[MOODLE_COMMIT]}" branch heads head newest
+  branch="$(moodle_branch_of "$old")"
+  [[ -n "$branch" ]] || die "No \$branch in Moodle's version.php at $old" "Check MOODLE_COMMIT in versions.env."
+  heads="$(stable_heads "$MOODLE_REPO")"
+  head="$(awk -v b="$branch" '$1 == b {print $2}' <<<"$heads")"
+  [[ -n "$head" ]] || die "Moodle has no MOODLE_${branch}_STABLE branch" "Check MOODLE_COMMIT in versions.env."
+  avail[MOODLE_COMMIT]="$head"
+  new[MOODLE_COMMIT]="$head"
+  note[MOODLE_COMMIT]="MOODLE_${branch}_STABLE"
+  newest="$(tail -n1 <<<"$heads")"
+  if [[ "${newest%% *}" -gt "$branch" ]]; then
+    if [[ $major == 1 ]]; then
+      avail[MOODLE_COMMIT]="${newest#* }"
+      new[MOODLE_COMMIT]="${newest#* }"
+      note[MOODLE_COMMIT]="MOODLE_${branch}_STABLE → MOODLE_${newest%% *}_STABLE"
+    else
+      note[MOODLE_COMMIT]+="; MOODLE_${newest%% *}_STABLE available with --major"
+    fi
+  fi
+}
+
+check_objectfs() {
+  local old="${pins[OBJECTFS_COMMIT]}" branch="${pins[OBJECTFS_BRANCH]:-$OBJECTFS_DEFAULT_BRANCH}" status heads head newest
+  status="$(gh api "repos/$OBJECTFS_REPO/compare/$old...$branch" --jq .status)" ||
+    die "GitHub compare of objectfs $old with $branch failed" "Check gh auth status and the network, then rerun."
+  [[ "$status" == identical || "$status" == ahead ]] ||
+    die "OBJECTFS_COMMIT $old is not on $branch (compare status: $status)" "Set OBJECTFS_BRANCH in versions.env to the branch the pin came from."
+  heads="$(stable_heads "https://github.com/$OBJECTFS_REPO")"
+  head="$(git ls-remote --heads "https://github.com/$OBJECTFS_REPO" "refs/heads/$branch" | cut -f1)"
+  [[ -n "$head" ]] || die "objectfs has no $branch branch" "Set OBJECTFS_BRANCH in versions.env."
+  avail[OBJECTFS_COMMIT]="$head"
+  new[OBJECTFS_COMMIT]="$head"
+  note[OBJECTFS_COMMIT]="$branch"
+  newest="$(tail -n1 <<<"$heads")"
+  if [[ "$branch" =~ ^MOODLE_([0-9]+)_STABLE$ && "${newest%% *}" -gt "${BASH_REMATCH[1]}" ]]; then
+    if [[ $major == 1 ]]; then
+      avail[OBJECTFS_COMMIT]="${newest#* }"
+      new[OBJECTFS_COMMIT]="${newest#* }"
+      new[OBJECTFS_BRANCH]="MOODLE_${newest%% *}_STABLE"
+      note[OBJECTFS_COMMIT]="$branch → MOODLE_${newest%% *}_STABLE"
+    else
+      note[OBJECTFS_COMMIT]+="; MOODLE_${newest%% *}_STABLE available with --major"
+    fi
+  fi
+}
+
+log "checking upstream releases$([[ $major == 1 ]] && printf ' (majors allowed)')"
+for key in "${pin_order[@]}"; do
+  case "$key" in
+    MOODLE_COMMIT) check_moodle ;;
+    OBJECTFS_COMMIT) check_objectfs ;;
+    OBJECTFS_BRANCH) ;;
+    PHP_VERSION) list="$(hub_versions library/php -fpm-bookworm -fpm-bookworm)"; pick "$key" 2 1 "" "$list" ;;
+    PHPREDIS_VERSION) list="$(pecl_versions redis)"; pick "$key" 1 1 "" "$list" ;;
+    COMPOSER_VERSION) list="$(hub_versions library/composer "" "")"; pick "$key" 1 1 "" "$list" ;;
+    POSTGRES_VERSION)
+      list="$(hub_versions library/postgres -bookworm -bookworm)"
+      pick "$key" 1 0 "a new major cannot read the existing pgdata volume, so just update never takes it" "$list"
+      ;;
+    REDIS_VERSION) list="$(hub_versions library/redis -bookworm -bookworm)"; pick "$key" 2 1 "" "$list" ;;
+    CADDY_VERSION) list="$(hub_versions library/caddy -alpine -alpine)"; pick "$key" 1 1 "" "$list" ;;
+    AWSCLI_VERSION) list="$(hub_versions amazon/aws-cli "" "")"; pick "$key" 1 1 "" "$list" ;;
+    SEAWEEDFS_VERSION) list="$(released_on_hub seaweedfs/seaweedfs chrislusf/seaweedfs "${pins[$key]}")"; pick "$key" 1 1 "" "$list" ;;
+    RESTIC_VERSION) list="$(hub_versions restic/restic "" "")"; pick "$key" 1 1 "" "$list" ;;
+    *)
+      avail[$key]="${pins[$key]}"
+      new[$key]="${pins[$key]}"
+      note[$key]="no upstream source known to just update; left as is"
+      ;;
+  esac
+done
+
+# Guard: the cutover's dbtransfer refuses unless the image's schema equals prod's (plan, Learned 1).
+held=0
+if [[ ! -f "$FIVEDAYS_ROOT/cutover.done" ]]; then
+  for key in MOODLE_COMMIT OBJECTFS_COMMIT OBJECTFS_BRANCH; do
+    if [[ -n "${new[$key]:-}" && "${new[$key]}" != "${pins[$key]:-}" ]]; then
+      new[$key]="${pins[$key]:-}"
+      held=1
+    fi
+  done
+  for key in MOODLE_COMMIT OBJECTFS_COMMIT; do
+    if [[ -n "${avail[$key]:-}" && "${avail[$key]}" != "${pins[$key]}" ]]; then note[$key]+="; held until cutover.done"; fi
+  done
+fi
+
+short() { [[ "$1" =~ ^[0-9a-f]{40}$ ]] && printf '%s' "${1:0:12}" || printf '%s' "$1"; }
+
+changes=()
+printf '\n%-18s %-14s %-14s %s\n' PIN CURRENT NEWEST "WRITES / NOTE"
+for key in "${pin_order[@]}"; do
+  [[ "$key" == OBJECTFS_BRANCH ]] && continue
+  if [[ "${new[$key]}" != "${pins[$key]}" ]]; then
+    action="→ $(short "${new[$key]}")"
+    changes+=("$key")
+  else
+    action="="
+  fi
+  printf '%-18s %-14s %-14s %s%s\n' "$key" "$(short "${pins[$key]}")" "$(short "${avail[$key]}")" "$action" \
+    "${note[$key]:+  (${note[$key]})}"
+done
+printf '\n'
+if [[ $held == 1 ]]; then
+  warn "MOODLE_COMMIT and OBJECTFS_COMMIT stay pinned until $FIVEDAYS_ROOT/cutover.done exists: the cutover copies"
+  warn "prod's MariaDB with dbtransfer, which refuses unless the image's schema equals prod's exactly."
+fi
+if [[ -n "${new[OBJECTFS_BRANCH]:-}" && "${new[OBJECTFS_BRANCH]}" != "${pins[OBJECTFS_BRANCH]:-}" ]]; then
+  changes+=(OBJECTFS_BRANCH)
+fi
+
+if [[ $dry_run == 1 ]]; then
+  ok "dry run: versions.env was not changed"
+  exit 0
+fi
+if [[ ${#changes[@]} -eq 0 ]]; then
+  ok "everything is already at the newest allowed release"
+  exit 0
+fi
+
+git -C "$FIVEDAYS_ROOT" diff --quiet HEAD -- versions.env ||
+  die "versions.env has uncommitted changes" "Commit or revert them (git diff versions.env), then rerun."
+
+confirm update
+
+workdir="$(mktemp -d)"
+cp "$versions_file" "$workdir/versions.env"
+committed=0
+restore_versions() {
+  if [[ $committed == 0 ]] && ! cmp -s "$workdir/versions.env" "$versions_file"; then
+    cp "$workdir/versions.env" "$versions_file"
+    warn "versions.env put back as it was"
+  fi
+  rm -rf "$workdir"
+}
+trap restore_versions EXIT
+trap 'exit 130' INT TERM
+
+message="Update pinned versions"$'\n'
+for key in "${changes[@]}"; do
+  value="${new[$key]}"
+  if grep -q "^$key=" "$versions_file"; then
+    sed -i "s|^$key=.*|$key=$value|" "$versions_file"
+  else
+    printf '%s=%s\n' "$key" "$value" >>"$versions_file"
+  fi
+  message+=$'\n'"- $key ${pins[$key]:-(unset)} → $value"
+  ok "$key ${pins[$key]:-(unset)} → $value"
+done
+
+log "building the local tag"
+"$FIVEDAYS_ROOT/bin/build" local || die "just build failed with the new versions" "versions.env was put back. Read the build output above."
+log "running just test"
+"$FIVEDAYS_ROOT/bin/test" local || die "just test failed with the new versions" "versions.env was put back. Read the FAIL line above."
+log "running just phpunit"
+"$FIVEDAYS_ROOT/bin/phpunit" local || die "just phpunit failed with the new versions" "versions.env was put back. Read the failures above."
+
+git -C "$FIVEDAYS_ROOT" commit -q -m "$message" -- versions.env ||
+  die "git commit failed" "versions.env was put back. Fix git (hooks, identity) and rerun."
+committed=1
+ok "committed: $(git -C "$FIVEDAYS_ROOT" log -1 --format='%h %s')"
+log "the local tag was rebuilt; run just upgrade to move the local stack onto it"

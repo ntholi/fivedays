@@ -55,7 +55,7 @@ class delete_subsection extends external_api {
 
         $subsectionname = $subsection->name;
 
-        course_delete_module($cm->id);
+        \core_courseformat\formatactions::cm((int) $cm->course)->delete((int) $cm->id);
 
         return [
             'success' => true,

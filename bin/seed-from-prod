@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# just seed-from-prod: replaces the local stack's database with prod data (D24 as amended by D35). Runs
+# only when someone runs it on purpose; just init local and just up stay fresh installs.
+#   1. The newest nightly db dump in R2 (restic host "fivedays", tag pgdump), read with the read-only key
+#      and restic --no-lock (nothing is written to the repo), saved as build/seed/prod-latest.dump.
+#   2. Until the first R2 dump exists (or without a read-only key): the cached build/seed/local-seed.dump.
+#      If that is missing, it is made once by pg_dump of the stopped fivedays-xfer project's Postgres
+#      (the one-time transfer of moodle-local); only that db container is started, and stopped again.
+# Then `just restore local <dump>`: asks you to type "local", keeps a pre-restore dump, blocks email and
+# push (MOODLE_NOEMAIL=1 → $CFG->noemailever). Files are not copied: old files show "not found" locally.
+# The read-only key comes from .env (just init local) or else .env.prod. FIVEDAYS_ENV_FILE overrides the
+# local env file; SEED_SOURCE_HOST the restic host (default fivedays, the prod project name).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+source "$FIVEDAYS_ROOT/host/backup-lib.sh"
+start_log seed-from-prod
+
+env_file="${FIVEDAYS_ENV_FILE:-$FIVEDAYS_ROOT/.env}"
+seed_dir="$FIVEDAYS_ROOT/build/seed"
+cache="$seed_dir/local-seed.dump"
+source_host="${SEED_SOURCE_HOST:-fivedays}"
+xfer_db="${SEED_XFER_DB_CONTAINER:-fivedays-xfer-db-1}"
+mkdir -p "$seed_dir"
+# The dumps hold prod personal data: readable by this user only.
+umask 077
+
+set -a
+# shellcheck disable=SC1091
+source "$FIVEDAYS_ROOT/versions.env"
+set +a
+load_env "$env_file"
+if [[ -z "${BACKUP_READ_KEY:-}" && -f "$FIVEDAYS_ROOT/.env.prod" ]]; then
+  # Only the backup keys are taken from .env.prod; the local stack's own settings stay.
+  while IFS='=' read -r k v; do export "$k=$v"; done < <(grep -E '^(BACKUP_S3_ENDPOINT|BACKUP_BUCKET|BACKUP_S3_REGION|BACKUP_READ_KEY|BACKUP_READ_SECRET|RESTIC_PASSWORD)=' "$FIVEDAYS_ROOT/.env.prod")
+fi
+
+# check_dump <file>: non-empty and readable by pg_restore.
+check_dump() {
+  [[ -s "$1" ]] && docker run --rm -i --network none "postgres:${POSTGRES_VERSION}-bookworm" pg_restore --list <"$1" >/dev/null
+}
+
+dump=""
+if [[ -n "${BACKUP_READ_KEY:-}" ]]; then
+  restic_use_key read
+  RESTIC_CACHE_VOLUME="${RESTIC_CACHE_VOLUME:-fivedays-restic-cache}"
+  log "looking for the newest prod db dump in $RESTIC_REPOSITORY (host $source_host, read-only key, --no-lock)"
+  rc=0; restic_run -- cat --no-lock config >/dev/null 2>&1 || rc=$?
+  if (( rc == 10 )); then
+    warn "no restic repo in R2 yet (no nightly backup has run)"
+  elif (( rc != 0 )); then
+    restic_run -- cat --no-lock config >/dev/null || true
+    die "restic cannot open $RESTIC_REPOSITORY (exit $rc, message above)" "Check BACKUP_READ_KEY/SECRET and RESTIC_PASSWORD against the password manager."
+  else
+    read -r snap snap_time < <(restic_latest --host "$source_host" --tag pgdump) || snap=""
+    if [[ -n "$snap" ]]; then
+      log "fetching snapshot ${snap:0:8} from $snap_time"
+      restic_run -- dump --no-lock "$snap" /backups/nightly/moodle.dump >"$seed_dir/prod-latest.dump.tmp"
+      check_dump "$seed_dir/prod-latest.dump.tmp" || die "The fetched dump is empty or unreadable" "Rerun; if it fails again, check the nightly backup with: just backup --status <host>"
+      mv -f "$seed_dir/prod-latest.dump.tmp" "$seed_dir/prod-latest.dump"
+      dump="$seed_dir/prod-latest.dump"
+      ok "prod dump from $snap_time saved as $dump ($(du -h "$dump" | cut -f1))"
+    else
+      warn "the R2 repo has no db dump for host $source_host yet"
+    fi
+  fi
+else
+  warn "no read-only backup key in $env_file or .env.prod"
+fi
+
+if [[ -z "$dump" ]]; then
+  if [[ ! -f "$cache" ]]; then
+    docker inspect "$xfer_db" >/dev/null 2>&1 || die "No R2 dump, no cached $cache and no $xfer_db container to make it from" \
+      "Get the read-only key (just init local asks for it), or copy local-seed.dump from another laptop into build/seed/."
+    was_running="$(docker inspect -f '{{.State.Running}}' "$xfer_db")"
+    log "making the one-time seed cache from $xfer_db (pg_dump, read-only)"
+    [[ "$was_running" == "true" ]] || docker start "$xfer_db" >/dev/null
+    for _ in $(seq 1 60); do docker exec "$xfer_db" pg_isready -q -U moodle -d moodle && break; sleep 1; done
+    rc=0; docker exec "$xfer_db" pg_dump -U moodle -d moodle -Fc >"$cache.tmp" || rc=$?
+    [[ "$was_running" == "true" ]] || docker stop "$xfer_db" >/dev/null
+    (( rc == 0 )) && check_dump "$cache.tmp" || { rm -f "$cache.tmp"; die "pg_dump of $xfer_db failed or is unreadable" "Read the error above."; }
+    mv -f "$cache.tmp" "$cache"
+    ok "seed cache written: $cache ($(du -h "$cache" | cut -f1))"
+  fi
+  dump="$cache"
+  warn "seeding from the cached one-time copy of moodle-local ($cache), not from a nightly prod dump"
+fi
+
+exec "$FIVEDAYS_ROOT/bin/restore" local "$dump"

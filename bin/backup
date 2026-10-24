@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# just backup <host>                  new host (/opt/fivedays): runs host/backup.sh there now (D23).
+#                                     old prod host (MariaDB, no Docker): the offsite safety copy from
+#                                     "Before the day" item 2, see below.
+# just backup --status <host>         last successful backup and restore test (backup.status), plus the
+#                                     dumps in the host's backups volume. There is no alert (D23).
+# just backup --offsite-today <host>  exit 0 if the R2 repo holds an offsite copy (mysqldump and moodledata)
+#                                     of that old host from the last 24 hours, and print it; else exit 1.
+#
+# Offsite safety copy of the old host. Nothing is installed or written there: mysqldump (SELECT-only
+# backupuser in /root/.my.cnf, --single-transaction) | gzip, and a tar of moodledata, each stream over
+# SSH through this laptop into a local restic container (restic backup --stdin) to the R2 repo, with the
+# write key from .env.prod. restic host "old-<host>", tags offsite + mysqldump / moodledata; nightly
+# retention never touches them. Then the dump is proven: restored into a local scratch MariaDB
+# ($MARIADB_VERSION), table counts compared with the live host, and the tar's filedir count checked.
+# OLD_HOST_DOCKER=<container> runs the old-host commands in a local container instead of over SSH, and
+# BACKUP_ENV_FILE replaces .env.prod (tests only).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+source "$FIVEDAYS_ROOT/host/backup-lib.sh"
+
+mode=run
+case "${1:-}" in
+  --status) mode=status; shift ;;
+  --offsite-today) mode=offsite-today; shift ;;
+esac
+host="${1:-}"
+[[ -n "$host" && $# -eq 1 ]] || die "Usage: just backup <host> | --status <host> | --offsite-today <host>" "Pass exactly one host."
+name="$(host_name "$host")"
+old_restic_host="old-$name"
+OLD_DATAROOT_PARENT=/var/www/data
+OLD_DB=moodle
+
+set -a
+# shellcheck disable=SC1091
+source "$FIVEDAYS_ROOT/versions.env"
+set +a
+
+# old_exec <bash script>: on the old host (SSH, root), or in OLD_HOST_DOCKER for local tests.
+old_exec() {
+  if [[ -n "${OLD_HOST_DOCKER:-}" ]]; then docker exec -i "$OLD_HOST_DOCKER" bash -c "$1"; else on_host "$host" "$1"; fi
+}
+
+# BACKUP_ENV_FILE (default .env.prod) holds the backup keys; tests point it at a throwaway env file.
+laptop_restic() {
+  load_env "${BACKUP_ENV_FILE:-$FIVEDAYS_ROOT/.env.prod}"
+  restic_use_key "$1"
+  RESTIC_CACHE_VOLUME="${RESTIC_CACHE_VOLUME:-fivedays-restic-cache}"
+}
+
+# ---- --offsite-today ----
+if [[ "$mode" == "offsite-today" ]]; then
+  laptop_restic read
+  now="$(date -u +%s)"; missing=0
+  for kind in mysqldump moodledata; do
+    read -r id time < <(restic_latest --host "$old_restic_host" --tag "offsite,$kind") || { id=""; time=""; }
+    if [[ -z "$id" ]]; then printf 'MISSING  %s: no offsite snapshot for %s\n' "$kind" "$old_restic_host"; missing=1; continue; fi
+    age=$(( (now - $(date -u -d "$time" +%s)) / 3600 ))
+    if (( age < 24 )); then printf 'ok       %s: snapshot %s from %s (%s h ago)\n' "$kind" "${id:0:8}" "$time" "$age"
+    else printf 'OLD      %s: newest snapshot %s is from %s (%s h ago)\n' "$kind" "${id:0:8}" "$time" "$age"; missing=1; fi
+  done
+  exit "$missing"
+fi
+
+start_log "backup-$name"
+
+if [[ -z "${OLD_HOST_DOCKER:-}" ]]; then
+  need_ssh_key
+  kind="$(on_host "$host" "if [ -f $HOST_DIR/host/backup.sh ]; then echo new; elif [ ! -e $HOST_DIR ] && [ -d $OLD_DATAROOT_PARENT/moodledata ] && [ -f /root/.my.cnf ] && command -v mysqldump >/dev/null; then echo old; else echo unknown; fi")"
+else
+  kind=old
+fi
+
+# ---- --status ----
+if [[ "$mode" == "status" ]]; then
+  [[ "$kind" == "new" ]] || die "$host is not a new-stack host ($kind): it has no backup.status" "--status is for hosts set up by just provision and just deploy."
+  status="$(on_host "$host" "cat $HOST_DIR/backup.status 2>/dev/null || true")"
+  now="$(date -u +%s)"
+  for key in last_backup_ok last_backup_failed last_restore_test_ok last_restore_test_failed; do
+    line="$(grep "^$key=" <<<"$status" | cut -d= -f2- || true)"
+    if [[ -z "$line" ]]; then printf '%-26s never\n' "$key"; continue; fi
+    when="${line%% *}"
+    printf '%-26s %s (%s h ago)\n' "$key" "$line" "$(( (now - $(date -u -d "$when" +%s)) / 3600 ))"
+  done
+  printf '\nDumps in the backups volume on %s:\n' "$host"
+  on_host "$host" "FIVEDAYS_DIR=$HOST_DIR bash $HOST_DIR/host/backup-restore.sh list"
+  exit 0
+fi
+
+# ---- run on a new host ----
+if [[ "$kind" == "new" ]]; then
+  log "running host/backup.sh on $host"
+  on_host "$host" "FIVEDAYS_DIR=$HOST_DIR bash $HOST_DIR/host/backup.sh" || die "The backup on $host failed (output above)" "Read the FAIL line; backup.status on the host records the step."
+  ok "backup on $host done"
+  exit 0
+fi
+[[ "$kind" == "old" ]] || die "$host has neither $HOST_DIR/host/backup.sh nor the old prod layout (MariaDB, /root/.my.cnf, $OLD_DATAROOT_PARENT/moodledata)" "New host: run just deploy first. Old host: check the pre-check report."
+
+# ---- offsite safety copy of the old host ----
+log "offsite safety copy of old host $host → R2 (restic host $old_restic_host)"
+need_cmd docker
+laptop_restic write
+for img in "restic/restic:$RESTIC_VERSION" "mariadb:$MARIADB_VERSION"; do
+  docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null || die "Cannot pull $img" "Check the network and versions.env."
+done
+ok "preconditions: old layout on $host, images restic $RESTIC_VERSION and mariadb $MARIADB_VERSION, backup keys in .env.prod"
+restic_ensure_repo
+ok "restic repo $RESTIC_REPOSITORY opens"
+
+work="$(mktemp -d)"
+scratch="fivedays-scratch-mariadb-$$"
+cleanup() { docker rm -f -v "$scratch" >/dev/null 2>&1 || true; rm -rf "$work"; }
+trap cleanup EXIT
+
+count_sql="SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE()), (SELECT count(*) FROM mdl_user), (SELECT count(*) FROM mdl_course), (SELECT count(*) FROM mdl_course_modules), (SELECT count(*) FROM mdl_files), (SELECT count(*) FROM mdl_external_tokens)"
+count_names=(tables mdl_user mdl_course mdl_course_modules mdl_files mdl_external_tokens)
+
+# stream_to_restic <tag> <stdin file name> <old-host script>: forgets the snapshot again if the stream failed.
+stream_to_restic() {
+  local tag="$1" fname="$2" script="$3" rc
+  set +e
+  old_exec "set -o pipefail; $script" |
+    restic_run -- backup --json --host "$old_restic_host" --tag offsite --tag "$tag" --stdin --stdin-filename "$fname" >"$work/$tag.json"
+  rc=("${PIPESTATUS[@]}")
+  set -e
+  snap="$(grep -o '"snapshot_id":"[0-9a-f]*"' "$work/$tag.json" | cut -d'"' -f4 || true)"
+  if [[ "${rc[0]}" != 0 || "${rc[1]}" != 0 || -z "$snap" ]]; then
+    [[ -n "$snap" ]] && restic_run -- forget "$snap" >/dev/null && warn "forgot the partial snapshot ${snap:0:8}"
+    die "$tag stream failed (old host exit ${rc[0]}, restic exit ${rc[1]})" "Nothing usable was saved. Read the error above and rerun: just backup $host"
+  fi
+}
+
+log "live counts on $host before the dump"
+live_before="$(old_exec "mysql --defaults-file=/root/.my.cnf --batch --skip-column-names $OLD_DB -e \"$count_sql\"")" ||
+  die "Cannot read the live counts on $host with /root/.my.cnf (error above)" "Nothing was sent. Check the backupuser in /root/.my.cnf on the old host with the user."
+
+log "mysqldump --single-transaction | gzip → restic (tags offsite, mysqldump)"
+stream_to_restic mysqldump "$OLD_DB.sql.gz" \
+  "mysqldump --defaults-file=/root/.my.cnf --single-transaction --quick --no-tablespaces --hex-blob --default-character-set=utf8mb4 $OLD_DB | gzip -1"
+db_snap="$snap"
+ok "mysqldump snapshot ${db_snap:0:8}"
+
+log "tar of moodledata (without cache, localcache, temp, sessions) → restic (tags offsite, moodledata)"
+live_files="$(old_exec "find $OLD_DATAROOT_PARENT/moodledata/filedir -type f | wc -l")"
+# GNU tar exits 1 when a file changed while it was read (a live site); that copy is still usable.
+stream_to_restic moodledata moodledata.tar \
+  "tar -C $OLD_DATAROOT_PARENT --exclude=moodledata/cache --exclude=moodledata/localcache --exclude=moodledata/temp --exclude=moodledata/sessions -cf - moodledata; rc=\$?; if [ \$rc = 1 ]; then echo 'tar: some files changed while being read' >&2; exit 0; fi; exit \$rc"
+files_snap="$snap"
+tar_files="$(restic_run -- dump --no-lock "$files_snap" /moodledata.tar | tar -tf - | grep -c '^moodledata/filedir/.*[^/]$' || true)"
+(( tar_files > 0 )) || die "The moodledata tar has no filedir files" "Read the tar error above and rerun: just backup $host"
+diff_files=$(( tar_files > live_files ? tar_files - live_files : live_files - tar_files ))
+(( diff_files * 100 <= live_files )) || die "The tar holds $tar_files filedir files, the host $live_files" "Rerun: just backup $host"
+ok "moodledata snapshot ${files_snap:0:8}: $tar_files filedir files (host: $live_files)"
+
+log "proving the dump loads: scratch MariaDB $MARIADB_VERSION ($scratch, no network)"
+pw="$(openssl rand -hex 16)"
+docker run -d --name "$scratch" --network none -e MARIADB_ROOT_PASSWORD="$pw" -e MARIADB_DATABASE="$OLD_DB" \
+  "mariadb:$MARIADB_VERSION" --innodb-buffer-pool-size=512M --innodb-flush-log-at-trx-commit=2 --max-allowed-packet=256M >/dev/null
+for _ in $(seq 1 90); do
+  docker logs "$scratch" 2>&1 | grep -q 'MariaDB init process done' &&
+    docker exec -e MYSQL_PWD="$pw" "$scratch" mariadb -uroot -e 'SELECT 1' >/dev/null 2>&1 && break
+  sleep 2
+done
+docker exec -e MYSQL_PWD="$pw" "$scratch" mariadb -uroot -e 'SELECT 1' >/dev/null || die "Scratch MariaDB did not start" "Read: docker logs $scratch"
+restic_run -- dump --no-lock "$db_snap" "/$OLD_DB.sql.gz" | gunzip | tee >(tail -c 300 >"$work/trailer") |
+  docker exec -i -e MYSQL_PWD="$pw" "$scratch" mariadb -uroot "$OLD_DB"
+for _ in $(seq 1 10); do [[ -s "$work/trailer" ]] && break; sleep 1; done
+grep -q -- '-- Dump completed' "$work/trailer" || die "The dump has no \"-- Dump completed\" trailer: it is cut short" "Rerun: just backup $host"
+restored="$(docker exec -e MYSQL_PWD="$pw" "$scratch" mariadb -uroot --batch --skip-column-names "$OLD_DB" -e "$count_sql")"
+
+read -r -a a <<<"$live_before"; read -r -a b <<<"$restored"
+bad=0
+printf '%-22s %10s %10s\n' table live restored
+for i in "${!count_names[@]}"; do
+  printf '%-22s %10s %10s\n' "${count_names[$i]}" "${a[$i]}" "${b[$i]}"
+  # The old site is live, so rows can come or go after the counts; tables must match exactly.
+  if (( i == 0 )); then (( a[i] == b[i] )) || bad=1
+  else d=$(( a[i] > b[i] ? a[i] - b[i] : b[i] - a[i] )); (( b[i] > 0 || a[i] == 0 )) && (( d * 100 <= a[i] + 100 )) || bad=1; fi
+done
+(( bad == 0 )) || die "The restored dump's counts differ from the live host (table above)" "Rerun: just backup $host. If it differs again, stop and ask the user."
+ok "dump loads in MariaDB $MARIADB_VERSION and its counts match the live host"
+ok "offsite copy done: mysqldump ${db_snap:0:8}, moodledata ${files_snap:0:8} (restic host $old_restic_host). Check with: just backup --offsite-today $host"

@@ -180,7 +180,7 @@ class update_file extends external_api {
 
         
         if ($params['visible'] !== null) {
-            set_coursemodule_visible($cm->id, $params['visible'], 1, false);
+            \core_courseformat\formatactions::cm((int) $cm->course)->set_visibility((int) $cm->id, $params['visible'], 1, false);
         }
 
         rebuild_course_cache($course->id, true);

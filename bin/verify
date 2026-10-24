@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+# just verify <old> <new>: proves a MariaDB → Postgres transfer before Moodle starts on the new DB
+# (cutover phase 4, every rehearsal). Read-only on both sides. Prints every difference; exit 1 on any.
+#
+#   <old>  the MariaDB the transfer read (database "moodle"):
+#            <host>[:port]              that host's own MariaDB: mysql --defaults-file=/root/.my.cnf
+#            <host>[:port]/<container>  a MariaDB container on that host (rehearsal)
+#            local/<container>          a MariaDB container on this machine (tests)
+#          A container must run the official mariadb image with MARIADB_ROOT_PASSWORD set.
+#   <new>  the new stack (only its `db` service has to run):
+#            <host>[:port]              compose project "fivedays" ($HOST_DIR) on that host
+#            <host>[:port]/<project>    another compose project on that host
+#            local/<project>            a compose project on this machine (tests)
+#          Files are read from the volume <project>_moodledata, mounted read-only.
+#   --tag=<tag>  image tag whose -transfer image runs the schema and file checks. Default: IMAGE_TAG
+#                (and IMAGE) from $HOST_DIR/.env on a host, "local" for local/<project>.
+#
+# Examples: cutover   bin/verify luct.click <new-ip>
+#           rehearsal bin/verify <new-ip>/<mariadb-container> <new-ip>
+#           test      bin/verify local/fivedays-agenta-old local/fivedays-agenta-new
+#
+# Checks (all run in parallel; one SSH round trip each, the row counts are one trip per side):
+#   1. exact COUNT(*) of every base table, old vs new. A table on one side only is a mismatch too
+#      (the -transfer image adds no plugin tables: it is `app` without tool_objectfs).
+#   2. admin/cli/check_database_schema.php on the new DB, run from the -transfer image: it compares
+#      the DB with the install.xml of every plugin on disk (lib/adminlib.php:428 get_db_directories),
+#      so the app image, which ships tool_objectfs before migrate installs it, would report its tables
+#      as missing. Exit 0 = "Database structure is ok.", 1 = differences (admin/cli/check_database_schema.php:62-76).
+#   3. every file under the new moodledata filedir/ sits at <2>/<2>/<sha1> and its SHA-1 equals its
+#      name (layout: lib/filestorage/file_system_filedir.php:185). filedir/warning.txt is Moodle's own
+#      note (file_system_filedir.php:87) and is skipped.
+#   4. every distinct mdl_files.contenthash of the new DB exists in filedir/. Directories and empty
+#      files use sha1('') (lib/filestorage/file_storage.php:1031) and Moodle never reads them from disk
+#      (lib/filestorage/file_system.php:165), so that hash is not required.
+#   5. FiveDays service tokens (external_tokens of external_services shortname "fivedays"), old = new.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+usage() {
+  die "Usage: just verify <old> <new>   (bin/verify [--tag=<tag>] <old> <new>)" \
+    "Read the header of bin/verify for the forms of <old> and <new>."
+}
+
+tag=""
+args=()
+for arg in "$@"; do
+  case "$arg" in
+    --tag=*) tag="${arg#--tag=}" ;;
+    -*) usage ;;
+    *) args+=("$arg") ;;
+  esac
+done
+((${#args[@]} == 2)) || usage
+old_spec="${args[0]}"
+new_spec="${args[1]}"
+
+start_log verify
+
+# A spec is <where>[/<name>]; <where> is "local" or a host spec.
+spec_where() { printf '%s' "${1%%/*}"; }
+spec_name() { [[ "$1" == */* ]] && printf '%s' "${1#*/}" || true; }
+
+old_where="$(spec_where "$old_spec")"
+old_container="$(spec_name "$old_spec")"
+new_where="$(spec_where "$new_spec")"
+new_project="$(spec_name "$new_spec")"
+for v in "$old_where" "$new_where"; do
+  [[ -n "$v" ]] || usage
+done
+[[ "$old_where" != local || -n "$old_container" ]] || die "Old side \"local\" needs a container: local/<container>" "Pass the MariaDB container, e.g. local/fivedays-old."
+[[ "$new_where" != local || -n "$new_project" ]] || die "New side \"local\" needs a compose project: local/<project>" "Pass the project name, e.g. local/fivedays-xfer."
+new_project="${new_project:-fivedays}"
+[[ "$new_where" == local && -z "$tag" ]] && tag=local
+if [[ "$old_where" != local || "$new_where" != local ]]; then need_ssh_key; fi
+need_cmd docker
+
+# at <where> <script> [args...]: runs a bash script locally or as root on a host, with the args as
+# "$@" and stdin passed through. Both forms run the same script text.
+at() {
+  local where="$1" script="$2"
+  shift 2
+  script="set -- $(printf '%q ' "$@")"$'\n'"$script"
+  if [[ "$where" == local ]]; then
+    bash -c "$script"
+  else
+    on_host "$where" "$script"
+  fi
+}
+
+# Every new-side script starts here: finds the project's running db container and the -transfer image.
+# Errors go to stderr with exit 3.
+read -r -d '' NEW_PRELUDE <<'SH' || true
+set -euo pipefail
+project="$1" tag="$2" host_dir="$3"
+fail() { echo "$*" >&2; exit 3; }
+command -v docker >/dev/null || fail "docker is not installed"
+db="$(docker ps -q --filter "label=com.docker.compose.project=$project" --filter label=com.docker.compose.service=db)"
+[[ -n "$db" ]] || fail "no running db container in compose project $project (start it: docker compose up -d db)"
+net="$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$db" | head -n1)"
+image="ghcr.io/ntholi/fivedays-moodle"
+if [[ -f "$host_dir/.env" ]]; then
+  image="$(sed -n 's/^IMAGE=//p' "$host_dir/.env" | tail -n1)"
+  image="${image:-ghcr.io/ntholi/fivedays-moodle}"
+  [[ -n "$tag" ]] || tag="$(sed -n 's/^IMAGE_TAG=//p' "$host_dir/.env" | tail -n1)"
+fi
+[[ -n "$tag" ]] || fail "no image tag: $host_dir/.env has no IMAGE_TAG (pass --tag=<tag>)"
+image="$image:$tag-transfer"
+docker image inspect "$image" >/dev/null 2>&1 || fail "image $image is not on this machine (docker pull $image)"
+volume="${project}_moodledata"
+docker volume inspect "$volume" >/dev/null 2>&1 || fail "volume $volume does not exist"
+PGPASSWORD="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$db" | sed -n 's/^POSTGRES_PASSWORD=//p')"
+export PGPASSWORD
+SH
+
+# Row counts: one statement per side that counts every base table, plus the FiveDays token count.
+# Lines: count<TAB><table><TAB><n> and tokens<TAB>fivedays<TAB><n>.
+TOKENS_SQL="SELECT 'tokens', 'fivedays', COUNT(*) FROM mdl_external_tokens t JOIN mdl_external_services s ON s.id = t.externalserviceid WHERE s.shortname = 'fivedays';"
+read -r -d '' OLD_SQL <<SQL || true
+SET SESSION group_concat_max_len = 4194304;
+START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;
+SELECT GROUP_CONCAT(CONCAT('SELECT ''count'', ', QUOTE(table_name), ', COUNT(*) FROM \`', table_name, '\`')
+  ORDER BY table_name SEPARATOR ' UNION ALL ') INTO @q
+  FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE';
+PREPARE counts FROM @q;
+EXECUTE counts;
+DEALLOCATE PREPARE counts;
+$TOKENS_SQL
+COMMIT;
+SQL
+read -r -d '' NEW_SQL <<SQL || true
+BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SELECT string_agg(format('SELECT %L, %L, count(*) FROM %I', 'count', table_name, table_name), ' UNION ALL ' ORDER BY table_name)
+  FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' \gexec
+$TOKENS_SQL
+COMMIT;
+SQL
+
+read -r -d '' OLD_COUNTS <<'SH' || true
+set -euo pipefail
+container="$1"
+fail() { echo "$*" >&2; exit 3; }
+if [[ -n "$container" ]]; then
+  [[ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null)" == true ]] || fail "container $container is not running"
+  exec docker exec -i "$container" sh -c 'MYSQL_PWD="${MARIADB_ROOT_PASSWORD:-$MYSQL_ROOT_PASSWORD}" exec "$(command -v mariadb || command -v mysql)" -uroot --batch --skip-column-names moodle'
+fi
+[[ -r /root/.my.cnf ]] || fail "/root/.my.cnf not found (the SELECT-only user the pre-check uses)"
+exec mysql --defaults-file=/root/.my.cnf --batch --skip-column-names moodle
+SH
+
+NEW_COUNTS="$NEW_PRELUDE"$'\n''exec docker exec -i "$db" psql -XqtA -F "$(printf "\t")" -v ON_ERROR_STOP=1 -U moodle -d moodle'
+
+# No sessions in CLI scripts (lib/classes/session/manager.php:114), so Redis is not needed; caches go
+# to a throwaway tmpfs dataroot, never the real moodledata.
+NEW_SCHEMA="$NEW_PRELUDE"$'\n'"$(cat <<'SH'
+set +e
+docker run --rm -u www-data --network "$net" --tmpfs /var/moodledata:mode=1777 -e MOODLE_DB_HOST=db \
+  -e MOODLE_DB_PASSWORD="$PGPASSWORD" -e MOODLE_WWWROOT=https://localhost -e MOODLE_REDIS_PASSWORD=unused \
+  --entrypoint php "$image" admin/cli/check_database_schema.php
+code=$?
+set -e
+case "$code" in 0 | 1) exit "$code" ;; *) fail "check_database_schema.php exited $code" ;; esac
+SH
+)"
+
+# Files: lines "file<TAB><path><TAB><problem>", "missing<TAB><hash>", "stat<TAB><name><TAB><n>".
+NEW_FILES="$NEW_PRELUDE"$'\n'"$(cat <<'SH'
+docker run --rm -i -u root --network "$net" -v "$volume:/data:ro" -e PGPASSWORD -e PGHOST=db -e PGUSER=moodle \
+  -e PGDATABASE=moodle --entrypoint bash "$image" -s <<'INNER'
+set -euo pipefail
+fail() { echo "$*" >&2; exit 3; }
+[[ -d /data/filedir ]] || fail "moodledata has no filedir/"
+work="$(mktemp -d)"
+cd /data/filedir
+# Check 3: names, places and SHA-1 of every file.
+find . -type f ! -path ./warning.txt -print0 | xargs -0 -r -P "$(nproc)" -n 200 sha1sum >"$work/sums" ||
+  fail "sha1sum could not read every file under filedir/ (errors above)"
+awk '{
+  sum = $1; path = substr($0, 43); sub(/^\.\//, "", path)
+  n = split(path, p, "/"); name = p[n]
+  if (substr($0, 1, 1) == "\\" || n != 3 || length(name) != 40 || name ~ /[^0-9a-f]/) print "file\t" path "\tnot named <2>/<2>/<40 hex>"
+  else if (p[1] != substr(name, 1, 2) || p[2] != substr(name, 3, 2)) print "file\t" path "\tin the wrong directory"
+  else if (sum != name) print "file\t" path "\tSHA-1 is " sum
+}' "$work/sums"
+printf 'stat\tfiles\t%s\n' "$(wc -l <"$work/sums")"
+# Check 4: every distinct contenthash, except sha1(''), has a file at its place.
+psql -XqtA -v ON_ERROR_STOP=1 -c "SELECT DISTINCT contenthash FROM mdl_files WHERE contenthash <> 'da39a3ee5e6b4b0d3255bfef95601890afd80709'" |
+  LC_ALL=C sort -u >"$work/hashes"
+find . -type f -printf '%f\n' | LC_ALL=C sort -u >"$work/present"
+printf 'stat\thashes\t%s\n' "$(wc -l <"$work/hashes")"
+LC_ALL=C comm -23 "$work/hashes" "$work/present" | sed 's/^/missing\t/'
+INNER
+SH
+)"
+
+log "old: MariaDB $( [[ -n "$old_container" ]] && echo "in container $old_container" || echo "via /root/.my.cnf") on $old_where"
+log "new: compose project $new_project on $new_where, image tag ${tag:-from $HOST_DIR/.env}"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+log "preconditions on the new side"
+at "$new_where" "$NEW_PRELUDE"$'\n''echo "$image (db container ${db:0:12}, network $net, volume $volume)"' \
+  "$new_project" "$tag" "$HOST_DIR" </dev/null >"$work/probe" ||
+  die "New side is not ready (error above)" "Start the new project's db service and make sure the -transfer image is on that machine."
+ok "new side: $(cat "$work/probe")"
+
+log "running all checks in parallel"
+start=$SECONDS
+at "$old_where" "$OLD_COUNTS" "$old_container" <<<"$OLD_SQL" >"$work/old" 2>"$work/old.err" &
+pid_old=$!
+at "$new_where" "$NEW_COUNTS" "$new_project" "$tag" "$HOST_DIR" <<<"$NEW_SQL" >"$work/new" 2>"$work/new.err" &
+pid_new=$!
+at "$new_where" "$NEW_SCHEMA" "$new_project" "$tag" "$HOST_DIR" </dev/null >"$work/schema" 2>"$work/schema.err" &
+pid_schema=$!
+at "$new_where" "$NEW_FILES" "$new_project" "$tag" "$HOST_DIR" </dev/null >"$work/files" 2>"$work/files.err" &
+pid_files=$!
+
+# finished <pid> <name> [ok codes...]: waits and sets $code; on any other exit code prints stderr and dies.
+finished() {
+  local pid="$1" name="$2" allowed
+  shift 2
+  code=0
+  wait "$pid" || code=$?
+  for allowed in 0 "$@"; do
+    [[ "$code" == "$allowed" ]] && return 0
+  done
+  cat "$work/$name.err" >&2
+  die "The $name check could not run (exit $code, error above)" "Fix the cause and rerun just verify. Nothing was changed."
+}
+finished "$pid_old" old
+finished "$pid_new" new
+finished "$pid_schema" schema 1
+schema_code=$code
+finished "$pid_files" files
+log "checks took $((SECONDS - start)) s"
+
+failed=()
+# show <file> <title>: prints up to 50 lines; the full list goes next to the log file.
+show() {
+  local file="$1" title="$2" n
+  n="$(wc -l <"$file")"
+  warn "$title: $n"
+  head -n 50 "$file" | sed 's/^/      /'
+  if ((n > 50)); then
+    cp "$file" "${LOG_FILE%.log}.$(basename "$file").txt"
+    printf '      ... %s more in %s\n' "$((n - 50))" "${LOG_FILE%.log}.$(basename "$file").txt"
+  fi
+}
+
+# 1. Row counts.
+grep -P '^count\t' "$work/old" | cut -f2,3 | LC_ALL=C sort >"$work/old.counts" || true
+grep -P '^count\t' "$work/new" | cut -f2,3 | LC_ALL=C sort >"$work/new.counts" || true
+[[ -s "$work/old.counts" ]] || die "Old side returned no tables" "Check that the old database \"moodle\" holds the Moodle tables."
+[[ -s "$work/new.counts" ]] || die "New side returned no tables" "Did the transfer (phase 3) run into this project's db?"
+LC_ALL=C join -t $'\t' -a1 -a2 -e '-' -o 0,1.2,2.2 "$work/old.counts" "$work/new.counts" |
+  awk -F'\t' '$2 != $3 {
+    if ($2 == "-") printf "%s: only in new (%s rows)\n", $1, $3
+    else if ($3 == "-") printf "%s: only in old (%s rows)\n", $1, $2
+    else printf "%s: old %s, new %s\n", $1, $2, $3
+  }' >"$work/rows"
+tables="$(wc -l <"$work/old.counts")"
+rows="$(awk -F'\t' '{ s += $2 } END { print s + 0 }' "$work/old.counts")"
+if [[ -s "$work/rows" ]]; then
+  show "$work/rows" "1. row counts differ (tables)"
+  failed+=("row counts")
+else
+  ok "1. row counts: $tables tables, $rows rows, all equal"
+fi
+
+# 2. Schema.
+if ((schema_code == 0)) && grep -q '^Database structure is ok\.$' "$work/schema"; then
+  ok "2. schema: $(cat "$work/schema")"
+else
+  grep -v '^-*$' "$work/schema" >"$work/schema.diff" || true
+  show "$work/schema.diff" "2. check_database_schema.php reported differences (lines)"
+  failed+=("schema")
+fi
+
+# 3. Files named by their SHA-1.
+files="$(awk -F'\t' '$1 == "stat" && $2 == "files" { print $3 }' "$work/files")"
+hashes="$(awk -F'\t' '$1 == "stat" && $2 == "hashes" { print $3 }' "$work/files")"
+[[ -n "$files" && -n "$hashes" ]] || die "The file check printed no totals" "Read $LOG_FILE; rerun just verify."
+grep -P '^file\t' "$work/files" | cut -f2,3 | sed 's/\t/: /' >"$work/badfiles" || true
+if [[ -s "$work/badfiles" ]]; then
+  show "$work/badfiles" "3. filedir files that are not their own SHA-1 (of $files)"
+  failed+=("filedir hashes")
+else
+  ok "3. filedir: $files files, each named by its SHA-1"
+fi
+
+# 4. Every contenthash on disk.
+grep -P '^missing\t' "$work/files" | cut -f2 | sed 's/^/missing on disk: /' >"$work/missing" || true
+if [[ -s "$work/missing" ]]; then
+  show "$work/missing" "4. mdl_files hashes with no file in filedir/ (of $hashes)"
+  failed+=("missing files")
+else
+  ok "4. mdl_files: $hashes distinct content hashes, all on disk (sha1('') excluded: directories and empty files)"
+fi
+
+# 5. FiveDays tokens.
+old_tokens="$(awk -F'\t' '$1 == "tokens" { print $3 }' "$work/old")"
+new_tokens="$(awk -F'\t' '$1 == "tokens" { print $3 }' "$work/new")"
+if [[ -z "$old_tokens" || -z "$new_tokens" || "$old_tokens" != "$new_tokens" ]]; then
+  warn "5. FiveDays tokens differ: old ${old_tokens:-?}, new ${new_tokens:-?}"
+  failed+=("FiveDays tokens")
+else
+  ok "5. FiveDays tokens: $old_tokens old, $new_tokens new"
+  [[ "$old_tokens" != 0 ]] || warn "   the FiveDays service has no tokens on either side; registry-web's per-user calls need them"
+fi
+
+if ((${#failed[@]})); then
+  list="$(printf '%s, ' "${failed[@]}")"
+  die "verify found differences in: ${list%, }" \
+    "Do not start Moodle on the new database. Read the differences above, rerun the transfer (phase 3) or roll back."
+fi
+ok "verify passed: old $old_spec and new $new_spec match"

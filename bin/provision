@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# just provision <host>: prepares a bare Ubuntu 24.04 host (D22) by piping host/provision.sh to root
+# bash over SSH. Safe to rerun: each item prints "ok" or "changed"; a second run prints only "ok".
+# It installs Docker Engine + compose (Docker's apt repo), log defaults, ufw (SSH/80/443),
+# unattended-upgrades, a 2 GB swap file with swappiness 10, /opt/fivedays (root, 700), the external
+# volumes fivedays_{moodledata,pgdata,caddydata,backups}, FPM_MAX_CHILDREN in
+# /opt/fivedays/provision.env (read by bin/deploy) and the marker /opt/fivedays/.provisioned.
+# It refuses a host that isn't Ubuntu 24.04 or that runs MariaDB/MySQL/nginx/Apache (the old prod host).
+#
+# Host spec: <host> or <host>:<port>. Test stand-ins: see test/hosts/standin (SSH_KEY / SSH_OPTS).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+
+host="${1:-}"
+[[ -n "$host" && $# -eq 1 ]] || die "Usage: just provision <host>" "Pass the new host's address, e.g. just provision 3.120.0.10"
+start_log "provision-$(host_name "$host")"
+
+log "preconditions"
+need_cmd ssh
+need_ssh_key
+ok "ssh key $SSH_KEY"
+[[ -f "$FIVEDAYS_ROOT/host/provision.sh" ]] || die "host/provision.sh is missing" "Restore it from git."
+on_host "$host" true || die "Cannot run sudo on $host over SSH as $REMOTE_USER" \
+  "Check the instance is running, port $(host_port "$host") is open and $SSH_KEY is its key; then rerun."
+ok "ssh + passwordless sudo on $host as $REMOTE_USER"
+
+log "running host/provision.sh on $host as root"
+on_host_script "$host" "$FIVEDAYS_ROOT/host/provision.sh" ||
+  die "Provisioning $host stopped (the FAIL line above says why)" "Do what the FAIL line says, then rerun: just provision $host (safe to rerun)."
+ok "$host is provisioned. Next: just deploy $host <tag>"

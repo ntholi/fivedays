@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# just deploy <host> <tag>: ships an image tag to a provisioned host and health-checks it.
+#   1. Preconditions: the host has /opt/fivedays/.provisioned (just provision; the old prod host has no
+#      marker, so this also refuses it); <tag>, <tag>-web and <tag>-transfer exist in the registry; the env
+#      file is mode 600 and complete.
+#   2. Copies compose.yaml, versions.env and host/ to /opt/fivedays; installs host/cron.d-fivedays as
+#      /etc/cron.d/fivedays (644) when it exists.
+#   3. Writes /opt/fivedays/.env (600) from the laptop's env file (ENV_FILE, default .env.prod) without
+#      any CUTOVER_*, REHEARSAL_* or BACKUP_READ_* key, plus IMAGE_TAG=<tag>, PREVIOUS_IMAGE_TAG=<the tag
+#      live before> and FPM_MAX_CHILDREN from /opt/fivedays/provision.env.
+#   4. compose pull, up -d; waits for migrate (exit 0, else its last 40 lines and "just rollback <host>").
+#   5. Health check from the host itself through the internal listener 127.0.0.1:8080: /caddy-health,
+#      then /login/index.php with Host: <wwwroot host> (200).
+#
+# Modes (for bin/cutover and tests):
+#   bin/deploy <host> <tag>                 all of the above
+#   bin/deploy --files-only <host> <tag>    steps 1–3 only: files and host .env, the stack is not started
+#   bin/deploy --health-only <host>         step 5 only, against whatever runs on the host
+# Sourcing it (`source bin/deploy`) only defines the functions, for scripts that run the steps themselves:
+#   deploy_check_host <host>                    marker present; prints nothing else
+#   deploy_check_images <image> <tag>           <tag>, <tag>-web, <tag>-transfer exist (docker manifest inspect)
+#   deploy_write_files <host> <tag>             steps 2–3 (needs ENV_FILE)
+#   deploy_start <host>                         step 4 (pull, up -d, migrate exit 0)
+#   deploy_health <host>                        step 5
+#   host_env_get <host> <KEY>                   one non-secret value from the host .env (tags only)
+#
+# Env: ENV_FILE (default .env.prod), SSH_KEY / SSH_OPTS / REMOTE_USER (lib.sh). IMAGE (registry name) is
+# read from the env file and defaults to ghcr.io/ntholi/fivedays-moodle; only test env files set it.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+ENV_FILE="${ENV_FILE:-$FIVEDAYS_ROOT/.env.prod}"
+DEFAULT_IMAGE=ghcr.io/ntholi/fivedays-moodle
+# Keys that stay on the laptop: cutover IAM keys, rehearsal bucket keys, read-only backup keys.
+LAPTOP_ONLY_KEYS='CUTOVER_|REHEARSAL_|BACKUP_READ_'
+# Keys deploy sets itself.
+DEPLOY_KEYS='IMAGE_TAG|PREVIOUS_IMAGE_TAG|FPM_MAX_CHILDREN'
+
+valid_tag() { [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,100}$ ]]; }
+
+# env_value <KEY>: a value from ENV_FILE, read in a subshell so nothing leaks into this script's env.
+env_value() { (load_env "$ENV_FILE" >/dev/null && printf '%s' "${!1:-}"); }
+
+# host_env_get <host> <KEY>: a value from the host .env (empty when the file or key is missing).
+# Use it only for non-secret keys (tags, IMAGE): the value crosses into this log.
+host_env_get() {
+  on_host "$1" "[ -f $HOST_DIR/.env ] && sed -n 's/^$2=//p' $HOST_DIR/.env | tail -n 1 || true"
+}
+
+deploy_check_host() {
+  local host="$1"
+  on_host "$host" true || die "Cannot run sudo on $host over SSH as $REMOTE_USER" \
+    "Check the instance is running and $SSH_KEY is its key; then rerun."
+  on_host "$host" "test -f $HOST_DIR/.provisioned" ||
+    die "$host has no $HOST_DIR/.provisioned: it was never provisioned (or it is the old prod host)" \
+      "For the new host run: just provision $host. Never deploy to the old prod host."
+  ok "$host is provisioned ($(on_host "$host" "head -n 1 $HOST_DIR/.provisioned"))"
+}
+
+deploy_check_images() {
+  local image="$1" tag="$2" suffix flags=()
+  need_cmd docker
+  # A loopback registry is the test stand-in's (plain http). dockerd trusts loopback registries by default,
+  # but `docker manifest` needs --insecure for them. Real registries (ghcr.io) are always checked over https.
+  if [[ "$image" =~ ^(localhost|127\.[0-9.]+)(:[0-9]+)?/ ]]; then flags=(--insecure); fi
+  for suffix in "" -web -transfer; do
+    docker manifest inspect "${flags[@]}" "$image:$tag$suffix" >/dev/null 2>&1 ||
+      die "Image $image:$tag$suffix is not in the registry" "Release it first (just release), or pick an existing tag."
+  done
+  ok "images $image:$tag, -web, -transfer exist in the registry"
+}
+
+# The host .env content: the env file minus laptop-only and deploy-owned keys, plus deploy's keys.
+build_host_env() {
+  local tag="$1" previous="$2" children="$3"
+  { grep -Ev "^[[:space:]]*(export[[:space:]]+)?(($LAPTOP_ONLY_KEYS)[A-Za-z0-9_]*|$DEPLOY_KEYS)=" "$ENV_FILE" || true; }
+  printf '# Deploy keys (bin/deploy, %s)\n' "$(date -u +%FT%TZ)"
+  printf 'IMAGE_TAG=%s\nPREVIOUS_IMAGE_TAG=%s\nFPM_MAX_CHILDREN=%s\n' "$tag" "$previous" "$children"
+}
+
+deploy_check_env() {
+  local key
+  (load_env "$ENV_FILE" >/dev/null) || exit 1
+  ok "env file $ENV_FILE (mode 600)"
+  for key in COMPOSE_PROJECT_NAME MOODLE_WWWROOT SITE_ADDRESS POSTGRES_PASSWORD REDIS_PASSWORD MOODLE_ADMIN_EMAIL; do
+    [[ -n "$(env_value "$key")" ]] || die "$key is empty in $ENV_FILE" "Write the env file with just init prod."
+  done
+  # provision created fivedays_* volumes; another project name would point compose at missing volumes.
+  [[ "$(env_value COMPOSE_PROJECT_NAME)" == "fivedays" ]] ||
+    die "COMPOSE_PROJECT_NAME in $ENV_FILE is \"$(env_value COMPOSE_PROJECT_NAME)\", not fivedays" "Use the env file written by just init prod."
+  ok "env file has the keys the stack needs (project fivedays)"
+}
+
+deploy_write_files() {
+  local host="$1" tag="$2" current previous children forbidden
+  current="$(host_env_get "$host" IMAGE_TAG)"
+  if [[ -n "$current" && "$current" != "$tag" ]]; then
+    previous="$current"
+  else
+    # First deploy, or a redeploy of the live tag: keep the rollback target that was already there.
+    previous="$(host_env_get "$host" PREVIOUS_IMAGE_TAG)"
+  fi
+  children="$(on_host "$host" "sed -n 's/^FPM_MAX_CHILDREN=//p' $HOST_DIR/provision.env 2>/dev/null")"
+  [[ "$children" =~ ^[0-9]+$ ]] || die "$HOST_DIR/provision.env on $host has no FPM_MAX_CHILDREN" "Run: just provision $host"
+
+  forbidden="$(build_host_env "$tag" "$previous" "$children" | grep -Eo "^[[:space:]]*(export[[:space:]]+)?($LAPTOP_ONLY_KEYS)[A-Za-z0-9_]*" || true)"
+  [[ -z "$forbidden" ]] || die "The host env would contain laptop-only keys: $forbidden" "This is a bug in bin/deploy; stop and ask."
+
+  log "copying compose.yaml, versions.env and host/ to $host:$HOST_DIR"
+  tar -C "$FIVEDAYS_ROOT" -cf - compose.yaml versions.env host |
+    on_host "$host" "tar -C $HOST_DIR --no-same-owner -xf - && chown -R root:root $HOST_DIR/compose.yaml $HOST_DIR/versions.env $HOST_DIR/host && chmod -R go-w $HOST_DIR/host"
+  ok "files in $HOST_DIR"
+  if [[ -f "$FIVEDAYS_ROOT/host/cron.d-fivedays" ]]; then
+    on_host "$host" "install -m 644 -o root -g root $HOST_DIR/host/cron.d-fivedays /etc/cron.d/fivedays"
+    ok "installed /etc/cron.d/fivedays"
+  fi
+
+  copy_to_host "$host" <(build_host_env "$tag" "$previous" "$children") "$HOST_DIR/.env" 600
+  ok "wrote $HOST_DIR/.env (600): IMAGE_TAG=$tag PREVIOUS_IMAGE_TAG=${previous:-(none)} FPM_MAX_CHILDREN=$children"
+}
+
+deploy_start() {
+  local host="$1" id code
+  log "pulling images on $host"
+  host_compose "$host" pull --quiet || die "docker compose pull failed on $host" "Check the tag and the host's internet access, then rerun just deploy."
+  log "starting the stack on $host (migrate runs first)"
+  # up fails when migrate fails; the migrate exit code below is the verdict either way.
+  host_compose "$host" up -d --remove-orphans || true
+  id="$(host_compose "$host" ps -a -q migrate)"
+  [[ -n "$id" ]] || die "No migrate container on $host (compose up failed before it, see above)" "Run: just rollback $host"
+  code="$(on_host "$host" "docker wait $id")"
+  if [[ "$code" != "0" ]]; then
+    host_compose "$host" logs --no-log-prefix --tail 40 migrate || true
+    die "migrate exited $code on $host (last 40 lines above)" "just rollback $host"
+  fi
+  ok "migrate exited 0"
+  host_compose "$host" logs --no-log-prefix migrate 2>/dev/null | grep -E '^\[migrate|^(ok|changed|WARN|FAIL) ' || true
+}
+
+deploy_health() {
+  local host="$1" wwwroot domain result
+  wwwroot="$(on_host "$host" "sed -n 's/^MOODLE_WWWROOT=//p' $HOST_DIR/.env | tail -n 1")"
+  wwwroot="${wwwroot//\"/}"
+  domain="${wwwroot#*://}"
+  domain="${domain%%/*}"
+  [[ -n "$domain" ]] || die "No MOODLE_WWWROOT in $HOST_DIR/.env on $host" "Rerun: just deploy $host <tag>"
+  log "health check on $host through 127.0.0.1:8080 (Host: $domain)"
+  # Caddy answers /caddy-health itself; the login page goes through PHP. Moodle redirects any request whose
+  # host differs from wwwroot's (public/lib/setuplib.php:678) or that arrives over http for an https wwwroot
+  # (setuplib.php:709); the internal listener passes HTTPS=on, so the right Host header gets a 200.
+  # shellcheck disable=SC2016
+  result="$(on_host "$host" '
+    for i in $(seq 1 60); do
+      [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/caddy-health)" = 200 ] && break
+      sleep 3
+    done
+    caddy="$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/caddy-health)"
+    for i in $(seq 1 20); do
+      login="$(curl -s -o /dev/null -w "%{http_code}" -H "Host: '"$domain"'" http://127.0.0.1:8080/login/index.php)"
+      [ "$login" = 200 ] && break
+      sleep 3
+    done
+    echo "$caddy $login"')"
+  [[ "${result%% *}" == "200" ]] || die "Caddy health check answered ${result%% *}, not 200" "Read: just logs (web), or roll back: just rollback $host"
+  ok "caddy-health 200"
+  [[ "${result##* }" == "200" ]] || die "Login page answered ${result##* }, not 200 (Host: $domain)" "Roll back: just rollback $host"
+  ok "login page 200 (Host: $domain)"
+}
+
+deploy_show() {
+  local host="$1"
+  host_compose "$host" ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+}
+
+deploy_main() {
+  local mode=full
+  case "${1:-}" in
+    --files-only) mode=files; shift ;;
+    --health-only) mode=health; shift ;;
+  esac
+  local host="${1:-}" tag="${2:-}"
+  if [[ "$mode" == health ]]; then
+    [[ -n "$host" && $# -eq 1 ]] || die "Usage: bin/deploy --health-only <host>" ""
+  else
+    [[ -n "$host" && -n "$tag" && $# -eq 2 ]] || die "Usage: just deploy <host> <tag>" "e.g. just deploy luct.click sha-1a2b3c4"
+    valid_tag "$tag" || die "\"$tag\" is not a valid image tag" "Use the tag just release printed, e.g. sha-1a2b3c4"
+  fi
+  start_log "deploy-$(host_name "$host")"
+  need_cmd ssh
+  need_ssh_key
+
+  log "preconditions"
+  deploy_check_host "$host"
+  if [[ "$mode" != health ]]; then
+    deploy_check_env
+    local image
+    image="$(env_value IMAGE)"
+    deploy_check_images "${image:-$DEFAULT_IMAGE}" "$tag"
+  fi
+  case "$mode" in
+    files)
+      deploy_write_files "$host" "$tag"
+      ok "files and host env written; stack not started (--files-only)"
+      ;;
+    health)
+      deploy_health "$host"
+      deploy_show "$host"
+      ;;
+    full)
+      deploy_write_files "$host" "$tag"
+      deploy_start "$host"
+      deploy_health "$host"
+      deploy_show "$host"
+      local previous
+      previous="$(host_env_get "$host" PREVIOUS_IMAGE_TAG)"
+      ok "$host runs $tag (just rollback target: ${previous:-none})"
+      ;;
+  esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then deploy_main "$@"; fi

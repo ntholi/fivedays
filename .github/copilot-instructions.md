@@ -64,7 +64,7 @@ Key conventions:
 - `context_course::instance()`, `context_module::instance()` - Context handling
 - `require_capability()` - Permission checks
 - `course_create_sections_if_missing()` - Safe section creation
-- `course_delete_module()` - Module deletion (handles cleanup)
+- `core_courseformat\formatactions::cm($courseid)->delete($cmid)` / `->set_visibility(...)` - Module deletion and visibility (`course_delete_module()` is deprecated since 5.2)
 - `get_file_storage()` - File handling
 
 ## Build & Install

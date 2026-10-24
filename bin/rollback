@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# just rollback <host>: puts the previous image tag back on a host after a bad deploy.
+#   1. Reads IMAGE_TAG and PREVIOUS_IMAGE_TAG from /opt/fivedays/.env on the host.
+#   2. Refuses when migrate made a pre-upgrade-<IMAGE_TAG>-*.dump in fivedays_backups (docker/migrate.sh):
+#      the current tag upgraded the database, and older code can't run on it. It prints the dump and the
+#      exact `just restore <host> <file> --tag=<previous>` command, and changes nothing.
+#   3. Otherwise swaps IMAGE_TAG and PREVIOUS_IMAGE_TAG in the host .env (so a second rollback returns to
+#      the newer tag), pulls, starts the stack (migrate must exit 0) and health-checks it like just deploy.
+# The compose.yaml and host/ files already on the host stay as the last deploy left them.
+set -euo pipefail
+source "$(dirname "$0")/deploy"
+
+host="${1:-}"
+[[ -n "$host" && $# -eq 1 ]] || die "Usage: just rollback <host>" "e.g. just rollback luct.click"
+start_log "rollback-$(host_name "$host")"
+need_cmd ssh
+need_ssh_key
+
+log "preconditions"
+deploy_check_host "$host"
+on_host "$host" "test -f $HOST_DIR/.env" || die "$host has no $HOST_DIR/.env: nothing was deployed there" "Deploy first: just deploy $host <tag>"
+current="$(host_env_get "$host" IMAGE_TAG)"
+previous="$(host_env_get "$host" PREVIOUS_IMAGE_TAG)"
+valid_tag "$current" || die "IMAGE_TAG on $host is \"$current\", not a valid tag" "Redeploy a known tag: just deploy $host <tag>"
+[[ -n "$previous" ]] || die "$host has no PREVIOUS_IMAGE_TAG: $current is the only tag ever deployed there" \
+  "There is nothing to roll back to. Fix forward: just deploy $host <fixed tag>"
+valid_tag "$previous" || die "PREVIOUS_IMAGE_TAG on $host is \"$previous\", not a valid tag" "Redeploy a known tag: just deploy $host <tag>"
+ok "live tag $current, previous tag $previous"
+
+# Version bump? migrate names its dump after the tag that ran the upgrade.
+dumps="$(on_host "$host" "vol=\$(docker volume inspect -f '{{.Mountpoint}}' fivedays_backups) && cd \"\$vol\" && ls -1 -- pre-upgrade-$current-*.dump 2>/dev/null || true")"
+if [[ -n "$dumps" ]]; then
+  printf '\n%s upgraded the database when it was deployed (Moodle or plugin version bump), so %s cannot run on it.\n' "$current" "$previous"
+  printf 'Pre-upgrade dump(s) in the fivedays_backups volume on %s:\n' "$host"
+  while IFS= read -r dump; do printf '  %s\n' "$dump"; done <<<"$dumps"
+  newest="$(tail -n 1 <<<"$dumps")"
+  printf '\nTo go back to %s, restore the database from before the upgrade (this loses every change since that deploy):\n' "$previous"
+  printf '  just restore %s %s --tag=%s\n\n' "$host" "$newest" "$previous"
+  die "Rollback refused: $current made a version bump (dump above). Nothing was changed." \
+    "Fix forward with just deploy $host <fixed tag>, or ask the user before running the restore command above."
+fi
+ok "no pre-upgrade dump for $current: no version bump, $previous can run on this database"
+
+image="$(host_env_get "$host" IMAGE)"
+deploy_check_images "${image:-$DEFAULT_IMAGE}" "$previous"
+
+log "switching $host from $current to $previous"
+on_host "$host" "sed -i -e 's/^IMAGE_TAG=.*/IMAGE_TAG=$previous/' -e 's/^PREVIOUS_IMAGE_TAG=.*/PREVIOUS_IMAGE_TAG=$current/' $HOST_DIR/.env && chmod 600 $HOST_DIR/.env"
+[[ "$(host_env_get "$host" IMAGE_TAG)" == "$previous" && "$(host_env_get "$host" PREVIOUS_IMAGE_TAG)" == "$current" ]] ||
+  die "The host .env was not switched to $previous" "Stop and ask: do not edit $HOST_DIR/.env by hand."
+ok "$HOST_DIR/.env: IMAGE_TAG=$previous PREVIOUS_IMAGE_TAG=$current"
+
+deploy_start "$host"
+deploy_health "$host"
+deploy_show "$host"
+ok "$host rolled back to $previous (just rollback again returns to $current)"

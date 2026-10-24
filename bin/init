@@ -40,13 +40,21 @@ site_short="$(ask site-shortname 'Site short name' 'FiveDays')"
 if [[ "$target" == "local" ]]; then
   google_id="$(ask google-client-id 'Google OAuth client ID' '' optional)"
   google_secret="$(ask google-client-secret 'Google OAuth client secret' '' optional)"
+  # Optional: lets just seed-from-prod on this laptop read the nightly prod dump (D24/D35).
+  backup_read_key="$(ask backup-read-key 'R2 read-only access key ID for just seed-from-prod' '' optional)"
+  if [[ -n "$backup_read_key" ]]; then
+    backup_read_secret="$(ask backup-read-secret 'R2 read-only secret access key')"
+    backup_endpoint="$(ask backup-s3-endpoint 'R2 endpoint (https://<accountid>.r2.cloudflarestorage.com)')"
+    backup_bucket="$(ask backup-bucket 'R2 backup bucket name' 'fivedays-moodle-backups')"
+    restic_password="$(ask restic-password 'RESTIC_PASSWORD (from the password manager)')"
+  fi
   port="${arg[port]:-8080}"
   [[ "$port" =~ ^[0-9]+$ ]] || die "--port=$port is not a number" "Pass e.g. --port=8080"
 else
   domain="$(ask domain 'Domain' 'luct.click')"
   google_id="$(ask google-client-id 'Google OAuth client ID')"
   google_secret="$(ask google-client-secret 'Google OAuth client secret')"
-  bucket="$(ask bucket 'Prod bucket name' 'fivedays-moodle')"
+  bucket="$(ask bucket 'Prod bucket name' 'fivedays-moodle-files')"
   bucket_key="$(ask bucket-key "Access key ID for $bucket")"
   bucket_secret="$(ask bucket-secret "Secret access key for $bucket")"
   rehearsal_bucket="$(ask rehearsal-bucket 'Rehearsal bucket name' 'fivedays-moodle-rehearsal')"
@@ -55,6 +63,19 @@ else
   rehearsal_secret="$(ask rehearsal-bucket-secret "Secret access key for $rehearsal_bucket")"
   aws_key="$(ask aws-key 'Access key ID of the fivedays-cutover IAM user (static IP only)')"
   aws_secret="$(ask aws-secret 'Secret access key of the fivedays-cutover IAM user')"
+  # Backups (D23): a separate R2 bucket (never the registry-web bucket). The write key goes to the host,
+  # the read-only key stays on laptops (just deploy leaves BACKUP_READ_* out of the host env).
+  backup_endpoint="$(ask backup-s3-endpoint 'R2 endpoint for backups (https://<accountid>.r2.cloudflarestorage.com)')"
+  [[ "$backup_endpoint" =~ ^https://[^/]+/?$ ]] || die "--backup-s3-endpoint=$backup_endpoint is not https://<host>" "Copy the S3 API endpoint from the R2 bucket's settings, without the bucket name."
+  backup_bucket="$(ask backup-bucket 'R2 backup bucket name' 'fivedays-moodle-backups')"
+  [[ "$backup_bucket" != "$bucket" && "$backup_bucket" != "$rehearsal_bucket" ]] || die "The backup bucket is a Moodle files bucket" "Use the separate R2 backup bucket (D23)."
+  backup_key="$(ask backup-key "R2 write access key ID for $backup_bucket (host)")"
+  backup_secret="$(ask backup-secret "R2 write secret access key for $backup_bucket")"
+  backup_read_key="$(ask backup-read-key "R2 read-only access key ID for $backup_bucket (laptops)")"
+  backup_read_secret="$(ask backup-read-secret "R2 read-only secret access key for $backup_bucket")"
+  [[ "$backup_read_key" != "$backup_key" ]] || die "The read-only key is the write key" "Create a separate read-only R2 token (D23)."
+  # Generated unless passed: it encrypts the restic repo, so losing it loses every backup.
+  restic_password="${arg[restic-password]:-$(openssl rand -hex 32)}"
 fi
 
 umask 077
@@ -75,6 +96,13 @@ umask 077
     echo "MOODLE_WWWROOT=http://localhost:$port"
     echo "SITE_ADDRESS=http://:$port"
     echo "MOODLE_ALLOW_INSTALL=1"
+    if [[ -n "${backup_read_key:-}" ]]; then
+      echo "BACKUP_S3_ENDPOINT=$backup_endpoint"
+      echo "BACKUP_BUCKET=$backup_bucket"
+      echo "BACKUP_READ_KEY=$backup_read_key"
+      echo "BACKUP_READ_SECRET=$backup_read_secret"
+      echo "RESTIC_PASSWORD=$restic_password"
+    fi
   else
     echo "MOODLE_WWWROOT=https://$domain"
     echo "SITE_ADDRESS=$domain"
@@ -88,6 +116,13 @@ umask 077
     echo "REHEARSAL_BUCKET_SECRET=$rehearsal_secret"
     echo "CUTOVER_AWS_ACCESS_KEY_ID=$aws_key"
     echo "CUTOVER_AWS_SECRET_ACCESS_KEY=$aws_secret"
+    echo "BACKUP_S3_ENDPOINT=${backup_endpoint%/}"
+    echo "BACKUP_BUCKET=$backup_bucket"
+    echo "BACKUP_KEY=$backup_key"
+    echo "BACKUP_SECRET=$backup_secret"
+    echo "BACKUP_READ_KEY=$backup_read_key"
+    echo "BACKUP_READ_SECRET=$backup_read_secret"
+    echo "RESTIC_PASSWORD=$restic_password"
   fi
 } >"$env_file"
 chmod 600 "$env_file"

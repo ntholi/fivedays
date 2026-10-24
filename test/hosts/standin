@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+# Local stand-ins for the Lightsail hosts, so bin/provision, bin/deploy, bin/rollback (and the cutover
+# scripts) are tested against containers on this laptop, never a real host.
+#
+#   test/hosts/standin up <role> <port>       build test/hosts/<role>/Dockerfile and start container
+#                                              fivedays-standin-<role> with SSH on 127.0.0.1:<port>
+#   test/hosts/standin down <role>            stop it and delete only its own throwaway volumes
+#   test/hosts/standin env                    print the SSH_KEY / SSH_OPTS exports bin/ scripts need:
+#                                              eval "$(test/hosts/standin env)"; bin/provision 127.0.0.1:<port>
+#   test/hosts/standin registry up|down       throwaway registry on 127.0.0.1:$REGISTRY_PORT (default 5055)
+#   test/hosts/standin push <src> <dest>      push ghcr.io/ntholi/fivedays-moodle:<src>{,-web,-transfer} to it
+#                                              as 127.0.0.1:$REGISTRY_PORT/fivedays-moodle:<dest>{,-web,-transfer}
+#   test/hosts/standin exec <role> <cmd...>   run a command as root inside the stand-in (debugging, test setup)
+#
+# Roles: one directory per role under test/hosts/ with a Dockerfile (e.g. new/, old/). An optional
+# executable test/hosts/<role>/after-up runs on the laptop after the container is up, with the container
+# name as its argument. Every stand-in gets user `ubuntu` with passwordless sudo and the throwaway key
+# build/hosts/standin_ed25519 (gitignored).
+#
+# Images: stand-ins can't see the laptop's images. Test env files set
+# IMAGE=127.0.0.1:$REGISTRY_PORT/fivedays-moodle; inside a stand-in that address is forwarded (socat)
+# to the registry container, and Docker trusts loopback registries without configuration, so
+# host/provision.sh stays untouched by the test setup.
+#
+# Everything here is named fivedays-standin-* and is safe to delete; nothing else is touched.
+set -euo pipefail
+source "$(dirname "$0")/../../bin/lib.sh"
+
+HOSTS_DIR="$FIVEDAYS_ROOT/test/hosts"
+KEY_DIR="$FIVEDAYS_ROOT/build/hosts"
+KEY="$KEY_DIR/standin_ed25519"
+NETWORK=fivedays-standin
+REGISTRY=fivedays-standin-registry
+REGISTRY_IMAGE=registry:2.8.3
+REGISTRY_PORT="${REGISTRY_PORT:-5055}"
+SRC_IMAGE=ghcr.io/ntholi/fivedays-moodle
+
+usage() { sed -n '5,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+
+valid_role() {
+  [[ "$1" =~ ^[a-z0-9-]+$ ]] || die "Bad role \"$1\"" "Use a directory name under test/hosts/, e.g. new"
+  [[ -f "$HOSTS_DIR/$1/Dockerfile" ]] || die "No test/hosts/$1/Dockerfile" "Pick an existing role: $(cd "$HOSTS_DIR" && ls -d -- */ | tr -d / | xargs)"
+}
+
+ensure_key() {
+  [[ -f "$KEY" ]] && return
+  need_cmd ssh-keygen "Install openssh-client."
+  mkdir -p "$KEY_DIR"
+  chmod 700 "$KEY_DIR"
+  ssh-keygen -q -t ed25519 -N '' -C fivedays-standin -f "$KEY"
+  ok "generated throwaway key $KEY"
+}
+
+ensure_network() {
+  docker network inspect "$NETWORK" >/dev/null 2>&1 || docker network create "$NETWORK" >/dev/null
+}
+
+cmd_up() {
+  local role="${1:-}" port="${2:-}"
+  [[ -n "$role" && "$port" =~ ^[0-9]+$ ]] || die "Usage: standin up <role> <port>" "e.g. test/hosts/standin up new 2222"
+  valid_role "$role"
+  local name="fivedays-standin-$role" image="fivedays-standin-$role:local"
+  if docker container inspect "$name" >/dev/null 2>&1; then
+    die "$name already exists" "Use it, or run: test/hosts/standin down $role"
+  fi
+  ! ss -ltn | grep -q "[:.]$port " || die "Port $port is in use" "Pick a free port."
+  ensure_key
+  ensure_network
+  log "building $image"
+  docker build -q -t "$image" "$HOSTS_DIR/$role" >/dev/null
+  # Privileged with its own cgroup namespace: systemd runs as PID 1 and dockerd can run inside.
+  # /var/lib/docker and /var/lib/containerd (Docker's image store) are throwaway volumes: overlayfs layers
+  # can't be extracted onto the container's own overlay root (whiteouts fail with EPERM).
+  docker run -d --name "$name" --hostname "standin-$role" --network "$NETWORK" \
+    --privileged --cgroupns=private \
+    --tmpfs /run --tmpfs /run/lock --tmpfs /tmp:exec \
+    -v "fivedays-standin-$role-docker:/var/lib/docker" \
+    -v "fivedays-standin-$role-containerd:/var/lib/containerd" \
+    -p "127.0.0.1:$port:22" \
+    --label fivedays.standin="$role" \
+    "$image" >/dev/null
+  ok "started $name (ssh on 127.0.0.1:$port)"
+
+  for _ in $(seq 1 30); do
+    [[ "$(docker exec "$name" systemctl is-system-running 2>/dev/null || true)" =~ ^(running|degraded)$ ]] && break
+    sleep 1
+  done
+  docker exec -i "$name" sh -c 'cat >/home/ubuntu/.ssh/authorized_keys && chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys && chmod 600 /home/ubuntu/.ssh/authorized_keys' <"$KEY.pub"
+  ok "installed $KEY.pub for user ubuntu"
+
+  if docker exec "$name" sh -c 'command -v socat' >/dev/null 2>&1; then
+    docker exec -i "$name" sh -c 'cat >/etc/systemd/system/standin-registry.service && systemctl daemon-reload && systemctl enable --now standin-registry.service >/dev/null 2>&1' <<UNIT
+[Unit]
+Description=Test harness: 127.0.0.1:$REGISTRY_PORT -> $REGISTRY:5000
+
+[Service]
+ExecStart=/usr/bin/socat TCP-LISTEN:$REGISTRY_PORT,bind=127.0.0.1,reuseaddr,fork TCP:$REGISTRY:5000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+    ok "registry forward 127.0.0.1:$REGISTRY_PORT -> $REGISTRY:5000 inside $name"
+  fi
+
+  if [[ -x "$HOSTS_DIR/$role/after-up" ]]; then
+    "$HOSTS_DIR/$role/after-up" "$name"
+  fi
+  printf '\nNext:\n  eval "$(%s env)"\n  bin/provision 127.0.0.1:%s\n' "test/hosts/standin" "$port"
+}
+
+cmd_down() {
+  local role="${1:-}"
+  [[ "$role" =~ ^[a-z0-9-]+$ ]] || die "Usage: standin down <role>" "e.g. test/hosts/standin down new"
+  local name="fivedays-standin-$role" vol
+  if docker container inspect "$name" >/dev/null 2>&1; then
+    docker rm -f "$name" >/dev/null
+    ok "removed $name"
+  else
+    ok "$name not running"
+  fi
+  for vol in "fivedays-standin-$role-docker" "fivedays-standin-$role-containerd"; do
+    if docker volume inspect "$vol" >/dev/null 2>&1; then
+      docker volume rm "$vol" >/dev/null
+      ok "deleted throwaway volume $vol"
+    fi
+  done
+  remove_network_if_unused
+}
+
+remove_network_if_unused() {
+  docker network inspect "$NETWORK" >/dev/null 2>&1 || return 0
+  if [[ -z "$(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' "$NETWORK")" ]]; then
+    docker network rm "$NETWORK" >/dev/null
+    ok "removed network $NETWORK"
+  fi
+}
+
+cmd_env() {
+  [[ -f "$KEY" ]] || die "No stand-in key yet" "Run: test/hosts/standin up <role> <port>"
+  printf 'export SSH_KEY=%q\n' "$KEY"
+  printf 'export SSH_OPTS=%q\n' "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+}
+
+cmd_registry() {
+  case "${1:-}" in
+    up)
+      if docker container inspect "$REGISTRY" >/dev/null 2>&1; then ok "$REGISTRY already running"; return; fi
+      ! ss -ltn | grep -q "[:.]$REGISTRY_PORT " || die "Port $REGISTRY_PORT is in use" "Set REGISTRY_PORT=<free port> for every standin command."
+      ensure_network
+      # No volume: the registry's data lives and dies with this container.
+      docker run -d --name "$REGISTRY" --network "$NETWORK" -p "127.0.0.1:$REGISTRY_PORT:5000" "$REGISTRY_IMAGE" >/dev/null
+      ok "registry $REGISTRY on 127.0.0.1:$REGISTRY_PORT (image name 127.0.0.1:$REGISTRY_PORT/fivedays-moodle)"
+      ;;
+    down)
+      if docker container inspect "$REGISTRY" >/dev/null 2>&1; then
+        docker rm -f -v "$REGISTRY" >/dev/null
+        ok "removed $REGISTRY and its anonymous volume"
+      else
+        ok "$REGISTRY not running"
+      fi
+      remove_network_if_unused
+      ;;
+    *) usage ;;
+  esac
+}
+
+cmd_push() {
+  local src="${1:-}" dest="${2:-}" suffix
+  [[ -n "$src" && -n "$dest" ]] || die "Usage: standin push <src-tag> <dest-tag>" "e.g. test/hosts/standin push local tagA"
+  docker container inspect "$REGISTRY" >/dev/null 2>&1 || die "$REGISTRY is not running" "Run: test/hosts/standin registry up"
+  for suffix in "" -web -transfer; do
+    docker image inspect "$SRC_IMAGE:$src$suffix" >/dev/null 2>&1 || die "Image $SRC_IMAGE:$src$suffix not found" "Run: just build $src"
+    docker tag "$SRC_IMAGE:$src$suffix" "127.0.0.1:$REGISTRY_PORT/fivedays-moodle:$dest$suffix"
+    docker push -q "127.0.0.1:$REGISTRY_PORT/fivedays-moodle:$dest$suffix" >/dev/null
+    docker rmi "127.0.0.1:$REGISTRY_PORT/fivedays-moodle:$dest$suffix" >/dev/null
+    ok "pushed $SRC_IMAGE:$src$suffix as 127.0.0.1:$REGISTRY_PORT/fivedays-moodle:$dest$suffix"
+  done
+}
+
+cmd_exec() {
+  local role="${1:-}"
+  shift || true
+  [[ "$role" =~ ^[a-z0-9-]+$ && $# -gt 0 ]] || die "Usage: standin exec <role> <cmd...>" "e.g. test/hosts/standin exec new docker ps"
+  docker exec -i "fivedays-standin-$role" "$@"
+}
+
+need_cmd docker
+sub="${1:-}"
+shift || true
+case "$sub" in
+  up) cmd_up "$@" ;;
+  down) cmd_down "$@" ;;
+  env) cmd_env ;;
+  registry) cmd_registry "$@" ;;
+  push) cmd_push "$@" ;;
+  exec) cmd_exec "$@" ;;
+  *) usage ;;
+esac

@@ -55,7 +55,7 @@ class delete_forum extends external_api {
 
         $forumname = $forum->name;
 
-        course_delete_module($cm->id);
+        \core_courseformat\formatactions::cm((int) $cm->course)->delete((int) $cm->id);
 
         return [
             'success' => true,

@@ -62,3 +62,60 @@ compose_local() {
   docker compose --project-directory "$FIVEDAYS_ROOT" --env-file "$FIVEDAYS_ROOT/versions.env" --env-file "$FIVEDAYS_ROOT/.env" \
     -f "$FIVEDAYS_ROOT/compose.yaml" -f "$FIVEDAYS_ROOT/compose.dev.yaml" "$@"
 }
+
+# ---- Remote hosts (used only by the host commands in bin/; agents never ssh themselves) ----
+# A host spec is "<host>" or "<host>:<port>"; the port form targets the local stand-in hosts in
+# test/hosts/. SSH_KEY, REMOTE_USER and SSH_OPTS can be overridden for those stand-ins.
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/LightsailDefaultKey-eu-central-1.pem}"
+REMOTE_USER="${REMOTE_USER:-ubuntu}"
+SSH_OPTS="${SSH_OPTS:--o StrictHostKeyChecking=accept-new}"
+# Where the stack lives on a host, and how compose is called there.
+HOST_DIR=/opt/fivedays
+HOST_COMPOSE="cd $HOST_DIR && docker compose --env-file versions.env --env-file .env -f compose.yaml"
+
+host_name() { printf '%s' "${1%%:*}"; }
+host_port() { [[ "$1" == *:* ]] && printf '%s' "${1##*:}" || printf '22'; }
+
+# ssh_args <spec>: the ssh arguments (without the command) for a host spec.
+ssh_args() {
+  local spec="$1"
+  # shellcheck disable=SC2206
+  local opts=($SSH_OPTS)
+  printf '%s\n' -i "$SSH_KEY" -p "$(host_port "$spec")" -o BatchMode=yes -o ConnectTimeout=15 \
+    -o ServerAliveInterval=30 -o ServerAliveCountMax=6 "${opts[@]}" "$REMOTE_USER@$(host_name "$spec")"
+}
+
+# on_host <spec> <bash script...>: runs the script as root on the host; stdin is passed through.
+on_host() {
+  local spec="$1"; shift
+  local args
+  mapfile -t args < <(ssh_args "$spec")
+  ssh "${args[@]}" "sudo bash -c $(printf '%q' "$*")"
+}
+
+# on_host_script <spec> <local file> [args...]: pipes a local script to root bash on the host.
+on_host_script() {
+  local spec="$1" file="$2"; shift 2
+  local args
+  mapfile -t args < <(ssh_args "$spec")
+  ssh "${args[@]}" "sudo bash -s -- $(printf '%q ' "$@")" <"$file"
+}
+
+# copy_to_host <spec> <local file> <remote path> [mode]: writes a file as root on the host.
+copy_to_host() {
+  local spec="$1" src="$2" dest="$3" mode="${4:-644}"
+  on_host "$spec" "install -D -m $mode /dev/stdin $(printf '%q' "$dest")" <"$src"
+}
+
+# host_compose <spec> <compose args...>: docker compose for the stack in $HOST_DIR on the host.
+host_compose() {
+  local spec="$1"; shift
+  on_host "$spec" "$HOST_COMPOSE $(printf '%q ' "$@")"
+}
+
+# Loads .env.prod (laptop only: holds keys that never go to a host).
+load_prod_env() { load_env "$FIVEDAYS_ROOT/.env.prod"; }
+
+need_ssh_key() {
+  [[ -f "$SSH_KEY" ]] || die "SSH key $SSH_KEY not found" "Run: just doctor"
+}

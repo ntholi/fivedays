@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# just restore local <file>   restore a pg_dump -Fc file into the local stack (fivedays-local).
+#                             Asks you to type "local" first, because it replaces the local database.
+# just restore <host> <file> [--tag=<tag>]
+#                             restore into the stack on a host. <file> is a path on this laptop if it
+#                             exists here (it is uploaded into the host's backups volume and removed
+#                             there afterwards); otherwise it is the name of a file already in the host's
+#                             backups volume, e.g. a migrate pre-upgrade-*.dump or a pre-restore-*.dump.
+#                             A host database that is not empty is replaced only after you type the hostname.
+#                             --tag=<tag> (from just rollback, after a version bump): migrate and the app
+#                             start with that image; IMAGE_TAG=<tag> and PREVIOUS_IMAGE_TAG=<live tag> are
+#                             written to the host's .env. Without it the current IMAGE_TAG stays.
+# Both take a checked pre-restore dump of the current database into the backups volume before dropping
+# anything, then run migrate (upgrade + setup.php) so code and database match, purge caches, and check the
+# login page. Local stacks keep email and push blocked (compose.dev.yaml sets MOODLE_NOEMAIL=1, which
+# docker/config.php turns into $CFG->noemailever) and get any stored tool_objectfs S3 key cleared.
+# FIVEDAYS_ENV_FILE overrides the local env file (default .env), e.g. to restore into a throwaway project.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+source "$FIVEDAYS_ROOT/host/backup-lib.sh"
+
+target="${1:-}"; file="${2:-}"; tag_arg=()
+if [[ $# -eq 3 && "$3" == --tag=?* && "$target" != "local" ]]; then tag_arg=("$3"); set -- "$1" "$2"; fi
+[[ -n "$target" && -n "$file" && $# -eq 2 ]] || die "Usage: just restore local <file>   or   just restore <host> <file> [--tag=<tag>]" "Pass the target and one dump file (--tag only for a host)."
+start_log "restore-$(host_name "$target")"
+stamp="$(date +%Y%m%d-%H%M%S)"
+upload="restore-upload-$stamp.dump"
+
+if [[ "$target" == "local" ]]; then
+  [[ -f "$file" ]] || die "$file not found" "Pass the path of a pg_dump -Fc file on this laptop."
+  export FIVEDAYS_DIR="$FIVEDAYS_ROOT" FIVEDAYS_ENV_FILE="${FIVEDAYS_ENV_FILE:-$FIVEDAYS_ROOT/.env}"
+  export FIVEDAYS_COMPOSE_FILES="compose.yaml compose.dev.yaml"
+  load_env "$FIVEDAYS_ENV_FILE"
+  [[ "${IMAGE_TAG:-}" == "local" && "${COMPOSE_PROJECT_NAME:-}" != "fivedays" ]] ||
+    die "$FIVEDAYS_ENV_FILE is not a local env file (IMAGE_TAG=${IMAGE_TAG:-unset}, project ${COMPOSE_PROJECT_NAME:-unset})" "just restore local only restores into a local stack. Run: just init local"
+  project="$COMPOSE_PROJECT_NAME"
+  for v in moodledata pgdata backups; do
+    docker volume inspect "${project}_$v" >/dev/null 2>&1 || die "Volume ${project}_$v is missing" "Run: just init local"
+  done
+  helper="$FIVEDAYS_ROOT/host/backup-restore.sh"
+  log "target: local project $project ($MOODLE_WWWROOT); dump: $file ($(du -h "$file" | cut -f1))"
+  bash "$helper" receive "$upload" <"$file"
+  # The upload is ours: removed again unless the restore ran (which removes it itself on success).
+  trap 'bash "$helper" discard "$upload" >/dev/null 2>&1 || true' EXIT
+  check="$(bash "$helper" check "$upload")" || die "$file is not a readable pg_dump -Fc file" "Pass a dump made by pg_dump -Fc."
+  tables="$(grep '^tables=' <<<"$check" | cut -d= -f2)"
+  ok "dump readable ($(grep '^dump_bytes=' <<<"$check" | cut -d= -f2) bytes); local database has $tables tables"
+  printf '\nThis replaces the database of the local project %s (%s tables now).\nA pre-restore dump goes to its backups volume first.\n' "$project" "$tables"
+  confirm local
+  bash "$helper" restore "$upload" --replace --local --remove-after
+  ok "local stack restored from $file: $MOODLE_WWWROOT (email and push blocked)"
+  exit 0
+fi
+
+host="$target"
+need_ssh_key
+remote="FIVEDAYS_DIR=$HOST_DIR bash $HOST_DIR/host/backup-restore.sh"
+on_host "$host" "test -f $HOST_DIR/host/backup-restore.sh" || die "$host has no $HOST_DIR/host/backup-restore.sh" "Run: just deploy $host <tag> (it copies host/ to the host)."
+if [[ -f "$file" ]]; then
+  log "uploading $file ($(du -h "$file" | cut -f1)) into the backups volume on $host as $upload"
+  on_host "$host" "$remote receive $upload" <"$file"
+  trap 'on_host "$host" "$remote discard $upload" >/dev/null 2>&1 || true' EXIT
+  name="$upload"; after=(--remove-after)
+else
+  name="$file"; after=()
+  log "using $name from the backups volume on $host"
+fi
+check="$(on_host "$host" "$remote check $(printf '%q' "$name")")" || die "$name on $host is missing or not a readable pg_dump -Fc file" "Pass an existing dump (just backup --status $host lists the dumps there)."
+tables="$(grep '^tables=' <<<"$check" | cut -d= -f2)"
+ok "dump readable on $host; its database has $tables tables"
+if (( tables > 0 )); then
+  printf '\n%s holds a live database (%s tables). Restoring replaces it; writes since the dump are lost.\nA pre-restore dump goes to its backups volume first.\n' "$host" "$tables"
+  confirm "$(host_name "$host")"
+  mode=--replace
+else
+  mode=--empty-only
+fi
+[[ ${#tag_arg[@]} -eq 0 ]] || log "migrate and the app will start with image tag ${tag_arg[0]#--tag=} (PREVIOUS_IMAGE_TAG = the live tag)"
+tag_opt=""; [[ ${#tag_arg[@]} -eq 0 ]] || tag_opt="$(printf '%q' "${tag_arg[0]}")"
+on_host "$host" "$remote restore $(printf '%q' "$name") $mode ${after[*]:-} $tag_opt"
+ok "$host restored from $name"
