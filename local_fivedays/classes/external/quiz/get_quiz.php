@@ -128,6 +128,8 @@ class get_quiz extends external_api {
                         'incorrectfeedbackformat' => (int)$mcopt->incorrectfeedbackformat,
                     ];
                 }
+            } else if (in_array($slot->qtype, ['match', 'gapselect', 'ddwtos'], true)) {
+                $options = self::get_gap_match_options($slot->qtype, $questionid, $answers);
             } else if ($slot->qtype === 'essay') {
                 $essayopt = $DB->get_record('qtype_essay_options', ['questionid' => $questionid]);
                 if ($essayopt) {
@@ -231,6 +233,62 @@ class get_quiz extends external_api {
         ];
     }
 
+    /**
+     * Options of the match, gapselect and ddwtos types: shuffle flag and combined feedback, plus
+     * `subquestions` (match) or `choices` (gapselect, ddwtos; the choice group and, for ddwtos,
+     * the "unlimited" flag are kept in the answer's `feedback` column).
+     */
+    private static function get_gap_match_options(string $qtype, int $questionid, array $answers): ?array {
+        global $DB;
+
+        $table = $qtype === 'match' ? 'qtype_match_options' : 'question_' . $qtype;
+        $record = $DB->get_record($table, ['questionid' => $questionid]);
+        if (!$record) {
+            return null;
+        }
+
+        $options = [
+            'shuffleanswers' => (int)$record->shuffleanswers,
+            'correctfeedback' => $record->correctfeedback ?? '',
+            'correctfeedbackformat' => (int)$record->correctfeedbackformat,
+            'partiallycorrectfeedback' => $record->partiallycorrectfeedback ?? '',
+            'partiallycorrectfeedbackformat' => (int)$record->partiallycorrectfeedbackformat,
+            'incorrectfeedback' => $record->incorrectfeedback ?? '',
+            'incorrectfeedbackformat' => (int)$record->incorrectfeedbackformat,
+        ];
+
+        if ($qtype === 'match') {
+            $subquestions = $DB->get_records('qtype_match_subquestions', ['questionid' => $questionid], 'id ASC');
+            $options['subquestions'] = [];
+            foreach ($subquestions as $sub) {
+                $options['subquestions'][] = [
+                    'id' => (int)$sub->id,
+                    'questiontext' => $sub->questiontext ?? '',
+                    'answertext' => $sub->answertext ?? '',
+                ];
+            }
+            return $options;
+        }
+
+        $options['choices'] = [];
+        foreach ($answers as $answer) {
+            if ($qtype === 'ddwtos') {
+                $stored = unserialize_object((string)$answer->feedback);
+                $options['choices'][] = [
+                    'answer' => $answer->answer ?? '',
+                    'choicegroup' => (int)($stored->draggroup ?? 1),
+                    'infinite' => empty($stored->infinite) ? 0 : 1,
+                ];
+            } else {
+                $options['choices'][] = [
+                    'answer' => $answer->answer ?? '',
+                    'choicegroup' => (int)$answer->feedback,
+                ];
+            }
+        }
+        return $options;
+    }
+
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'id' => new external_value(PARAM_INT, 'Quiz ID'),
@@ -325,14 +383,14 @@ class get_quiz extends external_api {
                         'trueanswer' => new external_value(PARAM_INT, 'True answer ID (truefalse only)', VALUE_OPTIONAL),
                         'falseanswer' => new external_value(PARAM_INT, 'False answer ID (truefalse only)', VALUE_OPTIONAL),
                         'single' => new external_value(PARAM_INT, 'Single answer mode (multichoice only)', VALUE_OPTIONAL),
-                        'shuffleanswers' => new external_value(PARAM_INT, 'Shuffle answers (multichoice only)', VALUE_OPTIONAL),
+                        'shuffleanswers' => new external_value(PARAM_INT, 'Shuffle answers (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
                         'answernumbering' => new external_value(PARAM_TEXT, 'Answer numbering style (multichoice only)', VALUE_OPTIONAL),
-                        'correctfeedback' => new external_value(PARAM_RAW, 'Correct feedback (multichoice only)', VALUE_OPTIONAL),
-                        'correctfeedbackformat' => new external_value(PARAM_INT, 'Correct feedback format (multichoice only)', VALUE_OPTIONAL),
-                        'partiallycorrectfeedback' => new external_value(PARAM_RAW, 'Partially correct feedback (multichoice only)', VALUE_OPTIONAL),
-                        'partiallycorrectfeedbackformat' => new external_value(PARAM_INT, 'Partially correct feedback format (multichoice only)', VALUE_OPTIONAL),
-                        'incorrectfeedback' => new external_value(PARAM_RAW, 'Incorrect feedback (multichoice only)', VALUE_OPTIONAL),
-                        'incorrectfeedbackformat' => new external_value(PARAM_INT, 'Incorrect feedback format (multichoice only)', VALUE_OPTIONAL),
+                        'correctfeedback' => new external_value(PARAM_RAW, 'Correct feedback (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
+                        'correctfeedbackformat' => new external_value(PARAM_INT, 'Correct feedback format (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
+                        'partiallycorrectfeedback' => new external_value(PARAM_RAW, 'Partially correct feedback (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
+                        'partiallycorrectfeedbackformat' => new external_value(PARAM_INT, 'Partially correct feedback format (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
+                        'incorrectfeedback' => new external_value(PARAM_RAW, 'Incorrect feedback (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
+                        'incorrectfeedbackformat' => new external_value(PARAM_INT, 'Incorrect feedback format (multichoice, match, gapselect, ddwtos)', VALUE_OPTIONAL),
                         'responseformat' => new external_value(PARAM_ALPHA, 'Response format (essay only)', VALUE_OPTIONAL),
                         'responserequired' => new external_value(PARAM_INT, 'Response required (essay only)', VALUE_OPTIONAL),
                         'responsefieldlines' => new external_value(PARAM_INT, 'Response field lines (essay only)', VALUE_OPTIONAL),
@@ -342,6 +400,24 @@ class get_quiz extends external_api {
                         'attachmentsrequired' => new external_value(PARAM_INT, 'Required attachments (essay only)', VALUE_OPTIONAL),
                         'graderinfo' => new external_value(PARAM_RAW, 'Information for graders (essay only)', VALUE_OPTIONAL),
                         'responsetemplate' => new external_value(PARAM_RAW, 'Response template (essay only)', VALUE_OPTIONAL),
+                        'subquestions' => new external_multiple_structure(
+                            new external_single_structure([
+                                'id' => new external_value(PARAM_INT, 'Subquestion ID'),
+                                'questiontext' => new external_value(PARAM_RAW, 'Question side (empty for an extra wrong answer)'),
+                                'answertext' => new external_value(PARAM_RAW, 'Matching answer'),
+                            ]),
+                            'Pairs (match only)',
+                            VALUE_OPTIONAL
+                        ),
+                        'choices' => new external_multiple_structure(
+                            new external_single_structure([
+                                'answer' => new external_value(PARAM_RAW, 'Choice text'),
+                                'choicegroup' => new external_value(PARAM_INT, 'Choice group'),
+                                'infinite' => new external_value(PARAM_INT, 'Can be used in more than one gap (ddwtos only)', VALUE_OPTIONAL),
+                            ]),
+                            'Choices in placeholder order, [[n]] is choice n (gapselect and ddwtos only)',
+                            VALUE_OPTIONAL
+                        ),
                     ], 'Question type-specific options', VALUE_OPTIONAL),
                 ]),
                 'Quiz questions'

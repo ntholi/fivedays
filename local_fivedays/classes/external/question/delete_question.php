@@ -108,6 +108,16 @@ class delete_question extends external_api {
                     case 'essay':
                         $DB->delete_records('qtype_essay_options', ['questionid' => $version->questionid]);
                         break;
+                    case 'match':
+                        $DB->delete_records('qtype_match_options', ['questionid' => $version->questionid]);
+                        $DB->delete_records('qtype_match_subquestions', ['questionid' => $version->questionid]);
+                        break;
+                    case 'gapselect':
+                        $DB->delete_records('question_gapselect', ['questionid' => $version->questionid]);
+                        break;
+                    case 'ddwtos':
+                        $DB->delete_records('question_ddwtos', ['questionid' => $version->questionid]);
+                        break;
                     case 'numerical':
                         $DB->delete_records('question_numerical', ['question' => $version->questionid]);
                         $DB->delete_records('question_numerical_options', ['question' => $version->questionid]);

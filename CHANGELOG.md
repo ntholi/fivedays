@@ -2,6 +2,17 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-24
+
+### Added
+- `create_match_question`, `create_description_question`, `create_gapselect_question` and `create_ddwtos_question` create matching, description, select missing words and drag and drop into text questions. Each accepts an optional `questionbankentryid` to save a new version, like the other `create_*_question` functions. Invalid pairs, choices or gaps throw `invalidquestiondata` with the reason. A description always has mark 0.
+- `get_quiz` returns `options` for these types: `shuffleanswers` and the combined feedback, plus `subquestions` (match) or `choices` with `choicegroup` and, for ddwtos, `infinite`.
+
+### Fixed
+- `add_question_to_quiz` gives a description slot mark 0 and `update_quiz_slot_mark` refuses a non-zero mark for one.
+- `get_quiz_attempt_details` reports the finished state of a description as `complete` instead of `unknown`.
+- `delete_question` also removes the options rows of match, gapselect and ddwtos questions.
+
 ## 2026-10-23 (3)
 
 ### Changed

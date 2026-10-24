@@ -13,6 +13,7 @@ $string['fivedays:createbook'] = 'Create book resources via FiveDays';
 $string['fivedays:readbook'] = 'Read book resources via FiveDays';
 $string['fivedays:updateassignment'] = 'Update assignments via FiveDays';
 $string['groupsubmitted'] = 'These groups have already submitted, so their members cannot change: {$a}';
+$string['invalidquestiondata'] = '{$a}';
 $string['activitynotfound'] = 'The activity no longer exists.';
 $string['cannotdeletesitecourse'] = 'The site course cannot be deleted.';
 $string['coursenotfound'] = 'The course does not exist.';

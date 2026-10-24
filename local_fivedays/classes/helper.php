@@ -37,6 +37,199 @@ class helper {
         }
     }
 
+    public static function invalid_question(string $message): \moodle_exception {
+        return new \moodle_exception('invalidquestiondata', 'local_fivedays', '', $message);
+    }
+
+    /**
+     * Decodes a JSON array parameter, throwing `invalidquestiondata` when it is not a list.
+     */
+    public static function decode_question_json(string $json, string $what): array {
+        $decoded = json_decode($json, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded) || !array_is_list($decoded)) {
+            throw self::invalid_question("{$what} must be a JSON array.");
+        }
+        return $decoded;
+    }
+
+    /**
+     * Validates the choices JSON and the `[[n]]` placeholders of a gapselect or ddwtos
+     * question and returns the choices as [['answer' => string, 'group' => int, 'infinite' => bool], ...]
+     * in the given order. `[[n]]` is the 1-based index of a choice in that order.
+     * Mirrors the checks of Moodle's own edit forms for these types.
+     */
+    public static function parse_gap_choices(string $json, string $questiontext, bool $draggable): array {
+        $maxgroup = $draggable ? 8 : 20;
+        $rows = self::decode_question_json($json, 'choices');
+
+        $choices = [];
+        foreach ($rows as $index => $row) {
+            $number = $index + 1;
+            if (!is_array($row)) {
+                throw self::invalid_question("Choice {$number} must be an object with answer and group.");
+            }
+
+            $answer = trim((string)($row['answer'] ?? ''));
+            if ($answer === '') {
+                throw self::invalid_question("Choice {$number} is empty.");
+            }
+
+            $group = $row['group'] ?? 1;
+            if (!is_int($group) && !(is_string($group) && ctype_digit($group))) {
+                throw self::invalid_question("The group of choice {$number} must be a whole number.");
+            }
+            $group = (int)$group;
+            if ($group < 1 || $group > $maxgroup) {
+                throw self::invalid_question("The group of choice {$number} must be between 1 and {$maxgroup}.");
+            }
+
+            $choices[] = [
+                'answer' => $answer,
+                'group' => $group,
+                'infinite' => $draggable && !empty($row['infinite']),
+            ];
+        }
+
+        preg_match_all('/\[\[([^\]]*?)\]\]/', $questiontext, $matches);
+        if (empty($matches[1])) {
+            throw self::invalid_question('The question text needs at least one gap, written as [[1]].');
+        }
+
+        $uses = [];
+        foreach ($matches[1] as $slot) {
+            if (!ctype_digit($slot) || (int)$slot < 1 || (int)$slot > count($choices)) {
+                throw self::invalid_question("The gap [[{$slot}]] does not match any of the " . count($choices) . ' choices.');
+            }
+            $uses[(int)$slot] = ($uses[(int)$slot] ?? 0) + 1;
+        }
+
+        if ($draggable) {
+            foreach ($uses as $slot => $count) {
+                if ($count > 1 && !$choices[$slot - 1]['infinite']) {
+                    throw self::invalid_question("Choice {$slot} is used in more than one gap, so it must be set to unlimited.");
+                }
+            }
+        }
+
+        return $choices;
+    }
+
+    /**
+     * Writes what qtype_gapselect_base::save_question_options() writes for a gapselect or
+     * ddwtos question: one `question_answers` row per choice (the group, and for ddwtos the
+     * serialised group and "unlimited" flag, live in its `feedback` column) and the
+     * `question_gapselect` / `question_ddwtos` options row. $choices come from parse_gap_choices().
+     */
+    public static function insert_gap_question_options(
+        string $qtype,
+        int $questionid,
+        array $choices,
+        int $shuffleanswers,
+        string $correctfeedback,
+        string $partiallycorrectfeedback,
+        string $incorrectfeedback
+    ): void {
+        global $DB;
+
+        foreach ($choices as $choice) {
+            if ($qtype === 'ddwtos') {
+                $feedback = new \stdClass();
+                $feedback->draggroup = $choice['group'];
+                $feedback->infinite = $choice['infinite'];
+                $feedback = serialize($feedback);
+            } else {
+                $feedback = (string)$choice['group'];
+            }
+
+            $answer = new \stdClass();
+            $answer->question = $questionid;
+            $answer->answer = $choice['answer'];
+            $answer->answerformat = FORMAT_HTML;
+            $answer->fraction = 0;
+            $answer->feedback = $feedback;
+            $answer->feedbackformat = 0;
+            $DB->insert_record('question_answers', $answer);
+        }
+
+        $options = new \stdClass();
+        $options->questionid = $questionid;
+        $options->shuffleanswers = $shuffleanswers ? 1 : 0;
+        $options->correctfeedback = $correctfeedback;
+        $options->correctfeedbackformat = FORMAT_HTML;
+        $options->partiallycorrectfeedback = $partiallycorrectfeedback;
+        $options->partiallycorrectfeedbackformat = FORMAT_HTML;
+        $options->incorrectfeedback = $incorrectfeedback;
+        $options->incorrectfeedbackformat = FORMAT_HTML;
+        $options->shownumcorrect = 0;
+        $DB->insert_record('question_' . $qtype, $options);
+    }
+
+    /**
+     * Inserts a row in `question` for a question that is saved by its own create function
+     * and returns its id. Callers add the version with save_question_version() and the
+     * qtype options themselves.
+     */
+    public static function insert_question(
+        string $qtype,
+        int $categoryid,
+        string $name,
+        string $questiontext,
+        float $defaultmark,
+        string $generalfeedback,
+        float $penalty = 0.3333333,
+        int $length = 1
+    ): int {
+        global $DB, $USER;
+
+        $question = new \stdClass();
+        $question->category = $categoryid;
+        $question->parent = 0;
+        $question->name = $name;
+        $question->questiontext = $questiontext;
+        $question->questiontextformat = FORMAT_HTML;
+        $question->generalfeedback = $generalfeedback;
+        $question->generalfeedbackformat = FORMAT_HTML;
+        $question->defaultmark = $defaultmark;
+        $question->penalty = $penalty;
+        $question->qtype = $qtype;
+        $question->length = $length;
+        $question->stamp = make_unique_id_code();
+        $question->timecreated = time();
+        $question->timemodified = time();
+        $question->createdby = $USER->id;
+        $question->modifiedby = $USER->id;
+
+        return (int)$DB->insert_record('question', $question);
+    }
+
+    /**
+     * Returns the qtype of the question a quiz slot currently shows, or null when unknown.
+     */
+    public static function get_slot_qtype(int $slotid): ?string {
+        global $DB;
+
+        $qtype = $DB->get_field_sql(
+            "SELECT q.qtype
+               FROM {question_references} qr
+               JOIN {question_versions} qv ON qv.questionbankentryid = qr.questionbankentryid
+               JOIN {question} q ON q.id = qv.questionid
+              WHERE qr.component = 'mod_quiz'
+                AND qr.questionarea = 'slot'
+                AND qr.itemid = ?
+                AND qv.status = 'ready'
+                AND qv.version = (
+                    SELECT MAX(qv2.version)
+                      FROM {question_versions} qv2
+                     WHERE qv2.questionbankentryid = qr.questionbankentryid
+                       AND qv2.status = 'ready'
+                )",
+            [$slotid],
+            IGNORE_MULTIPLE
+        );
+
+        return $qtype === false ? null : $qtype;
+    }
+
     public static function save_question_version(
         int $categoryid,
         int $questionid,

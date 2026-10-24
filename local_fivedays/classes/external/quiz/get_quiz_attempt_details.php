@@ -117,7 +117,7 @@ class get_quiz_attempt_details extends external_api {
             return 'gradedwrong';
         } else if ($state == \question_state::$mangrpartial) {
             return 'gradedpartial';
-        } else if ($state == \question_state::$complete) {
+        } else if ($state == \question_state::$complete || $state == \question_state::$finished) {
             return 'complete';
         } else if ($state == \question_state::$todo) {
             return 'todo';

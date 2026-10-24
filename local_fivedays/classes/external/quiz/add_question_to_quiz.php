@@ -134,7 +134,11 @@ class add_question_to_quiz extends external_api {
         }
 
         
-        $mark = $params['maxmark'] !== null ? $params['maxmark'] : (float)$questionversion->defaultmark;
+        if ($questionversion->qtype === 'description') {
+            $mark = 0.0;
+        } else {
+            $mark = $params['maxmark'] !== null ? $params['maxmark'] : (float)$questionversion->defaultmark;
+        }
 
         
         $newslot = $maxslot + 1;

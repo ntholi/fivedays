@@ -45,6 +45,13 @@ class update_quiz_slot_mark extends external_api {
             ];
         }
 
+        if ($params['maxmark'] != 0 && \local_fivedays\helper::get_slot_qtype((int)$slotrecord->id) === 'description') {
+            return [
+                'success' => false,
+                'message' => 'A description is not marked',
+            ];
+        }
+
         if ($params['maxmark'] < 0) {
             return [
                 'success' => false,

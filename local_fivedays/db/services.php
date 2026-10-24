@@ -501,6 +501,38 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:createquestion',
     ),
+    'local_fivedays_create_match_question' => array(
+        'classname' => 'local_fivedays\external\question\create_match_question',
+        'methodname' => 'execute',
+        'description' => 'Create a matching question',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:createquestion',
+    ),
+    'local_fivedays_create_description_question' => array(
+        'classname' => 'local_fivedays\external\question\create_description_question',
+        'methodname' => 'execute',
+        'description' => 'Create a description (information only, no mark)',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:createquestion',
+    ),
+    'local_fivedays_create_gapselect_question' => array(
+        'classname' => 'local_fivedays\external\question\create_gapselect_question',
+        'methodname' => 'execute',
+        'description' => 'Create a select missing words question',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:createquestion',
+    ),
+    'local_fivedays_create_ddwtos_question' => array(
+        'classname' => 'local_fivedays\external\question\create_ddwtos_question',
+        'methodname' => 'execute',
+        'description' => 'Create a drag and drop into text question',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:createquestion',
+    ),
 
     'local_fivedays_get_questions' => array(
         'classname' => 'local_fivedays\external\question\get_questions',

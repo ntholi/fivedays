@@ -1440,6 +1440,41 @@ Creates a multiple choice question supporting both single and multiple answer mo
 }
 ```
 
+### Create Matching Question
+
+`local_fivedays_create_match_question`
+
+Common optional parameters: `defaultmark` (1.0), `shuffleanswers` (1), `correctfeedback`, `partiallycorrectfeedback`, `incorrectfeedback`, `generalfeedback`, `idnumber`, `tags`, `questionbankentryid`.
+
+| Parameter    | Type   | Required | Description                                                                 |
+| ------------ | ------ | -------- | --------------------------------------------------------------------------- |
+| `categoryid` | int    | Yes      | Question category ID                                                        |
+| `name`       | string | Yes      | Question name                                                               |
+| `questiontext` | string | Yes    | Question text (HTML)                                                        |
+| `pairs`      | string | Yes      | JSON `[{"question":"Stem","answer":"Match"}]`; at least 2 pairs with both parts. A pair with an empty `question` is an extra wrong answer. Answers are at most 255 characters. |
+
+Invalid input throws `invalidquestiondata` with the reason.
+
+### Create Description
+
+`local_fivedays_create_description_question`
+
+Information only: mark 0, no response. Parameters: `categoryid`, `name`, `questiontext` (required), `generalfeedback`, `idnumber`, `tags`, `questionbankentryid`. `add_question_to_quiz` always gives it mark 0 and `update_quiz_slot_mark` refuses a non-zero mark for it.
+
+### Create Select Missing Words Question
+
+`local_fivedays_create_gapselect_question`
+
+Same optional parameters as the matching question. `choices` (required) is a JSON array `[{"answer":"word","group":1}]`; `[[1]]`, `[[2]]` in the question text point at a choice by its 1-based position. Every `[[n]]` must match a choice, the text needs at least one gap, and `group` is 1-20. Unused choices act as distractors.
+
+### Create Drag and Drop into Text Question
+
+`local_fivedays_create_ddwtos_question`
+
+Same as the select missing words question, but `choices` is `[{"answer":"word","group":1,"infinite":false}]`, `group` is 1-8, and a choice used in more than one gap needs `infinite` true.
+
+All four return `questionid`, `questionbankentryid`, `name`, `success` and `message`. `get_quiz` returns for `match`, `gapselect` and `ddwtos` the `options` `shuffleanswers`, `correctfeedback`, `partiallycorrectfeedback`, `incorrectfeedback` (with formats), plus `subquestions` (`id`, `questiontext`, `answertext`) for match or `choices` (`answer`, `choicegroup`, and `infinite` for ddwtos) for the other two.
+
 ### Get Questions
 
 `local_fivedays_get_questions`
