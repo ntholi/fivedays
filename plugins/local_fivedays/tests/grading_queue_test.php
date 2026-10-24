@@ -84,6 +84,7 @@ class grading_queue_test extends advanced_testcase {
         $category = $questiongenerator->create_question_category();
         $question = $questiongenerator->create_question('essay', 'plain', ['category' => $category->id]);
         quiz_add_quiz_question($question->id, $quiz);
+        \mod_quiz\quiz_settings::create($quiz->id)->get_grade_calculator()->recompute_quiz_sumgrades();
 
         $student = $generator->create_and_enrol($this->course, 'student');
         $quizobj = \mod_quiz\quiz_settings::create($quiz->id, $student->id);

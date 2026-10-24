@@ -24,7 +24,7 @@ class rebind_user_email extends external_api {
         provision_helper::require_system_capability();
 
         $issuer = provision_helper::require_google_issuer();
-        $service = provision_helper::ensure_rest_service();
+        $service = provision_helper::rest_service();
         $user = provision_helper::rebind_oauth_user_email(
             $params['fromemail'],
             $params['toemail'],

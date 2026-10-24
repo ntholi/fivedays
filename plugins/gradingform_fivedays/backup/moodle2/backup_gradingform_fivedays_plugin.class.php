@@ -42,11 +42,13 @@ class backup_gradingform_fivedays_plugin extends backup_gradingform_plugin {
         $pluginwrapper = new backup_nested_element($this->get_recommended_name());
         $plugin->add_child($pluginwrapper);
 
-        $criteria = new backup_nested_element('criteria');
-        $criterion = new backup_nested_element('criterion', ['id'], [
+        // Element names must differ from every other grading form's (core rubric uses criteria,
+        // criterion, levels, level): the backup optigroup throws multiple_optigroup_duplicate_element.
+        $criteria = new backup_nested_element('fivedayscriteria');
+        $criterion = new backup_nested_element('fivedayscriterion', ['id'], [
             'sortorder', 'description', 'descriptionformat']);
-        $levels = new backup_nested_element('levels');
-        $level = new backup_nested_element('level', ['id'], [
+        $levels = new backup_nested_element('fivedayslevels');
+        $level = new backup_nested_element('fivedayslevel', ['id'], [
             'score', 'definition', 'definitionformat']);
 
         $pluginwrapper->add_child($criteria);
@@ -73,8 +75,8 @@ class backup_gradingform_fivedays_plugin extends backup_gradingform_plugin {
         $pluginwrapper = new backup_nested_element($this->get_recommended_name());
         $plugin->add_child($pluginwrapper);
 
-        $fillings = new backup_nested_element('fillings');
-        $filling = new backup_nested_element('filling', ['id'], [
+        $fillings = new backup_nested_element('fivedaysfillings');
+        $filling = new backup_nested_element('fivedaysfilling', ['id'], [
             'criterionid', 'levelid', 'score', 'remark', 'remarkformat']);
 
         $pluginwrapper->add_child($fillings);

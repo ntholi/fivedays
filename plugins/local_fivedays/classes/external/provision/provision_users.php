@@ -29,7 +29,7 @@ class provision_users extends external_api {
         provision_helper::require_system_capability();
 
         $issuer = provision_helper::require_google_issuer();
-        $service = provision_helper::ensure_rest_service();
+        $service = provision_helper::rest_service();
         $result = [];
 
         foreach ($params['users'] as $user) {

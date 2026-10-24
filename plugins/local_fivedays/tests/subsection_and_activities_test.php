@@ -4,7 +4,6 @@ namespace local_fivedays\tests;
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
-require_once($CFG->libdir . '/externallib.php');
 
 use advanced_testcase;
 use context_course;
@@ -28,8 +27,7 @@ class subsection_and_activities_test extends advanced_testcase {
         ]);
 
         $this->user = $this->getDataGenerator()->create_user();
-        $teacherrole = $this->getDataGenerator()->get_role_by_shortname('editingteacher');
-        $this->getDataGenerator()->role_assign($teacherrole->id, $this->user->id, context_course::instance($this->course->id));
+        $this->getDataGenerator()->enrol_user($this->user->id, $this->course->id, 'editingteacher');
 
         $this->setUser($this->user);
     }
@@ -287,6 +285,6 @@ class subsection_and_activities_test extends advanced_testcase {
         $modinfo = get_fast_modinfo($this->course);
 
         $this->assertNotNull($modinfo);
-        $this->assertGreater(count($modinfo->sections), 0);
+        $this->assertGreaterThan(0, count($modinfo->sections));
     }
 }

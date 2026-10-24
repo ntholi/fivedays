@@ -711,3 +711,53 @@ $functions = array(
         'capabilities' => 'local/fivedays:viewgradingqueue',
     ),
 );
+
+// The service registry-web calls. Moodle's upgrade keeps its function list equal to this one.
+// The array key must stay 'FiveDays': Moodle matches existing rows by name and deletes (with every
+// per-user token) any local_fivedays service whose name is not a key here. db/upgrade.php hands the
+// row created by provision_helper over to this component.
+$services = array(
+    'FiveDays' => array(
+        'shortname' => 'fivedays',
+        'functions' => array_merge(array_keys($functions), array(
+            'core_course_create_courses',
+            'core_course_delete_modules',
+            'core_course_get_categories',
+            'core_course_get_contents',
+            'core_course_get_course_module',
+            'core_course_get_course_module_by_instance',
+            'core_course_get_courses_by_field',
+            'core_enrol_get_enrolled_users',
+            'core_enrol_get_enrolled_users_with_capability',
+            'core_enrol_get_users_courses',
+            'core_files_get_unused_draft_itemid',
+            'core_user_create_users',
+            'core_user_get_users',
+            'core_webservice_get_site_info',
+            'enrol_manual_enrol_users',
+            'enrol_manual_unenrol_users',
+            'mod_assign_get_assignments',
+            'mod_assign_get_grades',
+            'mod_assign_get_submission_status',
+            'mod_assign_get_submissions',
+            'mod_assign_save_grade',
+            'mod_assign_save_grades',
+            'mod_bigbluebuttonbn_get_join_url',
+            'mod_forum_add_discussion',
+            'mod_forum_add_discussion_post',
+            'mod_forum_delete_post',
+            'mod_forum_get_discussion_posts',
+            'mod_forum_get_discussion_posts_by_userid',
+            'mod_forum_get_forum_discussions',
+            'mod_forum_get_forums_by_courses',
+            'mod_page_get_pages_by_courses',
+            'mod_page_view_page',
+            'mod_quiz_get_quizzes_by_courses',
+            'mod_url_get_urls_by_courses',
+        )),
+        'enabled' => 1,
+        'restrictedusers' => 0,
+        'downloadfiles' => 1,
+        'uploadfiles' => 1,
+    ),
+);

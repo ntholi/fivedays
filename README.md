@@ -1,11 +1,11 @@
 # FiveDays Moodle plugins
 
-Moodle plugins for FiveDays, the LMS side of registry-web. Each folder is one plugin, named by its Moodle component.
+Moodle plugins for FiveDays, the LMS side of registry-web. Each folder under `plugins/` is one plugin, named by its Moodle component.
 
 | Folder | Moodle component | Shown in Moodle as | Installs to |
 | --- | --- | --- | --- |
-| `local_fivedays/` | `local_fivedays` | FiveDays | `local/fivedays` |
-| `gradingform_fivedays/` | `gradingform_fivedays` | FiveDays Rubric | `grade/grading/form/fivedays` |
+| `plugins/local_fivedays/` | `local_fivedays` | FiveDays | `local/fivedays` |
+| `plugins/gradingform_fivedays/` | `gradingform_fivedays` | FiveDays Rubric | `grade/grading/form/fivedays` |
 
 ## Naming
 

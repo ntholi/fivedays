@@ -8,7 +8,7 @@ REST API endpoints for programmatic Moodle course content management.
 
 ## Features
 
-65 web service functions:
+Web service functions:
 
 - **Sections** (6): create, update, delete sections and subsections
 - **Assignments** (6): create, update, delete, get grades, save grade, release grades
@@ -28,15 +28,17 @@ REST API endpoints for programmatic Moodle course content management.
 
 This plugin requires the **gradingform_fivedays** plugin to be installed for rubric functionality. Install it from `moodle-gradingform_fivedays` before installing this plugin.
 
-## Quick Setup
+## Setup
 
-1. Install `gradingform_fivedays` plugin to `grade/grading/form/fivedays`
-2. Copy this plugin to `local/fivedays`
-3. Run Moodle upgrade via **Site Administration > Notifications**
-4. Enable web services: **Site Administration > Advanced features**
-5. Enable REST protocol: **Site Administration > Plugins > Web services > Manage protocols**
-6. Create external service with plugin functions
-7. Generate API token
+The Docker stack in this repo installs the plugin and runs `cli/setup.php` after every install or upgrade. Nothing is set up by hand:
+
+- `db/services.php` declares the **FiveDays** web service (shortname `fivedays`) with every `local_fivedays_*` function plus the core functions the prod service already had. Moodle's upgrade keeps the service's function list equal to it. Version 2026102404 hands the older, runtime-created service row over to the plugin, keeping all its per-user tokens.
+- `cli/setup.php` (idempotent, prints `ok` / `changed` / `FAIL` per item, exits 1 on any `FAIL`):
+  - creates the `fivedays_ws` user with a system role copied from the Manager archetype plus `webservice/rest:use`, and prints its token once (registry-web's `MOODLE_TOKEN`);
+  - creates or updates the Google OAuth issuer from `MOODLE_GOOGLE_CLIENT_ID` / `MOODLE_GOOGLE_CLIENT_SECRET`;
+  - adds the Redis store `fivedays_redis` and maps the application cache to it;
+  - turns on phone push (`airnotifier`) and adds it to every notification type's default outputs, never touching locked defaults or users' own preferences;
+  - with `MOODLE_PUSH=1` on `https://luct.click`: requests the push access key and runs the push configuration check.
 
 ## API Usage
 

@@ -26,7 +26,9 @@ class create_draft_files extends external_api {
     }
 
     public static function execute(array $files): array {
-        global $USER;
+        global $CFG, $USER;
+
+        require_once($CFG->libdir . '/filelib.php');
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'files' => $files,

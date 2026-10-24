@@ -278,7 +278,7 @@ class helper {
             'section' => $sectionnum
         ]);
         
-        return $section;
+        return $section ?: null;
     }
 
     public static function resolve_section_id(int $courseid, int $sectionnum): ?int {
@@ -323,7 +323,16 @@ class helper {
             $moduleinfo->$property = $value;
         }
 
-        return add_moduleinfo($moduleinfo, $course);
+        $moduleinfo = add_moduleinfo($moduleinfo, $course);
+
+        // Like core's new-module default (prepare_new_moduleinfo_data), a module created inside a hidden
+        // subsection starts hidden.
+        $section = self::get_section_by_number($course->id, $sectionnum);
+        if ($section && $section->component === 'mod_subsection') {
+            self::inherit_subsection_visibility((int) $moduleinfo->coursemodule, $section, $visible);
+        }
+
+        return $moduleinfo;
     }
 
     public static function add_module_to_section(int $courseid, int $sectionnum, int $cmid, int $coursemodule_visible): void {

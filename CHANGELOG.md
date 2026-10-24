@@ -2,6 +2,23 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-24 (4)
+
+### Added
+- `db/services.php` declares the FiveDays web service (`$services`, shortname `fivedays`): every `local_fivedays_*` function plus the 34 core functions the prod service already had. Moodle's upgrade now keeps the service in sync, so registry-web no longer adds functions to it.
+- `cli/setup.php` sets the site up from the environment: the `fivedays_ws` web-service user with a Manager-archetype system role and its token, the Google issuer, the Redis application cache, and phone push on by default for every notification type (plus the push access key on `https://luct.click` when `MOODLE_PUSH=1`).
+
+### Changed
+- Version 2026102404 hands the existing `fivedays` service row (created at runtime, no component) over to `local_fivedays`. Its per-user tokens stay. The upgrade stops with an error if a `fivedays` service exists under another name or component.
+- `provision_helper::ensure_rest_service()` is now `rest_service()`: it only loads the service and no longer creates it, renames it or changes web-service settings.
+- The plugins live under `plugins/`.
+
+### Fixed
+Found by the new web-service contract test (`docker/contract`), which calls every FiveDays service function with the `fivedays_ws` token:
+- `gradingform_fivedays` 2026102400: deleting any activity that supports advanced grading (assignment, forum) failed with `multiple_optigroup_duplicate_element` whenever the recycle bin was on, and course backup and activity duplication failed the same way. The backup reused core rubric's element names; they are now `fivedayscriteria`, `fivedayscriterion`, `fivedayslevels`, `fivedayslevel`, `fivedaysfillings` and `fivedaysfilling`, and restore reads those paths. No older backup can hold the old names, because every such backup failed.
+- `create_draft_files` failed with "Call to undefined function file_get_unused_draft_itemid()": it now loads `lib/filelib.php`.
+- `reorder_quiz_questions` saved the new order but answered "Database transaction error": its `slot_moved` events used `previousslot`/`afterslot` instead of `previousslotnumber`/`afterslotnumber`, and a failure after the commit tried to roll back the finished transaction. The events are now built correctly and fired after the commit.
+
 ## 2026-10-24 (3)
 
 ### Added

@@ -30,50 +30,12 @@ class provision_helper {
         return $issuer;
     }
 
-    public static function ensure_rest_service(): \stdClass {
-        global $CFG, $DB;
+    /** The FiveDays service row; db/services.php creates it and keeps its function list. */
+    public static function rest_service(): \stdClass {
+        global $DB;
 
-        require_once($CFG->dirroot . '/webservice/lib.php');
-
-        set_config('enablewebservices', 1);
-        $protocols = array_filter(explode(',', get_config('core', 'webserviceprotocols') ?: ''));
-        if (!in_array('rest', $protocols, true)) {
-            $protocols[] = 'rest';
-            set_config('webserviceprotocols', implode(',', $protocols));
-        }
-
-        $webservicemanager = new \webservice();
-        $service = $DB->get_record('external_services', ['shortname' => 'fivedays']);
-        if (!$service) {
-            $service = (object) [
-                'name' => 'FiveDays',
-                'shortname' => 'fivedays',
-                'enabled' => 1,
-                'restrictedusers' => 0,
-                'downloadfiles' => 1,
-                'uploadfiles' => 1,
-            ];
-            $service->id = $webservicemanager->add_external_service($service);
-        } else if ($service->name !== 'FiveDays' || (int) $service->enabled !== 1) {
-            $service->name = 'FiveDays';
-            $service->enabled = 1;
-            $webservicemanager->update_external_service($service);
-        }
-
-        $pluginfunctions = $DB->get_fieldset_select('external_functions', 'name', "name LIKE 'local_fivedays_%'");
-        $core = [
-            'core_enrol_get_enrolled_users',
-        ];
-        foreach (array_unique(array_merge($pluginfunctions, $core)) as $functionname) {
-            if (!$DB->record_exists('external_functions', ['name' => $functionname])) {
-                continue;
-            }
-            if (!$webservicemanager->service_function_exists($functionname, $service->id)) {
-                $webservicemanager->add_external_function_to_service($functionname, $service->id);
-            }
-        }
-
-        return $service;
+        return $DB->get_record('external_services',
+            ['shortname' => 'fivedays', 'component' => 'local_fivedays'], '*', MUST_EXIST);
     }
 
     public static function ensure_token(\stdClass $service, int $userid): string {

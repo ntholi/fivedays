@@ -39,9 +39,9 @@ class restore_gradingform_fivedays_plugin extends restore_gradingform_plugin {
     protected function define_definition_plugin_structure() {
         return [
             new restore_path_element('gradingform_fivedays_criterion',
-                $this->get_pathfor('/criteria/criterion')),
+                $this->get_pathfor('/fivedayscriteria/fivedayscriterion')),
             new restore_path_element('gradingform_fivedays_level',
-                $this->get_pathfor('/criteria/criterion/levels/level')),
+                $this->get_pathfor('/fivedayscriteria/fivedayscriterion/fivedayslevels/fivedayslevel')),
         ];
     }
 
@@ -53,7 +53,7 @@ class restore_gradingform_fivedays_plugin extends restore_gradingform_plugin {
     protected function define_instance_plugin_structure() {
         return [
             new restore_path_element('gradingform_fivedays_filling',
-                $this->get_pathfor('/fillings/filling')),
+                $this->get_pathfor('/fivedaysfillings/fivedaysfilling')),
         ];
     }
 

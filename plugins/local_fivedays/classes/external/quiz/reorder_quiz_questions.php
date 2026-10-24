@@ -127,30 +127,8 @@ class reorder_quiz_questions extends external_api {
             
             $DB->set_field('quiz', 'timemodified', time(), ['id' => $params['quizid']]);
 
-            
+
             $transaction->allow_commit();
-
-            
-            foreach ($params['slots'] as $slotdata) {
-                $newpage = $slotdata['page'] ?? $existingslotids[$slotdata['slotid']]->page;
-                $event = \mod_quiz\event\slot_moved::create([
-                    'context' => $context,
-                    'objectid' => $slotdata['slotid'],
-                    'other' => [
-                        'quizid' => $params['quizid'],
-                        'previousslot' => $existingslotids[$slotdata['slotid']]->slot,
-                        'afterslot' => $slotdata['newslot'] > 1 ? $slotdata['newslot'] - 1 : 0,
-                        'page' => (int)$newpage,
-                    ],
-                ]);
-                $event->trigger();
-            }
-
-            return [
-                'success' => true,
-                'message' => 'Quiz questions reordered successfully. ' . count($params['slots']) . ' slot(s) updated.',
-            ];
-
         } catch (\Exception $e) {
             $transaction->rollback($e);
             return [
@@ -158,6 +136,27 @@ class reorder_quiz_questions extends external_api {
                 'message' => 'Failed to reorder questions: ' . $e->getMessage(),
             ];
         }
+
+        // Events only after the commit: a failure here must not try to roll back a finished transaction.
+        foreach ($params['slots'] as $slotdata) {
+            $newpage = $slotdata['page'] ?? $existingslotids[$slotdata['slotid']]->page;
+            $event = \mod_quiz\event\slot_moved::create([
+                'context' => $context,
+                'objectid' => $slotdata['slotid'],
+                'other' => [
+                    'quizid' => $params['quizid'],
+                    'previousslotnumber' => $existingslotids[$slotdata['slotid']]->slot,
+                    'afterslotnumber' => $slotdata['newslot'] > 1 ? $slotdata['newslot'] - 1 : 0,
+                    'page' => (int)$newpage,
+                ],
+            ]);
+            $event->trigger();
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Quiz questions reordered successfully. ' . count($params['slots']) . ' slot(s) updated.',
+        ];
     }
 
     public static function execute_returns(): external_single_structure {

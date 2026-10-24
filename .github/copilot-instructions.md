@@ -1,7 +1,7 @@
 # Copilot Instructions for the FiveDays Moodle plugins
 
 ## Project Overview
-This repo holds the FiveDays Moodle plugins, one folder per plugin named by its component (`local_fivedays/`, `gradingform_fivedays/`). The sections below describe `local_fivedays`, which exposes REST API endpoints for programmatic course content management.
+This repo holds the FiveDays Moodle plugins, one folder per plugin under `plugins/`, named by its component (`plugins/local_fivedays/`, `plugins/gradingform_fivedays/`). The sections below describe `local_fivedays`, which exposes REST API endpoints for programmatic course content management.
 
 **Requirements:** Moodle 5.0 or later
 
