@@ -1,0 +1,575 @@
+#!/usr/bin/env bash
+# just cutover <old-host> <new-host> [--unattended]   the one-window move of prod Moodle to the new host
+# just cutover --resume [--unattended]                continue after the last passed phase (cutover.state)
+#
+# Phases (plan "Cutover"); each prints what it does, does it, checks it and records the result in cutover.state:
+#    0 preflight    rehearsal.ok (2 passes ≤ 7 days, same tag: the tag deployed), offsite copy from today, new host
+#                   empty, disk space, images pulled, install.xml = pre-check, AWS static IP, Vercel + old token,
+#                   prod bucket (versioning on, empty), ephemeral key + MariaDB tunnel test. Then "luct.click" typed
+#                   (--unattended: skipped). LMS sync paused when the rehearsal window is over 2.5 h (D34).
+#    1 freeze       old host: maintenance on, cron line commented out, php-fpm stopped.
+#    2 final-copy   final mysqldump + moodledata offsite (bin/backup, proven by a scratch restore) and, at the same
+#                   time, moodledata rsync'd host to host into the new volume. FiveDays token count recorded.
+#    3 transfer     dbtransfer (-transfer image) from the old MariaDB over an SSH tunnel into the new Postgres.
+#    4 verify       bin/verify <old> <new>.
+#    5 start        the stack (migrate: pre-upgrade dump, upgrade + service hand-over, setup.php with push items
+#                   soft, D30), maintenance flag off, health check. Caddy serves plain http until phase 7.
+#    5b bucket      every file pushed to the prod bucket and checked there (D18).
+#    6 smoke        internal listener: login, old admin token, 3 user tokens, fivedays_ws, contract test (cleaned
+#                   up), FiveDays tokens = phase 2's count.
+#    7 switch       point of no return ("switch" typed; --unattended: skipped): static IP moved to the new
+#                   instance, Caddy gets the real site address; https://<domain> must answer from Caddy with a
+#                   valid certificate within 5 minutes, and the old admin token must work.
+#    8 token        registry-web's MOODLE_TOKEN → the fivedays_ws token (old one saved in build/cutover/old-moodle-token),
+#                   redeploy, course list over the public URL; on failure the old token goes back (D31).
+#    9 qa           interactive: the checklist, then "qa-passed" or "rollback". --unattended: login page, old admin
+#                   token, 20 MB upload + download through the web service, rubric grade (contract case).
+#   10 done         cutover.done, LMS sync resumed (D34), ephemeral key removed from both hosts.
+#
+# Failures (D32): before phase 8 any failure rolls back (bin/cutover-rollback) under --unattended, or stops with
+# what to do. From phase 8 on only a down site (login page or the old admin token failing) rolls back; every other
+# failed check keeps the new host live and goes into build/cutover/report.md. An interrupted run (Ctrl-C, lost
+# laptop) never rolls back by itself: rerun with --resume (the interrupted phase reruns; each phase is safe to rerun).
+#
+# Test flags (local stand-ins only): CUTOVER_STUBS=static-ip,vercel,cert, PRECHECK_REPORT=<file>, --stop-after=<phase>.
+# Env: ENV_FILE (default .env.prod): CUTOVER_AWS_*, CUTOVER_OLD_INSTANCE / CUTOVER_NEW_INSTANCE (default moodle /
+# fivedays-moodle); REGISTRY_WEB_DIR (default ~/dev/registry-web).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+source "$FIVEDAYS_ROOT/bin/cutover-lib.sh"
+
+PHASES=(0 1 2 3 4 5 5b 6 7 8 9 10)
+declare -A PHASE_NAME=([0]=preflight [1]=freeze [2]=final-copy [3]=transfer [4]=verify [5]=start [5b]=bucket [6]=smoke
+  [7]=switch [8]=token [9]=qa [10]="done")
+LMS_PAUSE_OVER=9000
+
+usage() { die "Usage: just cutover <old-host> <new-host> [--unattended]   or   just cutover --resume [--unattended]" "e.g. just cutover luct.click 63.181.79.8 --unattended"; }
+resume=0
+unattended=0
+stop_after=""
+args=()
+for a in "$@"; do
+  case "$a" in
+    --resume) resume=1 ;;
+    --unattended) unattended=1 ;;
+    --stop-after=*) stop_after="${a#--stop-after=}" ;;
+    -*) usage ;;
+    *) args+=("$a") ;;
+  esac
+done
+
+start_log cutover
+cl_load_env
+need_cmd jq "Install jq (sudo apt install jq)."
+
+if ((resume)); then
+  ((${#args[@]} == 0)) || usage
+  [[ -f "$CUTOVER_STATE" ]] || die "No cutover.state to resume" "Start the cutover: just cutover <old-host> <new-host>"
+  [[ ! -f "$CUTOVER_DONE" ]] || die "cutover.done exists: the cutover finished" "Nothing to resume."
+  old_name="$(st_get old_name)"
+  new_name="$(st_get new_name)"
+  [[ "$(st_get stubs)" == "${CUTOVER_STUBS:-}" ]] || die "cutover.state was started with CUTOVER_STUBS=\"$(st_get stubs)\", now \"${CUTOVER_STUBS:-}\"" "Resume with the same settings."
+else
+  ((${#args[@]} == 2)) || usage
+  old_name="${args[0]}"
+  new_name="${args[1]}"
+  [[ ! -f "$CUTOVER_DONE" ]] || die "cutover.done exists: prod already runs on the new host" "Never run the cutover twice."
+  [[ ! -f "$CUTOVER_STATE" ]] || die "cutover.state exists (last passed phase: $(st_get last_passed))" "Continue with: just cutover --resume, or undo with: just cutover-rollback"
+fi
+cl_stubs_init "$old_name" "$new_name"
+[[ -z "$stop_after" ]] || all_local "$old_name" "$new_name" || die "--stop-after is a test flag for the local stand-ins" "Run the cutover without it."
+cl_ssh_init "$WORK_HOME/cutover" "$((1 - resume))"
+if ((resume)); then
+  o="$(st_get old_ssh)"
+  n="$(st_get new_ssh)"
+  cl_hosts "${o:-$old_name}" "${n:-$new_name}"
+  tag="$(st_get tag)"
+else
+  for f in warnings nonfatal report.md old-moodle-token new-moodle-token stub-caddy-root.crt; do rm -f "$RUN_DIR/$f"; done
+  st_set run_started "$(date -u +%FT%TZ)"
+  st_set old_name "$old_name"
+  st_set new_name "$new_name"
+  st_set stubs "${CUTOVER_STUBS:-}"
+  cl_hosts "$old_name" "$new_name"
+fi
+touch "$RUN_DIR/warnings" "$RUN_DIR/nonfatal"
+[[ "$(st_get ip_moved)" == 1 ]] || SSH_HOST_ALIASES="$SSH_HOST_ALIASES $old_name=fivedays-old"
+export SSH_HOST_ALIASES
+
+phase_index() { local i; for i in "${!PHASES[@]}"; do [[ "${PHASES[$i]}" == "$1" ]] && { echo "$i"; return; }; done; echo -1; }
+token_file() { printf '%s/%s-moodle-token' "$RUN_DIR" "$1"; }
+
+# ---- report (build/cutover/report.md, for the coordinator) ----
+write_report() {
+  local outcome="$1" p status
+  {
+    printf '# Cutover report\n\n```\n'
+    printf 'outcome: %s\n' "$outcome"
+    printf 'generated: %s\n' "$(date -u +%FT%TZ)"
+    printf 'old_host: %s (now ssh %s)\nnew_host: %s (now ssh %s)\n' "$old_name" "$OLD_SSH" "$new_name" "$NEW_SSH"
+    printf 'tag: %s\nstubs: %s\nlast_passed: %s\n' "$(st_get tag)" "$(st_get stubs)" "$(st_get last_passed)"
+    printf 'window_estimate_s: %s\nlms_paused: %s\nip_moved: %s\ntoken_swapped: %s\n' "$(st_get window_estimate)" \
+      "$(st_get lms_paused)" "$(st_get ip_moved)" "$(st_get token_swapped)"
+    if [[ -n "$(st_get freeze_start)" ]]; then
+      local end
+      end="$(st_get freeze_end)"
+      printf 'window_s: %s\n' "$(( ${end:-$(date +%s)} - $(st_get freeze_start) ))"
+    fi
+    printf '```\n\n| phase | name | status | seconds |\n| --- | --- | --- | --- |\n'
+    for p in "${PHASES[@]}"; do
+      status="$(st_get "phase_$p")"
+      printf '| %s | %s | %s | %s |\n' "$p" "${PHASE_NAME[$p]}" "${status:-not run}" "$(st_get "phase_${p}_secs")"
+    done
+    printf '\n## Warnings (D30 push items and others)\n\n'
+    if [[ -s "$RUN_DIR/warnings" ]]; then sed 's/^/- /' "$RUN_DIR/warnings"; else echo '- none'; fi
+    printf '\n## Failed checks that kept the new host live (D32)\n\n'
+    if [[ -s "$RUN_DIR/nonfatal" ]]; then sed 's/^/- /' "$RUN_DIR/nonfatal"; else echo '- none'; fi
+    printf '\n## Manual QA left for the user (Testing)\n\n'
+    printf -- '- one LMS sync job completing from registry-web (needs the prod database; not checked by the script)\n'
+    printf -- '- lecturer course page; student Google login on the website\n'
+    printf -- '- Moodle app on a phone: add %s, Google login, a lecturer announcement arrives as push within a minute\n' "$DOMAIN"
+  } >"$RUN_DIR/report.md"
+}
+
+# ---- failure handling ----
+current_phase=""
+site_down_reason=""
+user_rollback=0
+interrupted=0
+on_signal() { interrupted=1; exit 130; }
+trap on_signal INT TERM HUP
+on_exit() {
+  local rc=$? idx
+  [[ "$rc" != 0 && -n "$current_phase" ]] || return 0
+  set +e
+  st_set "phase_$current_phase" "$( ((interrupted)) && echo interrupted || echo failed)"
+  write_report "stopped in phase $current_phase"
+  if ((interrupted)); then
+    printf '\nInterrupted in phase %s. Nothing was rolled back.\nWhat to do: just cutover --resume (the phase reruns), or just cutover-rollback.\n' "$current_phase" >&2
+    return
+  fi
+  idx="$(phase_index "$current_phase")"
+  if [[ -n "$site_down_reason" ]] || ((idx < $(phase_index 8))); then
+    local reason="${site_down_reason:-phase $current_phase (${PHASE_NAME[$current_phase]}) failed}"
+    if ((unattended || user_rollback)); then
+      warn "rolling back automatically ($( ((user_rollback)) && echo 'typed rollback' || echo D32)): $reason"
+      "$FIVEDAYS_ROOT/bin/cutover-rollback" --unattended "--reason=$reason"
+      return
+    fi
+    printf '\nPhase %s failed: %s\nWhat to do: fix the cause and run just cutover --resume, or undo everything with just cutover-rollback.\n' "$current_phase" "$reason" >&2
+    return
+  fi
+  write_report "live on the new host; phase $current_phase stopped (D32: site up, not rolled back)"
+  printf '\nPhase %s failed, but the site is up on the new host, so it stays live (D32). Report: %s\nWhat to do: read the report; just cutover --resume continues.\n' "$current_phase" "$RUN_DIR/report.md" >&2
+}
+trap on_exit EXIT
+
+# site_down "<reason>": D32's only reason to roll back after phase 7.
+site_down() { site_down_reason="$1"; die "$1" "D32: the site is down; rolling back."; }
+
+# ---- phases ----
+
+p0() {
+  local tag_lines newest out opub opriv npub npriv sname sip free need sizes
+  # rehearsal.ok: the newest line's tag, and two passes with it no older than 7 days (D33).
+  [[ -s "$REHEARSAL_OK" ]] || die "rehearsal.ok is missing" "Run just rehearse <new-host> <tag> twice first."
+  newest="$(tail -n1 "$REHEARSAL_OK")"
+  tag="$(sed -n 's/.* tag=\([^ ]*\).*/\1/p' <<<"$newest")"
+  valid_tag "$tag" || die "rehearsal.ok's last line has no tag" "Rerun just rehearse."
+  tag_lines="$(awk -v t="tag=$tag" -v since="$(date -u -d '7 days ago' +%FT%TZ)" '$2 == t && $1 >= since' "$REHEARSAL_OK")"
+  (( $(grep -c . <<<"$tag_lines") >= 2 )) || die "rehearsal.ok has fewer than two passes with tag $tag in the last 7 days" "Run just rehearse <new-host> $tag until it passes twice."
+  local window
+  window="$(tail -n2 <<<"$tag_lines" | sed -n 's/.* window=\([0-9]*\).*/\1/p' | sort -n | tail -n1)"
+  # The final dump + moodledata offsite copy (bin/backup) is the one in-window step a rehearsal does not time.
+  window=$((window + 1800))
+  st_set tag "$tag"
+  st_set window_estimate "$window"
+  ok "rehearsal.ok: two passes with $tag in the last 7 days; window estimate $(fmt_secs "$window") (rehearsal + 30 min for the final offsite dump)"
+
+  # Static IP and instance addresses.
+  if stub_on static-ip; then stub_ls_init "$old_name" "$new_name"; fi
+  read -r sname sip < <(ls_static_ip "$OLD_INSTANCE") || true
+  [[ -n "${sname:-}" ]] || die "No static IP is attached to the old instance $OLD_INSTANCE" "Check the instance names (CUTOVER_OLD_INSTANCE) and the Lightsail console."
+  read -r opub opriv < <(ls_instance "$OLD_INSTANCE")
+  read -r npub npriv < <(ls_instance "$NEW_INSTANCE")
+  [[ -n "$opriv" && -n "$npriv" ]] || die "Lightsail returned no private addresses for $OLD_INSTANCE / $NEW_INSTANCE" "Check the instance names."
+  if ! stub_on static-ip; then
+    [[ "$opub" == "$sip" ]] || die "The old instance's public address $opub is not the static IP $sip" "Check the Lightsail console."
+    [[ "$(public_target_ip)" == "$sip" ]] || die "$DOMAIN resolves to $(public_target_ip), not the static IP $sip" "Check DNS."
+    getent ahostsv4 "$(host_name "$new_name")" | awk '{ print $1 }' | grep -qx "$npub" ||
+      die "$new_name is not the new instance $NEW_INSTANCE ($npub)" "Pass the new instance's address."
+    getent ahostsv4 "$(host_name "$old_name")" | awk '{ print $1 }' | grep -qx "$sip" ||
+      die "$old_name is not the old instance $OLD_INSTANCE ($sip)" "Pass the old host's name."
+  fi
+  st_set static_name "$sname"
+  st_set static_ip "$sip"
+  st_set old_priv "$opriv"
+  st_set new_priv "$npriv"
+  st_set old_ssh "$opub"
+  st_set new_ssh "$npub"
+  cl_hosts "$opub" "$npub"
+  SSH_HOST_ALIASES="$SSH_HOST_ALIASES $old_name=fivedays-old"
+  ok "AWS key works: static IP $sname ($sip) on $OLD_INSTANCE; $OLD_INSTANCE $opub / $opriv, $NEW_INSTANCE $npub / $npriv"
+
+  # Old host.
+  out="$(old_run inspect)" || die "The old host does not look like the old prod host" "Check the pre-check report."
+  [[ "$(kv dbtype "$out")" == mariadb && "$(kv php_fpm "$out")" == active && "$(kv cron_line "$out")" == present && "$(kv maintenance "$out")" == off ]] ||
+    { printf '%s\n' "$out"; die "The old host is not serving normally (php-fpm, cron line, maintenance above)" "Bring it back to normal (or just cutover-rollback) first."; }
+  st_set mysql_socket "$(kv mysql_socket "$out")"
+  sizes="$(old_run sizes)"
+  (( $(kv free_mb "$out") >= 1024 )) || die "The old host has $(kv free_mb "$out") MB free" "Free 1 GB on the old host (old nightly dumps)."
+  ok "old host: Moodle on MariaDB serving, php-fpm active, cron line present; moodledata $(kv moodledata_mb "$sizes") MB, DB $(kv db_mb "$sizes") MB, $(kv free_mb "$out") MB free"
+
+  # Offsite copy from today (just backup <old-host> before the run).
+  BACKUP_ENV_FILE="$ENV_FILE" "$FIVEDAYS_ROOT/bin/backup" --offsite-today "$old_name" || die "No offsite copy of $old_name from the last 24 hours" "Run: just backup $old_name"
+
+  # New host.
+  deploy_check_host "$NEW_SSH"
+  out="$(new_run preflight)"
+  [[ "$(kv running_containers "$out")" == 0 && "$(kv rehearsal_db "$out")" == 0 ]] || die "The new host runs containers" "The cutover starts on a stopped, empty new host (a rehearsal wipes it)."
+  if grep -q '^volume_.*=\(missing\|[0-9]\)' <<<"$out"; then printf '%s\n' "$out"; die "The new host's volumes are not empty (above)" "Rehearsals wipe them; find out what is there before going on."; fi
+  free="$(kv free_mb "$out")"
+  need=$(( 3 * ($(kv moodledata_mb "$sizes") + $(kv db_mb "$sizes")) + 5000 ))
+  (( free >= need )) || die "The new host has $free MB free, needs $need MB" "Grow the disk or clean up Docker images."
+  ok "new host: provisioned, nothing running, volumes empty, $free MB free (needs $need)"
+
+  # Images, host files (Caddy on plain http until phase 7, D30 soft push), install.xml.
+  deploy_check_images "$IMAGE_NAME" "$tag"
+  write_host_env soft
+  new_run pull-images "$IMAGE_NAME" "$tag"
+  installxml_check "$(host_name "$old_name")" "$IMAGE_NAME:$tag-transfer"
+
+  # Prod bucket.
+  out="$(new_run bucket-check)" || die "The prod bucket does not answer (above)" "Check MOODLE_BUCKET and its keys."
+  [[ "$(kv versioning "$out")" == Enabled ]] || die "Bucket versioning is \"$(kv versioning "$out")\", not Enabled (D19)" "Turn versioning on in the Lightsail console."
+  [[ "$(kv foreign "$out")" == 0 ]] || die "The prod bucket holds $(kv foreign "$out") objects that objectfs did not write" "The prod bucket must start empty; check it is not the rehearsal or another bucket."
+  if [[ "$(kv objects "$out")" == 0 ]]; then
+    ok "prod bucket $(kv bucket "$out"): versioning on, empty"
+  else
+    note_warn "prod bucket $(kv bucket "$out") already holds $(kv objects "$out") objectfs objects (content-hash keys) from an earlier, rolled-back attempt; phase 5b reuses them"
+  fi
+
+  # Vercel and the old token (saved before anything changes; it must answer on the old site).
+  vercel_check
+  local cur="$RUN_DIR/vercel-current-token"
+  vercel_env_get MOODLE_TOKEN "$cur"
+  [[ -s "$cur" ]] || die "registry-web's production MOODLE_TOKEN could not be read (empty or a sensitive variable)" "Make it readable with vercel env pull, then rerun."
+  if [[ -s "$(token_file old)" ]] && ! cmp -s "$cur" "$(token_file old)"; then
+    rm -f "$cur"
+    die "Vercel's MOODLE_TOKEN differs from the saved old token $(token_file old)" "A previous run may have swapped it. Stop and ask the user."
+  fi
+  mv "$cur" "$(token_file old)"
+  chmod 600 "$(token_file old)"
+  [[ -n "$(public_site_info "$(token_file old)")" ]] || die "The saved MOODLE_TOKEN does not answer core_webservice_get_site_info on the old site" "It must be the old admin token. Stop and ask the user."
+  ok "old MOODLE_TOKEN saved to $(token_file old) (600) and it answers on https://$DOMAIN"
+  if ! stub_on vercel; then
+    local url="$RUN_DIR/vercel-url"
+    vercel_env_get NEXT_PUBLIC_MOODLE_URL "$url"
+    [[ "$(cat "$url")" == "$WWWROOT" ]] || note_warn "registry-web's NEXT_PUBLIC_MOODLE_URL is \"$(cat "$url")\", not $WWWROOT"
+    rm -f "$url"
+  fi
+
+  # Ephemeral key, old MariaDB credentials, tunnel.
+  ekey_install "$opriv" "$opub" "$npriv" "$npub"
+  st_set key_installed 1
+  out="$(new_run source-creds)"
+  new_run tunnel-test "$IMAGE_NAME:$tag-transfer" "$(st_get mysql_socket)" || die "The SSH tunnel test to the old MariaDB failed (above)" "Check the old host's sshd allows forwarding and /root/.my.cnf works."
+  ok "transfer source: old MariaDB as $(kv source_user "$out") (read-only) through an SSH tunnel from the new host"
+
+  if ((unattended)); then
+    ok "preflight green (--unattended replaces typing $DOMAIN)"
+  else
+    printf '\nEverything is green. Phase 1 puts %s into maintenance for the whole window.\n' "$DOMAIN"
+    confirm "$DOMAIN"
+  fi
+  if (( window > LMS_PAUSE_OVER )); then
+    log "rehearsal window $(fmt_secs "$window") is over 2.5 h: pausing registry-web LMS sync (D34)"
+    lms_sync_pause 1
+    st_set lms_paused 1
+  else
+    st_set lms_paused 0
+    ok "rehearsal window $(fmt_secs "$window") is under 2.5 h: LMS sync keeps running (D34)"
+  fi
+}
+
+# write_host_env soft|final: host files and .env from the env file. soft: Caddy on plain http (no ACME for the real
+# name before the IP moves) and MOODLE_PUSH_SOFT=1 (D30). final: exactly the env file.
+write_host_env() {
+  local overlay="$RUN_DIR/host.env"
+  if [[ "$1" == soft ]]; then
+    cl_overlay_env "$overlay" "SITE_ADDRESS=http://$DOMAIN" MOODLE_PUSH_SOFT=1
+  else
+    cl_overlay_env "$overlay" "MOODLE_PUSH_SOFT=0"
+  fi
+  ENV_FILE="$overlay" deploy_check_env >/dev/null
+  ENV_FILE="$overlay" deploy_write_files "$NEW_SSH" "$tag"
+  rm -f "$overlay"
+}
+
+p1() {
+  st_set freeze_start "$(date +%s)"
+  local out code server
+  out="$(old_run freeze)" || die "Freezing the old host failed (above)" "Rolled back by D32 under --unattended; otherwise just cutover-rollback."
+  out="$(old_run status)"
+  [[ "$(kv php_fpm "$out")" != active && "$(kv fpm_processes "$out")" == 0 && "$(kv maintenance "$out")" == on &&
+    "$(kv cron_line "$out")" == commented && "$(kv cron_running "$out")" == 0 ]] ||
+    { printf '%s\n' "$out"; die "The old host is not frozen (above)" "Roll back: just cutover-rollback"; }
+  code="$(public_status /login/index.php)"
+  server="$(public_server)"
+  # php-fpm is stopped, so nginx itself answers (502); Moodle's 503 maintenance page needs PHP. Either way the
+  # login page must no longer be 200, and the answer must still come from the old host's nginx.
+  [[ "$code" != 200 && "$server" == nginx* ]] || die "https://$DOMAIN/login/index.php answered $code from \"$server\" after the freeze" "Roll back: just cutover-rollback"
+  ok "old host frozen: php-fpm stopped (no process), maintenance flag on, cron line commented out, no cron running; https://$DOMAIN/login/index.php → $code from $server"
+}
+
+p2() {
+  st_set old_tokens "$(old_run tokens)"
+  ok "FiveDays tokens on the old host: $(st_get old_tokens)"
+  local t=$SECONDS brc frc
+  log "final offsite copy (bin/backup $old_name) and moodledata rsync to the new host, in parallel"
+  (BACKUP_ENV_FILE="$ENV_FILE" "$FIVEDAYS_ROOT/bin/backup" "$old_name" >"$RUN_DIR/backup.out" 2>&1; echo $? >"$RUN_DIR/backup.rc") &
+  (new_run pull-files cutover >"$RUN_DIR/files.out" 2>&1; echo $? >"$RUN_DIR/files.rc") &
+  wait
+  sed 's/^/      backup /' "$RUN_DIR/backup.out" | tail -n 25
+  sed 's/^/      files  /' "$RUN_DIR/files.out"
+  brc="$(cat "$RUN_DIR/backup.rc")"
+  frc="$(cat "$RUN_DIR/files.rc")"
+  [[ "$brc" == 0 ]] || die "The final offsite dump failed (above)" "Rolled back by D32 under --unattended."
+  [[ "$frc" == 0 ]] || die "rsync of moodledata to the new host failed (above)" "Rolled back by D32 under --unattended."
+  local o n
+  o="$(sed -n 's/.*old_filedir_files=\([0-9]*\).*/\1/p' "$RUN_DIR/files.out")"
+  n="$(sed -n 's/.*new_filedir_files=\([0-9]*\).*/\1/p' "$RUN_DIR/files.out")"
+  [[ -n "$o" && "$o" == "$n" ]] || die "filedir files: old $o, new $n" "Rolled back by D32 under --unattended."
+  ok "final dump offsite and proven; moodledata copied (rsync exit 0, filedir $o = $n files) in $(fmt_secs $((SECONDS - t)))"
+}
+
+p3() {
+  host_compose "$NEW_SSH" up -d db >/dev/null 2>&1 || die "Could not start the db service on the new host" "Read the output above."
+  for _ in $(seq 1 30); do new_run db-tables >/dev/null 2>&1 && break; sleep 2; done
+  local tables
+  tables="$(new_run db-tables)"
+  if [[ "$tables" != 0 ]]; then
+    [[ "$(st_get phase_3)" =~ ^(started|interrupted|failed)$ ]] || die "The new database already has $tables tables" "Stop and ask: only an interrupted transfer may be reset."
+    log "the new database holds $tables tables from the interrupted transfer: resetting it (the old host is still the source)"
+    new_run db-reset
+  fi
+  new_run transfer cutover "$IMAGE_NAME:$tag-transfer" "$(st_get mysql_socket)" || die "The transfer failed (above)" "Rolled back by D32 under --unattended."
+}
+
+p4() {
+  "$FIVEDAYS_ROOT/bin/verify" "--tag=$tag" "$OLD_SSH" "$NEW_SSH" || die "verify found differences (above)" "Do not start Moodle on this database. Rolled back by D32 under --unattended."
+}
+
+p5() {
+  write_host_env soft
+  deploy_start "$NEW_SSH"
+  new_run maintenance-off
+  deploy_health "$NEW_SSH"
+  local warns
+  warns="$(host_compose "$NEW_SSH" logs --no-log-prefix migrate 2>/dev/null | grep -E '^(WARN|FAIL) ' || true)"
+  grep -q '^FAIL ' <<<"$warns" && die "setup.php printed FAIL lines (above)" "Rolled back by D32 under --unattended."
+  [[ -z "$warns" ]] || while IFS= read -r w; do note_warn "D30 setup.php: $w"; done <<<"$warns"
+  ok "migrate exit 0 (upgrade + hand-over + setup.php, push items soft), health check OK"
+}
+
+p5b() { new_run objectfs || die "Not every file is in the prod bucket (above)" "Rolled back by D32 under --unattended."; }
+
+p6() {
+  copy_to_host "$NEW_SSH" "$(token_file old)" "$HOST_DIR/cutover/admin-token" 600
+  new_run smoke "$DOMAIN" || die "Smoke checks failed (above)" "Rolled back by D32 under --unattended."
+  local n
+  n="$(new_run token-count)"
+  [[ "$n" == "$(st_get old_tokens)" ]] || die "FiveDays tokens: $n on the new host, $(st_get old_tokens) on the old" "Rolled back by D32 under --unattended."
+  ok "FiveDays tokens: $n = phase 2's count"
+  copy_contract
+  new_run contract "$DOMAIN" || die "The contract test failed (above)" "Rolled back by D32 under --unattended."
+  n="$(new_run token-count)"
+  [[ "$n" == "$(st_get old_tokens)" ]] || die "FiveDays tokens after the contract cleanup: $n, expected $(st_get old_tokens)" "Rolled back by D32 under --unattended."
+  ok "contract test passed and cleaned up; FiveDays tokens still $n"
+}
+
+p7() {
+  if ((unattended)); then
+    warn "Point of no return: once the new host takes writes, rolling back loses them (--unattended: no prompt)"
+  else
+    printf '\nPoint of no return after this: once the new host takes writes, rolling back loses them.\n'
+    confirm switch
+  fi
+  local sname sip opub opriv npub npriv code server
+  sname="$(st_get static_name)"
+  sip="$(st_get static_ip)"
+  st_set switch_time "$(date +%s)"
+  st_set ip_moved 1
+  ls_move_static_ip "$sname" "$NEW_INSTANCE"
+  read -r opub opriv < <(ls_wait_public "$OLD_INSTANCE" "$sip")
+  if stub_on static-ip; then read -r npub npriv < <(ls_instance "$NEW_INSTANCE"); else npub="$sip"; fi
+  st_set old_ssh "$opub"
+  st_set new_ssh "$npub"
+  cl_hosts "$opub" "$npub"
+  ok "SSH addresses now: old host $opub, new host $npub"
+  write_host_env final
+  host_compose "$NEW_SSH" up -d --no-deps web >/dev/null 2>&1 || site_down "Caddy did not restart with the real site address"
+  for _ in $(seq 1 60); do
+    if stub_on cert; then new_run caddy-root >"$RUN_DIR/stub-caddy-root.crt" 2>/dev/null || true; fi
+    code="$(public_status /login/index.php)"
+    server="$(public_server)"
+    [[ "$code" == 200 && "$server" == Caddy* ]] && break
+    sleep 5
+  done
+  [[ "$code" == 200 && "$server" == Caddy* ]] || site_down "https://$DOMAIN/login/index.php answered $code from \"$server\" 5 minutes after the switch (no valid certificate from the new host's Caddy?)"
+  ok "https://$DOMAIN answers from the new host (Server: $server) with a valid certificate$(stub_on cert && echo ' (stub: Caddy local CA)')"
+  [[ -n "$(public_site_info "$(token_file old)")" ]] || site_down "core_webservice_get_site_info with the old admin token failed on https://$DOMAIN"
+  ok "old admin token answers on https://$DOMAIN"
+}
+
+# course_list <token file>: the course list registry-web reads with MOODLE_TOKEN (core_course_get_courses_by_field,
+# lms/classroom-import), made the way src/core/integrations/moodle.ts makes it, over the public URL.
+course_list() {
+  public_curl /webservice/rest/server.php -G --data-urlencode "wstoken@$1" -d wsfunction=core_course_get_courses_by_field \
+    -d moodlewsrestformat=json | jq -r 'if type == "object" and has("courses") then (.courses | length) else "error: \(.errorcode // .exception // .)" end' 2>/dev/null || echo "error: not JSON"
+}
+
+p8() {
+  local new_token readback n
+  new_token="$(token_file new)"
+  (umask 077 && new_run ws-token | tr -d '\n' >"$new_token")
+  [[ -s "$new_token" ]] || die "No fivedays_ws token in the new database" "setup.php creates it; read the phase 5 output."
+  [[ "$(public_site_info "$new_token")" =~ ^[0-9]+$ ]] || die "The fivedays_ws token does not answer on https://$DOMAIN" "Keeping the old token (nothing was changed in Vercel)."
+  if ! (
+    set -e
+    st_set token_swapped 1
+    vercel_env_set MOODLE_TOKEN "$new_token"
+    vercel_redeploy
+    readback="$RUN_DIR/vercel-readback"
+    vercel_env_get MOODLE_TOKEN "$readback"
+    if [[ -s "$readback" ]]; then cmp -s "$readback" "$new_token" || { rm -f "$readback"; exit 1; }; fi
+    rm -f "$readback"
+    n="$(course_list "$new_token")"
+    [[ "$n" =~ ^[0-9]+$ && "$n" -gt 0 ]] || { warn "course list with the new token: $n"; exit 1; }
+    ok "registry-web's MOODLE_TOKEN is the fivedays_ws token; course list over https://$DOMAIN: $n courses"
+  ); then
+    warn "D31: the token check failed; putting the old MOODLE_TOKEN back"
+    if (vercel_env_set MOODLE_TOKEN "$(token_file old)" && vercel_redeploy); then
+      st_set token_swapped 0
+    else
+      note_nonfatal "D31: restoring the old MOODLE_TOKEN in Vercel failed too: set it from $(token_file old) and redeploy"
+    fi
+    note_nonfatal "phase 8: MOODLE_TOKEN swap to fivedays_ws failed its course-list check; registry-web keeps the old admin token (it still works on the new host)"
+  fi
+}
+
+qa_upload() {
+  local token ts out course itemid assign url path f="$RUN_DIR/qa-upload.bin" g="$RUN_DIR/qa-download.bin"
+  token="$(token_file new)"
+  [[ -s "$token" ]] || (umask 077 && new_run ws-token | tr -d '\n' >"$token")
+  ts="$(date +%y%m%d%H%M%S)"
+  ws_public() { local fn="$1"; shift; public_curl /webservice/rest/server.php --data-urlencode "wstoken@$token" -d "wsfunction=$fn" -d moodlewsrestformat=json "$@"; }
+  out="$(ws_public local_fivedays_ensure_course --data-urlencode "fullname=Cutover QA $ts" -d "shortname=CUTQA$ts" -d categoryname=CONTRACT -d "idnumber=9999:${ts: -9}")"
+  course="$(jq -r '.courseId // empty' <<<"$out" 2>/dev/null)"
+  [[ -n "$course" ]] || { warn "upload QA: ensure_course: $out"; return 1; }
+  head -c 20000000 /dev/urandom >"$f"
+  out="$(public_curl /webservice/upload.php -F "token=<$token" -F filepath=/ -F "file_1=@$f;filename=qa-upload.bin")"
+  itemid="$(jq -r '.[0].itemid // empty' <<<"$out" 2>/dev/null)"
+  local rc=0
+  if [[ -z "$itemid" ]]; then warn "upload QA: webservice/upload.php: ${out:0:300}"; rc=1; fi
+  if ((rc == 0)); then
+    out="$(ws_public local_fivedays_create_assignment -d "courseid=$course" --data-urlencode "name=Cutover QA upload" -d "intro=QA" \
+      -d section=0 -d "duedate=$(( $(date +%s) + 86400 ))" -d grademax=100 -d "introattachments=$itemid")"
+    assign="$(jq -r '.id // empty' <<<"$out" 2>/dev/null)"
+    [[ -n "$assign" ]] || { warn "upload QA: create_assignment: ${out:0:300}"; rc=1; }
+  fi
+  if ((rc == 0)); then
+    out="$(ws_public mod_assign_get_assignments -d "courseids[0]=$course" -d includenotenrolledcourses=1)"
+    url="$(jq -r '[.courses[].assignments[] | select(.id == '"$assign"') | .introattachments[]?.fileurl][0] // empty' <<<"$out" 2>/dev/null)"
+    path="/${url#*://*/}"
+    if [[ -z "$url" ]]; then warn "upload QA: no intro attachment URL: ${out:0:300}"; rc=1
+    else
+      public_curl "$path" -G --data-urlencode "token@$token" -o "$g" || true
+      if [[ -s "$g" ]] && cmp -s "$f" "$g"; then ok "20 MB upload (webservice/upload.php) and download (webservice/pluginfile.php) over https://$DOMAIN: identical"
+      else warn "upload QA: the downloaded file ($(stat -c %s "$g" 2>/dev/null || echo 0) bytes) differs from the 20000000-byte upload"; rc=1; fi
+    fi
+  fi
+  rm -f "$f" "$g"
+  new_run cleanup "$course" | sed 's/^/      /' || { warn "upload QA: cleanup of course $course failed"; rc=1; }
+  return "$rc"
+}
+
+p9() {
+  if ! ((unattended)); then
+    cat <<EOF
+
+Browser QA (Testing): check each on https://$DOMAIN, then answer.
+  - lecturer course page
+  - assignment upload of a 20 MB file
+  - rubric grading
+  - one LMS sync job completing from registry-web
+  - student Google login on the website
+  - Moodle app on a phone: add $DOMAIN, log in with Google; a lecturer announcement arrives as push within a minute
+EOF
+    local answer=""
+    [[ -t 0 ]] || die "Phase 9 needs a terminal for the QA answer" "Run interactively, or with --unattended."
+    while [[ "$answer" != qa-passed && "$answer" != rollback ]]; do printf 'Type "qa-passed" or "rollback": '; read -r answer; done
+    [[ "$answer" == qa-passed ]] || { user_rollback=1; site_down "the user typed rollback after browser QA"; }
+    ok "browser QA passed (typed qa-passed)"
+    return
+  fi
+  local code server
+  code="$(public_status /login/index.php)"
+  server="$(public_server)"
+  [[ "$code" == 200 && "$server" == Caddy* ]] || site_down "QA: https://$DOMAIN/login/index.php answered $code from \"$server\""
+  ok "QA: login page 200 from the new host"
+  [[ -n "$(public_site_info "$(token_file old)")" ]] || site_down "QA: core_webservice_get_site_info with the old admin token failed"
+  ok "QA: old admin token answers"
+  qa_upload || note_nonfatal "phase 9: 20 MB upload/download through the web service failed (above)"
+  copy_contract
+  new_run contract "$DOMAIN" 10-assignments.php || note_nonfatal "phase 9: the rubric grading contract case (10-assignments.php) failed (above)"
+  note_warn "phase 9: one LMS sync job completing in registry-web was not checked (needs the prod database): morning QA"
+}
+
+p10() {
+  printf 'cutover done %s: tag %s, old host %s (instance %s, stopped), new host %s (instance %s)\n' "$(date -u +%FT%TZ)" "$tag" \
+    "$old_name" "$OLD_INSTANCE" "$new_name" "$NEW_INSTANCE" >"$CUTOVER_DONE"
+  ok "wrote cutover.done"
+  st_set freeze_end "$(date +%s)"
+  if [[ "$(st_get lms_paused)" == 1 ]]; then
+    if (lms_sync_pause 0); then st_set lms_paused 0; else note_nonfatal "resuming LMS sync failed: set LMS_SYNC_PAUSED=0 in Vercel and redeploy"; fi
+  fi
+  if ekey_remove; then st_set key_installed 0; else note_nonfatal "the ephemeral key is not confirmed gone from both hosts (above)"; fi
+  rm -f "$(token_file new)"
+}
+
+# ---- run ----
+last="$(st_get last_passed)"
+start_idx=0
+[[ -z "$last" ]] || start_idx=$(( $(phase_index "$last") + 1 ))
+((resume)) && log "resuming after phase ${last:-none}"
+for ((i = start_idx; i < ${#PHASES[@]}; i++)); do
+  p="${PHASES[$i]}"
+  current_phase="$p"
+  log "== phase $p: ${PHASE_NAME[$p]}"
+  st_set "phase_$p" started
+  t=$SECONDS
+  "p$p"
+  st_set "phase_$p" passed
+  st_set "phase_${p}_secs" $((SECONDS - t))
+  st_set last_passed "$p"
+  ok "phase $p (${PHASE_NAME[$p]}) passed in $(fmt_secs $((SECONDS - t)))"
+  current_phase=""
+  write_report "in progress"
+  if [[ "$stop_after" == "$p" ]]; then
+    ok "stopped after phase $p (--stop-after, test flag); continue with: just cutover --resume"
+    exit 0
+  fi
+done
+
+outcome="live on the new host"
+[[ ! -s "$RUN_DIR/nonfatal" ]] || outcome="live on the new host, with failed non-fatal checks (D32)"
+write_report "$outcome"
+printf '\nPhase summary:\n'
+for p in "${PHASES[@]}"; do printf '  %-3s %-11s %-8s %s\n' "$p" "${PHASE_NAME[$p]}" "$(st_get "phase_$p")" "$(fmt_secs "$(st_get "phase_${p}_secs")")"; done
+printf '  window (freeze → done): %s\n' "$(fmt_secs $(( $(st_get freeze_end) - $(st_get freeze_start) )))"
+[[ ! -s "$RUN_DIR/warnings" ]] || { printf '\nWarnings:\n'; sed 's/^/  /' "$RUN_DIR/warnings"; }
+[[ ! -s "$RUN_DIR/nonfatal" ]] || { printf '\nFailed non-fatal checks (site kept live, D32):\n'; sed 's/^/  /' "$RUN_DIR/nonfatal"; }
+mkdir -p "$RUN_DIR/history"
+cp "$CUTOVER_STATE" "$RUN_DIR/history/cutover.state.done-$(date +%Y%m%d-%H%M%S)"
+ok "cutover done: $outcome. Report: $RUN_DIR/report.md"

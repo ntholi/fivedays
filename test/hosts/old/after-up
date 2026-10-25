@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# Fills the old-host stand-in (test/hosts/standin up old <port> runs this with the container name) so it looks
+# like prod per precheck/luct.click-2026-10-24.md:
+#   - Moodle code at /var/www/html/sites/moodle: /var/www/moodle from $STANDIN_MOODLE_IMAGE (pinned core,
+#     vendor/ installed) without tool_objectfs (prod doesn't have it), with our two plugins at the versions
+#     prod runs (fivedays commit 7c4345a: local_fivedays 2026102403, gradingform_fivedays 2026101200, the same
+#     versions the seed database holds, so no upgrade is pending);
+#   - config.php with prod's keys (dbtype mariadb, prefix mdl_, dataroot /var/www/data/moodledata,
+#     slasharguments false), wwwroot https://$STANDIN_DOMAIN;
+#   - MariaDB database "moodle" loaded from build/seed/moodle-local-mariadb.sql.gz, the Moodle user
+#     moodleuser@localhost and the read-only backupuser in /root/.my.cnf;
+#   - moodledata/filedir copied from the moodle-local_moodledata volume (mounted read-only);
+#   - a self-signed certificate for $STANDIN_DOMAIN in nginx (prod: certbot);
+#   - the www-data cron line and the root mysqldump cron lines from the pre-check, and tonight's dump file.
+# Env: STANDIN_DOMAIN (default luct.localhost), STANDIN_MOODLE_IMAGE (default ghcr.io/ntholi/fivedays-moodle:local).
+set -euo pipefail
+source "$(dirname "$0")/../../../bin/lib.sh"
+
+name="${1:?container name}"
+domain="${STANDIN_DOMAIN:-luct.localhost}"
+image="${STANDIN_MOODLE_IMAGE:-ghcr.io/ntholi/fivedays-moodle:local}"
+seed="$FIVEDAYS_ROOT/build/seed/moodle-local-mariadb.sql.gz"
+prod_plugins=7c4345a
+root=/var/www/html/sites/moodle
+dataroot=/var/www/data/moodledata
+
+[[ -f "$seed" ]] || die "$seed not found" "It is the cached MariaDB dump of moodle-local (bin/seed-from-prod makes it)."
+docker image inspect "$image" >/dev/null 2>&1 || die "Image $image not found" "Run: just build local"
+x() { docker exec -i "$name" bash -c "$1"; }
+
+# systemd in a fresh container sometimes fails a service's mount namespace setup at boot
+# ("/run/systemd/incoming: No such file or directory"); a restart once boot has settled works.
+for svc in mariadb php8.3-fpm nginx; do
+  x "systemctl is-active --quiet $svc || systemctl restart $svc" || true
+done
+for _ in $(seq 1 60); do x 'mariadb -e "SELECT 1" >/dev/null 2>&1' && break; sleep 1; done
+x 'mariadb -e "SELECT 1" >/dev/null' || die "MariaDB did not start in $name" "Read: docker exec $name journalctl -u mariadb"
+
+log "old stand-in: Moodle code from $image, plugins from fivedays $prod_plugins"
+tmp="$(docker create "$image")"
+x "install -d -m 755 /var/www/html/sites"
+docker cp "$tmp:/var/www/moodle" - | docker exec -i "$name" tar -C /var/www/html/sites -xf -
+docker rm "$tmp" >/dev/null
+x "rm -rf $root/config.php $root/public/admin/tool/objectfs $root/public/local/fivedays $root/public/grade/grading/form/fivedays"
+x "install -d /tmp/plugins"
+git -C "$FIVEDAYS_ROOT" archive "$prod_plugins" local_fivedays gradingform_fivedays | docker exec -i "$name" tar -C /tmp/plugins -xf -
+x "mv /tmp/plugins/local_fivedays $root/public/local/fivedays && mv /tmp/plugins/gradingform_fivedays $root/public/grade/grading/form/fivedays && rm -rf /tmp/plugins"
+
+moodle_pw="$(openssl rand -hex 16)"
+backup_pw="$(openssl rand -hex 16)"
+docker exec -i "$name" tee "$root/config.php" >/dev/null <<PHP
+<?php  // Moodle configuration file (old prod host stand-in)
+
+unset(\$CFG);
+global \$CFG;
+\$CFG = new stdClass();
+
+\$CFG->dbtype    = 'mariadb';
+\$CFG->dblibrary = 'native';
+\$CFG->dbhost    = 'localhost';
+\$CFG->dbname    = 'moodle';
+\$CFG->dbuser    = 'moodleuser';
+\$CFG->dbpass    = '$moodle_pw';
+\$CFG->prefix    = 'mdl_';
+\$CFG->dboptions = array (
+  'dbpersist' => 0,
+  'dbport' => '',
+  'dbsocket' => '',
+  'dbcollation' => 'utf8mb4_unicode_ci',
+);
+
+\$CFG->wwwroot   = 'https://$domain';
+\$CFG->dataroot  = '$dataroot';
+\$CFG->admin     = 'admin';
+\$CFG->slasharguments = false;
+
+\$CFG->directorypermissions = 0777;
+
+require_once(__DIR__ . '/lib/setup.php');
+PHP
+x "chown -R root:root $root && chmod -R a+rX $root && chown www-data:www-data $root/config.php && chmod 640 $root/config.php"
+ok "code at $root"
+
+log "MariaDB: database moodle, moodleuser, read-only backupuser; loading $(du -h "$seed" | cut -f1) seed (a few minutes)"
+x "mariadb -e \"CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  CREATE USER 'moodleuser'@'localhost' IDENTIFIED BY '$moodle_pw';
+  GRANT ALL PRIVILEGES ON moodle.* TO 'moodleuser'@'localhost';
+  CREATE USER 'backupuser'@'localhost' IDENTIFIED BY '$backup_pw';
+  GRANT SELECT, LOCK TABLES, SHOW VIEW ON moodle.* TO 'backupuser'@'localhost';\""
+start=$SECONDS
+gunzip -c "$seed" | docker exec -i "$name" mariadb moodle
+ok "seed loaded in $((SECONDS - start)) s"
+printf '[client]\nuser=backupuser\npassword="%s"\n' "$backup_pw" | docker exec -i "$name" install -m 600 /dev/stdin /root/.my.cnf
+
+log "moodledata: filedir from moodle-local_moodledata (read-only)"
+x "install -d -m 755 /var/www/data && install -d -m 2777 -o www-data -g www-data $dataroot"
+docker run --rm -v moodle-local_moodledata:/src:ro ubuntu:noble-20251001 tar -C /src -cf - filedir | docker exec -i "$name" tar -C "$dataroot" -xf -
+x "chown -R www-data:www-data $dataroot"
+ok "filedir: $(x "find $dataroot/filedir -type f | wc -l") files"
+
+log "nginx: self-signed certificate for $domain"
+x "install -d -m 700 /etc/ssl/standin && openssl req -x509 -newkey rsa:2048 -nodes -days 30 -subj /CN=$domain -addext subjectAltName=DNS:$domain \
+  -keyout /etc/ssl/standin/site.key -out /etc/ssl/standin/site.crt 2>/dev/null && systemctl restart nginx php8.3-fpm"
+
+log "cron: www-data cron.php every minute, root mysqldump 02:00 and cleanup 03:00 (as on prod)"
+x "echo '* * * * * /usr/bin/php $root/admin/cli/cron.php >/dev/null' | crontab -u www-data -"
+x "printf '%s\n' '0 2 * * * mysqldump --defaults-file=/root/.my.cnf moodle > /var/backups/moodle/moodle_backup_\$(date +\\%F).sql' \
+  '0 3 * * * find /var/backups/moodle -name \"moodle_backup_*.sql\" -type f -mtime +7 -delete' | crontab -u root -"
+x "install -d /var/backups/moodle && mysqldump --defaults-file=/root/.my.cnf moodle >/var/backups/moodle/moodle_backup_\$(date +%F).sql"
+ok "tonight's dump: $(x 'ls -sh /var/backups/moodle')"
+
+pending=0
+x "cd $root && sudo -u www-data php admin/cli/upgrade.php --is-pending >/dev/null" || pending=$?
+[[ "$pending" == 0 ]] || die "Moodle reports an upgrade pending on the old stand-in (exit $pending)" "The seed and the plugin versions differ; check $prod_plugins."
+code="$(x "curl -sk -o /dev/null -w '%{http_code}' --resolve $domain:443:127.0.0.1 https://$domain/login/index.php")"
+[[ "$code" == 200 ]] || die "Old stand-in login page answered $code" "Read: docker exec $name tail /var/log/nginx/error.log"
+ok "old stand-in serves Moodle: https://$domain/login/index.php 200 (no upgrade pending)"

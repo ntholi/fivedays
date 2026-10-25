@@ -38,7 +38,7 @@ The Docker stack in this repo installs the plugin and runs `cli/setup.php` after
   - creates or updates the Google OAuth issuer from `MOODLE_GOOGLE_CLIENT_ID` / `MOODLE_GOOGLE_CLIENT_SECRET`;
   - adds the Redis store `fivedays_redis` and maps the application cache to it;
   - turns on phone push (`airnotifier`) and adds it to every notification type's default outputs, never touching locked defaults or users' own preferences;
-  - with `MOODLE_PUSH=1` on `https://luct.click`: requests the push access key and runs the push configuration check.
+  - with `MOODLE_PUSH=1` on `https://luct.click`: requests the push access key and runs the push configuration check. With `MOODLE_PUSH_SOFT=1` (set by `bin/cutover`, D30) push problems print `WARN` and don't fail the run.
 
 ## API Usage
 

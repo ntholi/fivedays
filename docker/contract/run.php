@@ -114,5 +114,14 @@ foreach ($only === '' ? array_diff($servicefunctions, array_keys($covered)) : []
     $failed++;
 }
 
+// CONTRACT_CLEANUP=1 (bin/cutover on prod, bin/rehearse): delete the fixture courses, the CONTRACT category
+// and the users the cases created, so nothing stays visible to students or lecturers.
+if (getenv('CONTRACT_CLEANUP') === '1') {
+    require_once(__DIR__ . '/cleanup-lib.php');
+    $failed += contract_cleanup(
+        [$ctx->courseid ?? 0, $ctx->sparecourseid ?? 0],
+        array_merge([$ctx->lecturerid ?? 0, $ctx->studentid ?? 0], $ctx->extraids ?? []));
+}
+
 printf("\n%d functions, %d cases, %d failed\n", count($servicefunctions), count($cases), $failed);
 exit($failed ? 1 : 0);

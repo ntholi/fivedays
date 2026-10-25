@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+# Local dry run of the cutover (plan step 7, wave 2): bin/rehearse, bin/cutover and bin/cutover-rollback against
+# containers on this laptop. Never touches a real host, bucket, Vercel or database.
+#
+# Rerun the whole dry run (about 2 hours; each line stops on the first failure):
+#   bin/build local                        # fresh images from the working tree
+#   test/dry-run setup                     # stand-ins (old 2223, new 2224), registry, S3, test env, offsite copy
+#   test/dry-run rehearse                  # just rehearse ... --unattended, twice
+#   test/dry-run cutover                   # just cutover ... --unattended, end to end, then the phase summary
+#   test/dry-run reset                     # fresh stand-ins, only this dry run's resources wiped
+#   test/dry-run rollback                  # cutover --stop-after=9, then just cutover-rollback
+#   test/dry-run reset-new && test/dry-run fail    # forced verify failure before phase 7 → automatic rollback
+#   test/dry-run reset-new && test/dry-run resume  # cutover killed in phase 3 (transfer), then --resume, rollback
+#   test/dry-run down                      # remove everything this dry run created
+#
+#   test/dry-run env                       # print the exports to run bin/ commands by hand against the stand-ins
+#
+# What it sets up:
+#   - test/hosts/standin: old (Ubuntu 24.04, nginx, php8.3-fpm, MariaDB 10.11, prod's layout, seeded from
+#     build/seed/moodle-local-mariadb.sql.gz and moodle-local's filedir) and new (bare Ubuntu, then bin/provision);
+#     the stand-in registry with images local, local-web, local-transfer; SeaweedFS for the prod, rehearsal and
+#     backup buckets (prod with versioning on).
+#   - build/dry-run/test.env.prod (600): a .env.prod with dummy keys, wwwroot https://luct.localhost (Caddy's local
+#     CA), MOODLE_ALLOW_INSTALL=0, MOODLE_PUSH=1 (push items WARN under D30), the S3 stand-in endpoint.
+#   - build/dry-run/precheck-standin.md: bin/precheck.sh run on the old stand-in (PRECHECK_REPORT).
+#   - build/dry-run/state: cutover.state, cutover.done, rehearsal.ok and work files of the dry run
+#     (CUTOVER_STATE_DIR), never the real ones; build/dry-run/state/stub: the stub Lightsail and Vercel.
+#   - CUTOVER_STUBS=static-ip,vercel,cert (bin/cutover-lib.sh): refused by bin/ unless every host is 127.0.0.1:<port>.
+set -euo pipefail
+source "$(dirname "$0")/../bin/lib.sh"
+
+OLD_PORT=2223
+NEW_PORT=2224
+OLD=127.0.0.1:$OLD_PORT
+NEW=127.0.0.1:$NEW_PORT
+TAG=local
+DRY="$FIVEDAYS_ROOT/build/dry-run"
+ENVF="$DRY/test.env.prod"
+STATE="$DRY/state"
+STANDIN="$FIVEDAYS_ROOT/test/hosts/standin"
+S3_PORT="${S3_PORT:-8335}"
+
+dry_env() {
+  eval "$("$STANDIN" env)"
+  export SSH_KEY SSH_OPTS
+  export ENV_FILE="$ENVF" CUTOVER_STUBS=static-ip,vercel,cert PRECHECK_REPORT="$DRY/precheck-standin.md" CUTOVER_STATE_DIR="$STATE"
+  export BACKUP_ENV_FILE="$ENVF" RESTIC_CACHE_VOLUME=fivedays-standin-restic-cache
+}
+
+aws_s3() {
+  docker run --rm --network host -e AWS_ACCESS_KEY_ID=dryrun -e AWS_SECRET_ACCESS_KEY=dryrun -e AWS_DEFAULT_REGION=eu-central-1 \
+    "amazon/aws-cli:$AWSCLI_VERSION" --endpoint-url "http://127.0.0.1:$S3_PORT" "$@"
+}
+
+write_env() {
+  mkdir -p "$DRY"
+  chmod 700 "$DRY"
+  rnd() { openssl rand -hex 16; }
+  (umask 077 && cat >"$ENVF" <<ENV
+# Dry-run copy of what just init prod writes (test/dry-run). Dummy keys only.
+COMPOSE_PROJECT_NAME=fivedays
+POSTGRES_PASSWORD=$(rnd)
+REDIS_PASSWORD=$(rnd)
+MOODLE_ADMIN_PASSWORD=$(rnd)
+MOODLE_ADMIN_EMAIL=admin@example.com
+MOODLE_SITE_NAME="Limkokwing FiveDays"
+MOODLE_SITE_SHORTNAME="FiveDays"
+MOODLE_GOOGLE_CLIENT_ID=123456789012-dryrun0dummy0client0id00000000000.apps.googleusercontent.com
+MOODLE_GOOGLE_CLIENT_SECRET=GOCSPX-DryRunDummyClientSecret0000
+MOODLE_WWWROOT=https://luct.localhost
+SITE_ADDRESS=luct.localhost
+MOODLE_ALLOW_INSTALL=0
+MOODLE_PUSH=1
+MOODLE_BUCKET=fivedays-moodle-files
+MOODLE_BUCKET_KEY=dryrun-prod-bucket-key
+MOODLE_BUCKET_SECRET=$(rnd)
+MOODLE_BUCKET_ENDPOINT=http://s3.standin:8333
+REHEARSAL_BUCKET=fivedays-moodle-rehearsal
+REHEARSAL_BUCKET_KEY=dryrun-rehearsal-bucket-key
+REHEARSAL_BUCKET_SECRET=$(rnd)
+CUTOVER_AWS_ACCESS_KEY_ID=dryrun-dummy-cutover-key
+CUTOVER_AWS_SECRET_ACCESS_KEY=$(rnd)
+CUTOVER_OLD_HOST=$OLD
+BACKUP_S3_ENDPOINT=http://127.0.0.1:$S3_PORT
+BACKUP_BUCKET=fivedays-backups
+BACKUP_KEY=dryrun-backup-key
+BACKUP_SECRET=$(rnd)
+BACKUP_READ_KEY=dryrun-backup-read-key
+BACKUP_READ_SECRET=$(rnd)
+RESTIC_PASSWORD=$(rnd)
+IMAGE=127.0.0.1:5055/fivedays-moodle
+ENV
+  )
+  chmod 600 "$ENVF"
+  ok "wrote $ENVF"
+}
+
+# Every key in the test env, as SeaweedFS identities (plus dryrun:dryrun for this script's own aws calls).
+s3_identities() {
+  local k ids="dryrun:dryrun"
+  for k in MOODLE_BUCKET REHEARSAL_BUCKET BACKUP BACKUP_READ; do
+    ids+=" $(sed -n "s/^${k}_KEY=//p" "$ENVF"):$(sed -n "s/^${k}_SECRET=//p" "$ENVF")"
+  done
+  printf '%s' "$ids"
+}
+
+standins_up() {
+  "$STANDIN" registry up
+  S3_IDENTITIES="$(s3_identities)" "$STANDIN" s3 up
+  docker container inspect fivedays-standin-old >/dev/null 2>&1 || "$STANDIN" up old "$OLD_PORT"
+  docker container inspect fivedays-standin-new >/dev/null 2>&1 || "$STANDIN" up new "$NEW_PORT"
+  "$STANDIN" push "$TAG" "$TAG"
+  dry_env
+  "$FIVEDAYS_ROOT/bin/provision" "$NEW" | tail -n 2
+  for b in fivedays-moodle-files fivedays-moodle-rehearsal fivedays-backups; do aws_s3 s3api create-bucket --bucket "$b" >/dev/null 2>&1 || true; done
+  aws_s3 s3api put-bucket-versioning --bucket fivedays-moodle-files --versioning-configuration Status=Enabled
+  ok "buckets: fivedays-moodle-files (versioning $(aws_s3 s3api get-bucket-versioning --bucket fivedays-moodle-files --query Status --output text)), fivedays-moodle-rehearsal, fivedays-backups"
+  # The pre-check script itself, read-only, on the old stand-in.
+  docker exec -i fivedays-standin-old bash -s <"$FIVEDAYS_ROOT/bin/precheck.sh" >"$DRY/precheck-standin.md"
+  grep -A4 '^## Schema files' "$DRY/precheck-standin.md"
+  # Stub Vercel: registry-web's production env as it is before the cutover (MOODLE_TOKEN = a site admin's token).
+  # Fresh state, but rehearsal passes of this tag stay valid across a reset (the stand-ins are rebuilt the same way).
+  local ok_lines=""
+  [[ -f "$STATE/rehearsal.ok" ]] && ok_lines="$(cat "$STATE/rehearsal.ok")"
+  rm -rf "$STATE"
+  mkdir -p "$STATE/stub"
+  [[ -z "$ok_lines" ]] || printf '%s\n' "$ok_lines" >"$STATE/rehearsal.ok"
+  local admin_token
+  admin_token="$(docker exec fivedays-standin-old mariadb -NB moodle -e "SELECT t.token FROM mdl_external_tokens t
+    JOIN mdl_config c ON c.name = 'siteadmins' AND FIND_IN_SET(t.userid, c.value) JOIN mdl_external_services s ON s.id = t.externalserviceid
+    WHERE t.tokentype = 0 ORDER BY (s.shortname = 'fivedays') DESC, t.id LIMIT 1")"
+  [[ -n "$admin_token" ]] || die "No site-admin token in the old stand-in" "The seed should hold user 3's token."
+  (umask 077 && printf 'MOODLE_TOKEN=%s\nLMS_SYNC_PAUSED=0\nNEXT_PUBLIC_MOODLE_URL=https://luct.localhost\n' "$admin_token" >"$STATE/stub/vercel.env")
+  ok "stub Vercel env written ($STATE/stub/vercel.env)"
+  log "offsite copy of the old stand-in (bin/backup $OLD), as the coordinator does before the rehearsals"
+  "$FIVEDAYS_ROOT/bin/backup" "$OLD" | tail -n 4
+  "$FIVEDAYS_ROOT/bin/backup" --offsite-today "$OLD"
+}
+
+cmd="${1:-}"
+set -a
+# shellcheck disable=SC1091
+source "$FIVEDAYS_ROOT/versions.env"
+set +a
+case "$cmd" in
+  setup)
+    start_log dry-run-setup
+    write_env
+    standins_up
+    ok "dry run ready: test/dry-run rehearse"
+    ;;
+  env)
+    dry_env
+    printf 'export SSH_KEY=%q SSH_OPTS=%q ENV_FILE=%q CUTOVER_STUBS=%q PRECHECK_REPORT=%q CUTOVER_STATE_DIR=%q BACKUP_ENV_FILE=%q RESTIC_CACHE_VOLUME=%q\n' \
+      "$SSH_KEY" "$SSH_OPTS" "$ENV_FILE" "$CUTOVER_STUBS" "$PRECHECK_REPORT" "$CUTOVER_STATE_DIR" "$BACKUP_ENV_FILE" "$RESTIC_CACHE_VOLUME"
+    ;;
+  rehearse)
+    dry_env
+    just rehearse "$NEW" "$TAG" --unattended
+    just rehearse "$NEW" "$TAG" --unattended
+    printf '\nrehearsal.ok (%s):\n' "$STATE/rehearsal.ok"
+    cat "$STATE/rehearsal.ok"
+    "$STANDIN" exec new bash -c 'for v in fivedays_moodledata fivedays_pgdata fivedays_caddydata fivedays_backups; do printf "%s: %s entries\n" $v "$(find "$(docker volume inspect -f "{{.Mountpoint}}" $v)" -mindepth 1 -maxdepth 1 | wc -l)"; done; ls /opt/fivedays'
+    printf 'rehearsal bucket objects: %s\n' "$(aws_s3 s3api list-objects-v2 --bucket fivedays-moodle-rehearsal --query 'length(Contents || `[]`)' --output text)"
+    printf 'ephemeral key lines on old: %s; key dir on new: %s\n' "$("$STANDIN" exec old grep -c fivedays-cutover-ephemeral /home/ubuntu/.ssh/authorized_keys || true)" \
+      "$("$STANDIN" exec new sh -c 'ls -d /opt/fivedays/cutover 2>/dev/null || echo absent')"
+    ;;
+  cutover)
+    dry_env
+    just cutover "$OLD" "$NEW" --unattended
+    ;;
+  rollback)
+    dry_env
+    just cutover "$OLD" "$NEW" --unattended --stop-after=9
+    just cutover-rollback --unattended
+    "$STANDIN" exec old bash -c 'echo "php-fpm: $(systemctl is-active php8.3-fpm)"; echo "cron: $(crontab -u www-data -l)"; echo "maintenance file: $(ls /var/www/data/moodledata/climaintenance.html 2>&1)"; echo "ephemeral key lines: $(grep -c fivedays-cutover-ephemeral /home/ubuntu/.ssh/authorized_keys || true)"'
+    printf 'stub static IP owner: %s\n' "$(sed -n 's/^owner=//p' "$STATE/stub/lightsail")"
+    ;;
+  fail)
+    dry_env
+    just cutover "$OLD" "$NEW" --unattended --stop-after=3
+    log "corrupting one row on the new side before verify: deleting one mdl_files row in the new Postgres"
+    "$STANDIN" exec new bash -c 'cd /opt/fivedays && docker compose --env-file versions.env --env-file .env -f compose.yaml exec -T db psql -U moodle -d moodle -c "DELETE FROM mdl_files WHERE id = (SELECT MAX(id) FROM mdl_files)"'
+    if just cutover --resume --unattended; then die "the cutover passed despite the corrupted row" "This is a bug."; fi
+    [[ ! -f "$STATE/cutover.state" ]] || die "cutover.state still exists: the automatic rollback did not finish" "Read the log above."
+    ok "forced failure in phase 4 rolled back automatically (state archived in $STATE/cutover/history)"
+    ls "$STATE/cutover/history"
+    ;;
+  resume)
+    dry_env
+    log "starting the cutover and killing it (SIGKILL, like a lost laptop) once phase 3 (transfer) is running"
+    setsid just cutover "$OLD" "$NEW" --unattended --stop-after=4 >"$DRY/resume-first.log" 2>&1 &
+    pid=$!
+    for _ in $(seq 1 3600); do grep -q '^phase_3=started' "$STATE/cutover.state" 2>/dev/null && break; sleep 1; done
+    sleep 20
+    kill -9 -- "-$pid" 2>/dev/null || kill -9 "$pid"
+    sleep 2
+    grep -E '^(phase_[0-9b]+|last_passed)=' "$STATE/cutover.state"
+    log "resuming"
+    just cutover --resume --unattended --stop-after=4
+    grep -E '^(phase_[0-9b]+|last_passed)=' "$STATE/cutover.state"
+    just cutover-rollback --unattended
+    ;;
+  reset)
+    start_log dry-run-reset
+    "$STANDIN" down new
+    "$STANDIN" down old
+    docker volume rm fivedays-standin-restic-cache >/dev/null 2>&1 || true
+    "$STANDIN" s3 down
+    standins_up
+    ;;
+  reset-new)
+    # After a rollback before phase 7 the old stand-in is serving again; only the new one holds a copy.
+    start_log dry-run-reset-new
+    [[ ! -f "$STATE/cutover.state" ]] || die "$STATE/cutover.state exists" "Roll back or finish that dry run first."
+    "$STANDIN" down new
+    "$STANDIN" up new "$NEW_PORT"
+    dry_env
+    "$FIVEDAYS_ROOT/bin/provision" "$NEW" | tail -n 2
+    rm -f "$STATE/stub/lightsail"
+    ;;
+  down)
+    "$STANDIN" down new
+    "$STANDIN" down old
+    "$STANDIN" s3 down
+    "$STANDIN" registry down
+    docker volume rm fivedays-standin-restic-cache >/dev/null 2>&1 || true
+    rm -rf "$DRY"
+    ok "dry run removed"
+    ;;
+  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

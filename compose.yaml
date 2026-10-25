@@ -19,6 +19,8 @@ x-moodle: &moodle
     MOODLE_BUCKET: ${MOODLE_BUCKET:--}
     MOODLE_BUCKET_KEY: ${MOODLE_BUCKET_KEY:-}
     MOODLE_BUCKET_SECRET: ${MOODLE_BUCKET_SECRET:-}
+    # Test stand-ins only (an S3 stand-in instead of Lightsail); prod env files never set it.
+    MOODLE_BUCKET_ENDPOINT: ${MOODLE_BUCKET_ENDPOINT:--}
     FPM_MAX_CHILDREN: ${FPM_MAX_CHILDREN:-10}
   volumes:
     - moodledata:/var/moodledata
@@ -39,6 +41,8 @@ services:
       MOODLE_GOOGLE_CLIENT_ID: ${MOODLE_GOOGLE_CLIENT_ID:-}
       MOODLE_GOOGLE_CLIENT_SECRET: ${MOODLE_GOOGLE_CLIENT_SECRET:-}
       MOODLE_PUSH: ${MOODLE_PUSH:-0}
+      # D30: bin/cutover sets 1 so push items in setup.php warn instead of failing.
+      MOODLE_PUSH_SOFT: ${MOODLE_PUSH_SOFT:-0}
     volumes:
       - moodledata:/var/moodledata
       - backups:/backups

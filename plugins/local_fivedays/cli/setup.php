@@ -25,6 +25,9 @@ $report = static function (string $status, string $item, string $detail = '') us
 };
 $env = static fn(string $name): string => (string) getenv($name);
 $isprod = $env('MOODLE_ALLOW_INSTALL') !== '1';
+// D30: during the cutover (bin/cutover sets MOODLE_PUSH_SOFT=1) push problems print WARN and never fail the
+// run; rerunning this script later fixes them. Everywhere else they FAIL.
+$pushfail = $env('MOODLE_PUSH_SOFT') === '1' ? 'WARN' : 'FAIL';
 
 \core\session\manager::set_user(get_admin());
 
@@ -185,25 +188,29 @@ if (!$airnotifier) {
     $report($added ? 'changed' : 'ok', 'push on by default', $added ? "added to {$added} notification types" : '');
 
     if ($env('MOODLE_PUSH') === '1') {
-        $manager = new message_airnotifier_manager();
-        if ($CFG->wwwroot !== 'https://luct.click' || !empty($CFG->noemailever)) {
-            $report('FAIL', 'push access key', 'MOODLE_PUSH=1 needs wwwroot https://luct.click and email/push not blocked');
-        } else if (!empty($CFG->airnotifieraccesskey)) {
-            $report('ok', 'push access key');
-        } else if (!\core\hub\registration::is_registered()) {
-            $report('FAIL', 'push access key',
-                'Site not registered with moodle.org; register in Site administration → Registration, then rerun');
-        } else if ($key = $manager->request_accesskey()) {
-            set_config('airnotifieraccesskey', $key);
-            $report('changed', 'push access key', 'requested and saved');
-        } else {
-            $report('FAIL', 'push access key', 'messages.moodle.net returned no key');
-        }
+        try {
+            $manager = new message_airnotifier_manager();
+            if ($CFG->wwwroot !== 'https://luct.click' || !empty($CFG->noemailever)) {
+                $report($pushfail, 'push access key', 'MOODLE_PUSH=1 needs wwwroot https://luct.click and email/push not blocked');
+            } else if (!empty($CFG->airnotifieraccesskey)) {
+                $report('ok', 'push access key');
+            } else if (!\core\hub\registration::is_registered()) {
+                $report($pushfail, 'push access key',
+                    'Site not registered with moodle.org; register in Site administration → Registration, then rerun');
+            } else if ($key = $manager->request_accesskey()) {
+                set_config('airnotifieraccesskey', $key);
+                $report('changed', 'push access key', 'requested and saved');
+            } else {
+                $report($pushfail, 'push access key', 'messages.moodle.net returned no key');
+            }
 
-        foreach ($manager->check_configuration() as $result) {
-            $ok = $result->get_status() === \core\check\result::OK;
-            $report($ok ? 'ok' : 'FAIL', 'push check', strip_tags($result->get_summary()) .
-                ($ok ? '' : ' (' . $result->get_status() . ': ' . strip_tags($result->get_details()) . ')'));
+            foreach ($manager->check_configuration() as $result) {
+                $ok = $result->get_status() === \core\check\result::OK;
+                $report($ok ? 'ok' : $pushfail, 'push check', strip_tags($result->get_summary()) .
+                    ($ok ? '' : ' (' . $result->get_status() . ': ' . strip_tags($result->get_details()) . ')'));
+            }
+        } catch (Throwable $e) {
+            $report($pushfail, 'push', get_class($e) . ': ' . $e->getMessage());
         }
     }
 }

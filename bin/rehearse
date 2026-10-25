@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# just rehearse <new-host> <tag> [--old=<host>] [--unattended]: full dress rehearsal of the cutover on the new host
+# with last night's prod dump, timed. The old host is only read: its newest nightly dump
+# (/var/backups/moodle/moodle_backup_*.sql) and its moodledata, pulled host to host by the new host with an
+# ephemeral key. Nothing on the old host changes except that key in ubuntu's authorized_keys, removed at the end.
+#
+#   preflight  the new host is provisioned, runs nothing and has empty volumes; the old host has prod's layout;
+#              the image tag exists; the rehearsal bucket is set and is not the prod bucket; no cutover is running;
+#              the public name does not reach the new host; install.xml hashes match the pre-check (dbtransfer).
+#   setup      host files with a rehearsal env (bucket = REHEARSAL_BUCKET with its keys, MOODLE_PUSH=0,
+#              MOODLE_NOEMAIL=1, SITE_ADDRESS=http://<domain> so Caddy never asks Let's Encrypt for the real
+#              name), images pulled, ephemeral key installed.
+#   load       a temporary official MariaDB ($MARIADB_VERSION) on the new host, loaded with the nightly dump;
+#   files      at the same time, moodledata rsync'd from the old host (plus trashdir, see host/cutover-new.sh).
+#   transfer   dbtransfer from the -transfer image into the new Postgres.
+#   verify     bin/verify <new>/fivedays-rehearsal-mariadb <new>.
+#   start      MariaDB removed, the stack started without cron (migrate: pre-upgrade dump, upgrade with the
+#              service hand-over, setup.php), maintenance flag off, health check.
+#   bucket     every file pushed to REHEARSAL_BUCKET and checked there (phase 5b).
+#   smoke      phase 6's checks on the internal listener, the full contract test with cleanup, token counts.
+#   wipe       only the new host: stack down, fivedays_* volumes recreated empty, every object in
+#              REHEARSAL_BUCKET deleted, host .env removed; the ephemeral key removed from both hosts.
+#              Interactive: type "wipe-rehearsal". --unattended: refused automatically (instead of the prompt)
+#              when a cutover is running or done, or the public name reaches the new host.
+# Never requests a push access key (MOODLE_PUSH=0, MOODLE_NOEMAIL=1, cron never runs). On success it appends one
+# line to rehearsal.ok: date, tag, seconds per phase, window (the phases the cutover repeats) and total.
+# A failed rehearsal still removes the key and wipes (after the same checks), so the next one starts clean.
+#
+# Env: ENV_FILE (default .env.prod), CUTOVER_OLD_HOST in it (default luct.click; --old wins), CUTOVER_STUBS and
+# PRECHECK_REPORT for the local stand-ins only (bin/cutover-lib.sh).
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+source "$FIVEDAYS_ROOT/bin/cutover-lib.sh"
+
+usage() { die "Usage: just rehearse <new-host> <tag> [--old=<host>] [--unattended]" "e.g. just rehearse 63.181.79.8 sha-1a2b3c4"; }
+unattended=0
+old_arg=""
+args=()
+for a in "$@"; do
+  case "$a" in
+    --unattended) unattended=1 ;;
+    --old=*) old_arg="${a#--old=}" ;;
+    -*) usage ;;
+    *) args+=("$a") ;;
+  esac
+done
+((${#args[@]} == 2)) || usage
+new="${args[0]}"
+tag="${args[1]}"
+valid_tag "$tag" || die "\"$tag\" is not a valid image tag" "Use the tag just release printed."
+
+start_log "rehearse-$(host_name "$new")"
+cl_load_env
+old="${old_arg:-$(env_value CUTOVER_OLD_HOST)}"
+old="${old:-luct.click}"
+[[ "$old" != "$new" ]] || die "The old and new host are the same ($old)" "Pass the new host; the old one comes from CUTOVER_OLD_HOST or --old."
+cl_stubs_init "$old" "$new"
+cl_ssh_init "$WORK_HOME/rehearse" 1
+cl_hosts "$old" "$new"
+if stub_on static-ip; then stub_ls_init "$old" "$new"; fi
+: >"$RUN_DIR/warnings"
+: >"$RUN_DIR/nonfatal"
+
+rb="$(env_value REHEARSAL_BUCKET)"
+pb="$(env_value MOODLE_BUCKET)"
+declare -A secs=()
+
+started_stack=0
+key_installed=0
+finished=0
+
+# ---- the wipe and its safety checks ----
+wipe_allowed() {
+  if [[ -f "$CUTOVER_DONE" ]]; then warn "cutover.done exists: the new host is live"; return 1; fi
+  local p
+  for p in 1 2 3 4 5 5b 6 7 8 9 10; do
+    if [[ -n "$(st_get "phase_$p")" ]]; then warn "cutover.state shows phase $p ($(st_get "phase_$p")): a cutover is running"; return 1; fi
+  done
+  if new_is_public_target "$new"; then warn "$DOMAIN reaches the new host $new"; return 1; fi
+  [[ -n "$rb" && "$rb" != "$pb" ]] || { warn "rehearsal bucket \"$rb\" is empty or the prod bucket"; return 1; }
+  return 0
+}
+wipe() {
+  wipe_allowed || die "Wipe refused (reason above): nothing on the new host was deleted" "Find out why before rehearsing again."
+  if ((unattended)); then
+    ok "wipe checks passed (--unattended replaces typing wipe-rehearsal): no cutover running or done, $DOMAIN does not reach $new, bucket $rb"
+  else
+    printf '\nThis deletes the new host %s volumes (fivedays_*) and every object in bucket %s.\n' "$new" "$rb"
+    confirm wipe-rehearsal
+  fi
+  new_run wipe-rehearsal "$rb"
+  ok "new host wiped: volumes empty, bucket $rb empty, host .env removed"
+}
+
+on_exit() {
+  local rc=$?
+  ((finished)) && return
+  set +e
+  if ((rc != 0)); then
+    warn "rehearsal FAILED (exit $rc); cleaning up the new host and the key"
+  fi
+  if ((key_installed)); then ekey_remove || warn "the ephemeral key is not confirmed gone (above); the next rehearsal or cutover replaces it, and phase 10 removes it"; fi
+  if ((started_stack)); then (wipe) || warn "the wipe did not finish: the next rehearsal will refuse until the new host is empty"; fi
+  if ((rc != 0)); then printf '\nRehearsal failed. What to do: read the FAIL line above and %s, then rerun just rehearse.\n' "$LOG_FILE" >&2; fi
+}
+trap on_exit EXIT
+
+timed() {
+  local name="$1" t=$SECONDS
+  shift
+  log "== $name"
+  "$@"
+  secs[$name]=$((SECONDS - t))
+  ok "$name: $(fmt_secs "${secs[$name]}")"
+}
+
+p_preflight() {
+  [[ -n "$rb" && -n "$(env_value REHEARSAL_BUCKET_KEY)" && -n "$(env_value REHEARSAL_BUCKET_SECRET)" ]] ||
+    die "REHEARSAL_BUCKET and its keys are not set in $ENV_FILE" "Write them with just init prod."
+  [[ "$rb" != "$pb" ]] || die "REHEARSAL_BUCKET is the prod bucket ($pb)" "Rehearsals use their own bucket (fivedays-moodle-rehearsal)."
+  ok "rehearsal bucket $rb (prod bucket $pb untouched)"
+  wipe_allowed || die "A cutover is running or done, or $DOMAIN reaches $new (above)" "Rehearsals only run before the cutover, on the new host."
+  ok "no cutover running or done; $DOMAIN does not reach $new"
+  deploy_check_host "$new"
+  local out
+  out="$(new_run preflight)"
+  [[ "$(kv running_containers "$out")" == 0 && "$(kv rehearsal_db "$out")" == 0 ]] || die "The new host runs containers of the stack" "A rehearsal starts on a stopped, empty host."
+  grep -q '^volume_.*=\(missing\|[0-9]\)' <<<"$out" && { printf '%s\n' "$out"; die "The new host's volumes are not empty (above)" "A previous rehearsal did not wipe; it refuses to guess what the data is."; }
+  ok "new host: nothing running, volumes empty, $(kv free_mb "$out") MB free"
+  out="$(old_run inspect)" || die "The old host does not look like the old prod host" "Check the pre-check report."
+  [[ "$(kv dbtype "$out")" == mariadb ]] || die "The old host's config.php has dbtype $(kv dbtype "$out")" "Check the pre-check report."
+  [[ -n "$(kv nightly_dump "$out")" ]] || die "The old host has no nightly dump in /var/backups/moodle" "Wait for the root cron's 02:00 mysqldump."
+  ok "old host: Moodle on MariaDB, nightly dump $(kv nightly_dump "$out") ($(( $(kv nightly_dump_bytes "$out") / 1048576 )) MB, $(kv nightly_dump_age_h "$out") h old)"
+  (( $(kv nightly_dump_age_h "$out") <= 26 )) || note_warn "the nightly dump is $(kv nightly_dump_age_h "$out") h old (expected under 26 h)"
+  (load_env "$ENV_FILE" >/dev/null && deploy_check_images "$IMAGE_NAME" "$tag")
+  ok "old host $old (instance $OLD_INSTANCE), new host $new (instance $NEW_INSTANCE)"
+}
+
+p_setup() {
+  local overlay="$RUN_DIR/rehearsal.env" pub priv opub opriv
+  cl_overlay_env "$overlay" "MOODLE_BUCKET=$rb" "MOODLE_BUCKET_KEY=$(env_value REHEARSAL_BUCKET_KEY)" \
+    "MOODLE_BUCKET_SECRET=$(env_value REHEARSAL_BUCKET_SECRET)" MOODLE_PUSH=0 MOODLE_NOEMAIL=1 MOODLE_ALLOW_INSTALL=0 \
+    "SITE_ADDRESS=http://$DOMAIN"
+  ENV_FILE="$overlay" deploy_check_env
+  ENV_FILE="$overlay" deploy_write_files "$new" "$tag"
+  rm -f "$overlay"
+  new_run pull-images "$IMAGE_NAME" "$tag"
+  installxml_check "$(host_name "$old")" "$IMAGE_NAME:$tag-transfer"
+  read -r opub opriv < <(ls_instance "$OLD_INSTANCE")
+  read -r pub priv < <(ls_instance "$NEW_INSTANCE")
+  key_installed=1
+  ekey_install "$opriv" "$opub" "$priv" "$pub"
+}
+
+p_load_files() {
+  host_compose "$new" up -d db >/dev/null 2>&1 || die "Could not start the db service on $new" "Read: the output above."
+  started_stack=1
+  new_run rehearsal-db-up "$MARIADB_VERSION"
+  # Both read from the old host at once: the dump into MariaDB, moodledata into the volume.
+  local t=$SECONDS lt ft
+  (new_run rehearsal-db-load >"$RUN_DIR/load.out" 2>&1; echo "$? $((SECONDS - t))" >"$RUN_DIR/load.rc") &
+  (new_run pull-files rehearsal >"$RUN_DIR/files.out" 2>&1; echo "$? $((SECONDS - t))" >"$RUN_DIR/files.rc") &
+  wait
+  sed 's/^/      load  /' "$RUN_DIR/load.out"
+  sed 's/^/      files /' "$RUN_DIR/files.out"
+  read -r lrc lt <"$RUN_DIR/load.rc"
+  read -r frc ft <"$RUN_DIR/files.rc"
+  secs[load]=$lt
+  secs[files]=$ft
+  [[ "$lrc" == 0 ]] || die "Loading the nightly dump into the temporary MariaDB failed (above)" "Read the error; rerun just rehearse."
+  [[ "$frc" == 0 ]] || die "Copying moodledata from the old host failed (above)" "Read the error; rerun just rehearse."
+  local o n
+  o="$(sed -n 's/.*old_filedir_files=\([0-9]*\).*/\1/p' "$RUN_DIR/files.out")"
+  n="$(sed -n 's/.*new_filedir_files=\([0-9]*\).*/\1/p' "$RUN_DIR/files.out")"
+  (( n >= o )) || die "The new host has $n filedir files, the old host $o" "Rerun just rehearse."
+  ok "dump loaded ($(fmt_secs "$lt")), moodledata copied ($(fmt_secs "$ft")): filedir $o old, $n new (+ trashdir)"
+}
+
+p_transfer() { new_run transfer rehearsal "$IMAGE_NAME:$tag-transfer"; }
+
+p_verify() {
+  "$FIVEDAYS_ROOT/bin/verify" "--tag=$tag" "$new/fivedays-rehearsal-mariadb" "$new" || die "verify found differences (above)" "Read the differences; the transfer or the copy is wrong."
+  tokens_before="$(new_run token-count)"
+  ok "FiveDays tokens after the transfer: $tokens_before"
+}
+
+p_start() {
+  new_run rehearsal-db-down >/dev/null
+  deploy_start "$new" --scale cron=0
+  new_run maintenance-off
+  deploy_health "$new"
+  local warns
+  warns="$(host_compose "$new" logs --no-log-prefix migrate 2>/dev/null | grep -E '^WARN ' || true)"
+  [[ -z "$warns" ]] || while IFS= read -r w; do note_warn "setup.php: $w"; done <<<"$warns"
+  ok "stack up without cron; migrate and setup.php passed"
+}
+
+p_bucket() { new_run objectfs; }
+
+p_smoke() {
+  new_run admin-token-from-db >/dev/null
+  new_run smoke "$DOMAIN" || die "Smoke checks failed (above)" "Read the FAIL lines."
+  local n
+  n="$(new_run token-count)"
+  [[ "$n" == "$tokens_before" ]] || die "FiveDays tokens: $n after the upgrade, $tokens_before before" "The service hand-over lost or added tokens."
+  ok "FiveDays tokens unchanged by the upgrade: $n"
+  copy_contract
+  new_run contract "$DOMAIN" || die "The contract test failed (above)" "Fix the function, its capability or its case."
+  n="$(new_run token-count)"
+  [[ "$n" == "$tokens_before" ]] || die "FiveDays tokens after the contract cleanup: $n, expected $tokens_before" "The contract cleanup left users behind."
+  ok "contract fixtures cleaned up; FiveDays tokens back to $n"
+}
+
+p_wipe() {
+  ekey_remove || die "The ephemeral key is not confirmed gone (above)" "Rerun just rehearse; it removes the key again."
+  key_installed=0
+  wipe
+  started_stack=0
+}
+
+total_start=$SECONDS
+timed preflight p_preflight
+timed setup p_setup
+timed load+files p_load_files
+timed transfer p_transfer
+timed verify p_verify
+timed start p_start
+timed bucket p_bucket
+timed smoke p_smoke
+timed wipe p_wipe
+total=$((SECONDS - total_start))
+
+# The cutover repeats: copy files, transfer, verify, start, bucket, smoke (the rehearsal's MariaDB load is its own).
+window=$(( secs[files] + secs[transfer] + secs[verify] + secs[start] + secs[bucket] + secs[smoke] ))
+line="$(date -u +%FT%TZ) tag=$tag window=$window total=$total"
+for p in load files transfer verify start bucket smoke wipe; do line+=" $p=${secs[$p]}"; done
+printf '%s\n' "$line" >>"$REHEARSAL_OK"
+finished=1
+printf '\nPhase timings:\n'
+for p in preflight setup load files transfer verify start bucket smoke wipe; do printf '  %-10s %s\n' "$p" "$(fmt_secs "${secs[$p]:-0}")"; done
+printf '  %-10s %s\n  %-10s %s\n' window "$(fmt_secs "$window")" total "$(fmt_secs "$total")"
+[[ ! -s "$RUN_DIR/warnings" ]] || { printf '\nWarnings:\n'; sed 's/^/  /' "$RUN_DIR/warnings"; }
+ok "rehearsal passed; rehearsal.ok: $line"

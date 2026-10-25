@@ -85,7 +85,8 @@ ok "not the old prod host (no MariaDB/MySQL/nginx/Apache packages)"
 for p in docker.io docker-compose podman-docker containerd runc; do
   ! installed "$p" || fail "Ubuntu's $p package is installed; it conflicts with Docker's packages" "Remove it (apt-get remove $p) and rerun."
 done
-if apt_install ca-certificates curl gnupg; then changed "packages: ca-certificates curl gnupg"; else ok "packages: ca-certificates curl gnupg"; fi
+# rsync and the ssh client: the cutover pulls moodledata and tunnels to the old MariaDB from this host.
+if apt_install ca-certificates curl gnupg rsync openssh-client; then changed "packages: ca-certificates curl gnupg rsync openssh-client"; else ok "packages: ca-certificates curl gnupg rsync openssh-client"; fi
 
 key=/etc/apt/keyrings/docker.asc
 if [[ -s "$key" ]]; then

@@ -20,7 +20,8 @@
 #   deploy_check_host <host>                    marker present; prints nothing else
 #   deploy_check_images <image> <tag>           <tag>, <tag>-web, <tag>-transfer exist (docker manifest inspect)
 #   deploy_write_files <host> <tag>             steps 2–3 (needs ENV_FILE)
-#   deploy_start <host>                         step 4 (pull, up -d, migrate exit 0)
+#   deploy_start <host> [up args...]            step 4 (pull, up -d, migrate exit 0); extra args go to
+#                                               `up -d`, e.g. --scale cron=0 (rehearsals run without cron)
 #   deploy_health <host>                        step 5
 #   host_env_get <host> <KEY>                   one non-secret value from the host .env (tags only)
 #
@@ -121,11 +122,12 @@ deploy_write_files() {
 
 deploy_start() {
   local host="$1" id code
+  shift
   log "pulling images on $host"
   host_compose "$host" pull --quiet || die "docker compose pull failed on $host" "Check the tag and the host's internet access, then rerun just deploy."
   log "starting the stack on $host (migrate runs first)"
   # up fails when migrate fails; the migrate exit code below is the verdict either way.
-  host_compose "$host" up -d --remove-orphans || true
+  host_compose "$host" up -d --remove-orphans "$@" || true
   id="$(host_compose "$host" ps -a -q migrate)"
   [[ -n "$id" ]] || die "No migrate container on $host (compose up failed before it, see above)" "Run: just rollback $host"
   code="$(on_host "$host" "docker wait $id")"
@@ -134,7 +136,9 @@ deploy_start() {
     die "migrate exited $code on $host (last 40 lines above)" "just rollback $host"
   fi
   ok "migrate exited 0"
-  host_compose "$host" logs --no-log-prefix migrate 2>/dev/null | grep -E '^\[migrate|^(ok|changed|WARN|FAIL) ' || true
+  # setup.php prints a new fivedays_ws token once; it stays in the container log, never in this script's log.
+  host_compose "$host" logs --no-log-prefix migrate 2>/dev/null | grep -E '^\[migrate|^(ok|changed|WARN|FAIL) ' |
+    sed -E 's/(shown once\): ).*/\1(hidden; bin\/cutover reads it from the database)/' || true
 }
 
 deploy_health() {

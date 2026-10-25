@@ -54,6 +54,10 @@ return [
     ],
     [
         'fn' => 'enrol_manual_enrol_users',
+        // Without a mail server (prod, D20) the welcome message's email output fails after the enrolment is
+        // committed, and core throws "Message was not sent." (lib/classes/message/manager.php:382-383), as
+        // local_fivedays' own enrol path expects (provision_helper.php). registry-web doesn't call this function.
+        'allow' => ['Message was not sent.'],
         'params' => function ($ctx) {
             global $DB;
             $roleid = (int) $DB->get_field('role', 'id', ['shortname' => 'student'], MUST_EXIST);
@@ -315,7 +319,13 @@ return [
 
     [
         'fn' => 'local_fivedays_ensure_google_login',
-        'params' => fn() => ['clientid' => 'local-dev-client', 'clientsecret' => 'local-dev-secret'],
+        // On a site that already has the Google issuer (prod, during the cutover) pass its own credentials, so
+        // the call changes nothing; dummy credentials only where there is no issuer yet.
+        'params' => function () {
+            $issuer = \local_fivedays\provision_helper::find_google_issuer();
+            return $issuer ? ['clientid' => $issuer->get('clientid'), 'clientsecret' => $issuer->get('clientsecret')]
+                : ['clientid' => 'local-dev-client', 'clientsecret' => 'local-dev-secret'];
+        },
     ],
     [
         'fn' => 'local_fivedays_unenrol_users',

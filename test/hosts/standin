@@ -11,6 +11,13 @@
 #   test/hosts/standin push <src> <dest>      push ghcr.io/ntholi/fivedays-moodle:<src>{,-web,-transfer} to it
 #                                              as 127.0.0.1:$REGISTRY_PORT/fivedays-moodle:<dest>{,-web,-transfer}
 #   test/hosts/standin exec <role> <cmd...>   run a command as root inside the stand-in (debugging, test setup)
+#   test/hosts/standin s3 up|down             SeaweedFS S3 stand-in for the Lightsail buckets and the R2 backup
+#                                              bucket: inside the stand-ins http://s3.standin:8333 (virtual-host names
+#                                              <bucket>.s3.standin; nested Docker DNS forwards only dotted
+#                                              names), on the laptop 127.0.0.1:$S3_PORT
+#                                              (default 8335). No volume: its data dies with the container.
+#                                              S3_IDENTITIES="key:secret ..." are the accepted keys (default
+#                                              standin:standin).
 #
 # Roles: one directory per role under test/hosts/ with a Dockerfile (e.g. new/, old/). An optional
 # executable test/hosts/<role>/after-up runs on the laptop after the container is up, with the container
@@ -35,7 +42,11 @@ REGISTRY_IMAGE=registry:2.8.3
 REGISTRY_PORT="${REGISTRY_PORT:-5055}"
 SRC_IMAGE=ghcr.io/ntholi/fivedays-moodle
 
-usage() { sed -n '5,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+S3=fivedays-standin-s3
+S3_PORT="${S3_PORT:-8335}"
+S3_BUCKETS="${S3_BUCKETS:-fivedays-moodle-files fivedays-moodle-rehearsal fivedays-backups}"
+
+usage() { sed -n '5,21p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 
 valid_role() {
   [[ "$1" =~ ^[a-z0-9-]+$ ]] || die "Bad role \"$1\"" "Use a directory name under test/hosts/, e.g. new"
@@ -178,6 +189,47 @@ cmd_push() {
   done
 }
 
+cmd_s3() {
+  case "${1:-}" in
+    up)
+      if docker container inspect "$S3" >/dev/null 2>&1; then ok "$S3 already running"; return; fi
+      ! ss -ltn | grep -q "[:.]$S3_PORT " || die "Port $S3_PORT is in use" "Set S3_PORT=<free port> for every standin command."
+      ensure_network
+      set -a
+      # shellcheck disable=SC1091
+      source "$FIVEDAYS_ROOT/versions.env"
+      set +a
+      local aliases=(--network-alias s3.standin) b pair ids="" sep=""
+      for b in $S3_BUCKETS; do aliases+=(--network-alias "$b.s3.standin"); done
+      # SeaweedFS refuses signed requests unless identities exist (restic signs every request); every
+      # access key in S3_IDENTITIES ("key:secret ...") may do everything.
+      for pair in ${S3_IDENTITIES:-standin:standin}; do
+        ids+="$sep{\"name\":\"${pair%%:*}\",\"credentials\":[{\"accessKey\":\"${pair%%:*}\",\"secretKey\":\"${pair#*:}\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]}"
+        sep=","
+      done
+      mkdir -p "$KEY_DIR"
+      (umask 077 && printf '{"identities":[%s]}\n' "$ids" >"$KEY_DIR/s3.json")
+      chmod 644 "$KEY_DIR/s3.json"
+      docker run -d --name "$S3" --network "$NETWORK" "${aliases[@]}" -p "127.0.0.1:$S3_PORT:8333" \
+        -v "$KEY_DIR/s3.json:/etc/seaweedfs/s3.json:ro" \
+        "chrislusf/seaweedfs:$SEAWEEDFS_VERSION" server -s3 -s3.domainName=s3.standin -s3.config=/etc/seaweedfs/s3.json -dir=/data >/dev/null
+      for _ in $(seq 1 60); do curl -s -o /dev/null "http://127.0.0.1:$S3_PORT/" && break; sleep 1; done
+      curl -s -o /dev/null "http://127.0.0.1:$S3_PORT/" || die "$S3 did not answer on 127.0.0.1:$S3_PORT" "Read: docker logs $S3"
+      ok "S3 stand-in $S3: http://s3.standin:8333 inside the stand-ins, http://127.0.0.1:$S3_PORT here (buckets: $S3_BUCKETS)"
+      ;;
+    down)
+      if docker container inspect "$S3" >/dev/null 2>&1; then
+        docker rm -f -v "$S3" >/dev/null
+        ok "removed $S3 and its anonymous volume"
+      else
+        ok "$S3 not running"
+      fi
+      remove_network_if_unused
+      ;;
+    *) usage ;;
+  esac
+}
+
 cmd_exec() {
   local role="${1:-}"
   shift || true
@@ -195,5 +247,6 @@ case "$sub" in
   registry) cmd_registry "$@" ;;
   push) cmd_push "$@" ;;
   exec) cmd_exec "$@" ;;
+  s3) cmd_s3 "$@" ;;
   *) usage ;;
 esac

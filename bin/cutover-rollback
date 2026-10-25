@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# just cutover-rollback [--unattended]: undoes a cutover that has not reached phase 10, from cutover.state.
+#   1. If phase 7 ran: counts the logstore_standard_log rows the new host wrote since the switch (writes that
+#      rolling back loses), then moves the static IP back to the old instance.
+#   2. If phase 8 swapped registry-web's MOODLE_TOKEN: the saved old token goes back in Vercel, redeploy.
+#   3. If the new stack was started (phase 5): it is stopped (volumes kept), so its cron can't act for a site that
+#      no longer is prod.
+#   4. If phase 1 ran: old host php-fpm started, cron line back, maintenance off.
+#   5. If LMS sync was paused (D34): resumed.
+#   6. The ephemeral key is removed from both hosts.
+#   Check: https://<domain> serves the old Moodle (login page 200 from nginx), the old admin token answers, the
+#   old host runs php-fpm with its cron line and no maintenance flag, the static IP is on the old instance and the
+#   key is gone. Then cutover.state moves to build/cutover/history/ (a new cutover starts from phase 0).
+# Nothing was written to the old host during the window, so nothing is lost before phase 7.
+# After cutover.done it refuses and prints the restore procedure instead: new writes would be lost.
+# Interactive: type "rollback". --unattended (and bin/cutover's automatic D32 rollback): no prompt.
+set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+source "$FIVEDAYS_ROOT/bin/cutover-lib.sh"
+
+unattended=0
+reason="requested"
+for a in "$@"; do
+  case "$a" in
+    --unattended) unattended=1 ;;
+    --reason=*) reason="${a#--reason=}" ;;
+    *) die "Usage: just cutover-rollback [--unattended]" "" ;;
+  esac
+done
+
+start_log cutover-rollback
+if [[ -f "$CUTOVER_DONE" ]]; then
+  cat <<EOF
+
+The cutover finished ($(cat "$CUTOVER_DONE")).
+The new host has taken writes since then, so moving back to the old host would lose them. Instead:
+  - fix forward on the new host (just deploy / just rollback for an image problem), or
+  - restore the new host from a backup: just backup --status <host>, then just restore <host> <file>.
+The old host is stopped, not deleted, until day 14; bringing it back is a decision for the user.
+EOF
+  die "cutover.done exists: rollback refused" "Read the procedure above and ask the user."
+fi
+[[ -f "$CUTOVER_STATE" ]] || die "No cutover.state: there is no cutover to roll back" "Nothing to do."
+cl_load_env
+old_name="$(st_get old_name)"
+new_name="$(st_get new_name)"
+CUTOVER_STUBS="$(st_get stubs)"
+cl_stubs_init "$old_name" "$new_name"
+cl_ssh_init "$WORK_HOME/cutover" 0
+o="$(st_get old_ssh)"
+n="$(st_get new_ssh)"
+cl_hosts "${o:-$old_name}" "${n:-$new_name}"
+touch "$RUN_DIR/warnings" "$RUN_DIR/nonfatal"
+log "rolling back the cutover of $old_name → $new_name (last passed phase: $(st_get last_passed); reason: $reason)"
+
+if ((!unattended)); then
+  printf '\nThis puts %s back on the old host%s.\n' "$DOMAIN" "$([[ "$(st_get ip_moved)" == 1 ]] && echo ' and loses what was written on the new host since the switch')"
+  confirm rollback
+fi
+
+problems=()
+step() {
+  local what="$1"
+  shift
+  if ("$@"); then ok "$what"; else warn "FAILED: $what"; problems+=("$what"); fi
+}
+phase_ran() { [[ -n "$(st_get "phase_$1")" ]]; }
+
+lost_rows=""
+if [[ "$(st_get ip_moved)" == 1 ]]; then
+  lost_rows="$(new_run logstore-since "$(st_get switch_time)" 2>/dev/null || echo unknown)"
+  warn "the new host wrote $lost_rows logstore_standard_log rows since the switch; rolling back loses those writes"
+  move_back() {
+    local sip opub opriv npub npriv
+    sip="$(st_get static_ip)"
+    ls_move_static_ip "$(st_get static_name)" "$OLD_INSTANCE"
+    read -r npub npriv < <(ls_wait_public "$NEW_INSTANCE" "$sip")
+    if stub_on static-ip; then read -r opub opriv < <(ls_instance "$OLD_INSTANCE"); else opub="$sip"; fi
+    st_set old_ssh "$opub"
+    st_set new_ssh "$npub"
+    st_set ip_moved 0
+    : "$opriv" "$npriv"
+  }
+  step "static IP $(st_get static_name) moved back to $OLD_INSTANCE" move_back
+  cl_hosts "$(st_get old_ssh)" "$(st_get new_ssh)"
+fi
+
+if [[ "$(st_get token_swapped)" == 1 ]]; then
+  token_back() {
+    local f="$RUN_DIR/old-moodle-token"
+    [[ -s "$f" ]] || { warn "$f is missing"; return 1; }
+    vercel_env_set MOODLE_TOKEN "$f"
+    vercel_redeploy
+    st_set token_swapped 0
+  }
+  step "registry-web's old MOODLE_TOKEN restored in Vercel and redeployed (D31)" token_back
+fi
+
+if phase_ran 5 || phase_ran 3; then
+  step "new stack stopped (volumes kept)" host_compose "$NEW_SSH" stop
+fi
+
+if phase_ran 1; then
+  unfreeze() {
+    local out
+    out="$(old_run unfreeze)"
+    printf '      %s\n' "$out"
+  }
+  step "old host unfrozen: cron line restored, php-fpm started, maintenance off" unfreeze
+fi
+
+if [[ "$(st_get lms_paused)" == 1 ]]; then
+  resume_lms() { lms_sync_pause 0 && st_set lms_paused 0; }
+  step "registry-web LMS sync resumed (D34)" resume_lms
+fi
+
+key_gone() { ekey_remove; }
+step "ephemeral key removed from both hosts" key_gone
+
+# ---- the rollback check ----
+log "rollback check"
+check_failed=()
+check() { if [[ "$1" == ok ]]; then ok "check: $2"; else warn "CHECK FAILED: $2"; check_failed+=("$2"); fi; }
+out="$(old_run status 2>&1 || true)"
+check "$([[ "$(kv php_fpm "$out")" == active && "$(kv fpm_processes "$out")" != 0 ]] && echo ok)" "old host php-fpm running ($(kv php_fpm "$out"), $(kv fpm_processes "$out") processes)"
+check "$([[ "$(kv cron_line "$out")" == present ]] && echo ok)" "old host www-data cron line restored ($(kv cron_line "$out"))"
+check "$([[ "$(kv maintenance "$out")" == off ]] && echo ok)" "old host maintenance off ($(kv maintenance "$out"))"
+read -r sname _ < <(ls_static_ip "$OLD_INSTANCE") || true
+check "$([[ -n "${sname:-}" ]] && echo ok)" "static IP on the old instance $OLD_INSTANCE (${sname:-none})"
+code="" server=""
+for _ in $(seq 1 60); do
+  code="$(public_status /login/index.php)"
+  server="$(public_server)"
+  [[ "$code" == 200 && "$server" == nginx* ]] && break
+  sleep 5
+done
+check "$([[ "$code" == 200 && "$server" == nginx* ]] && echo ok)" "https://$DOMAIN/login/index.php → $code from \"$server\" (the old host's nginx)"
+if [[ -s "$RUN_DIR/old-moodle-token" ]]; then
+  uid="$(public_site_info "$RUN_DIR/old-moodle-token")"
+  check "$([[ -n "$uid" ]] && echo ok)" "old admin token answers core_webservice_get_site_info on https://$DOMAIN (userid ${uid:-none})"
+elif [[ "$(st_get token_swapped)" == 1 ]]; then
+  check "" "old admin token: $RUN_DIR/old-moodle-token missing although registry-web's token was swapped"
+else
+  ok "check: old admin token not tested: phase 0 stopped before saving it (Vercel was never changed)"
+fi
+out="$(old_run key-remove "$KEY_MARKER" 2>&1 || true)"
+check "$([[ "$(kv remaining "$out")" == 0 ]] && echo ok)" "ephemeral key gone from the old host"
+
+{
+  printf '\n## Rollback (%s)\n\n```\n' "$(date -u +%FT%TZ)"
+  printf 'reason: %s\nlast_passed_before_rollback: %s\nlost_logstore_rows_since_switch: %s\n' "$reason" "$(st_get last_passed)" "${lost_rows:-0 (phase 7 never ran)}"
+  printf 'steps_failed: %s\nchecks_failed: %s\n```\n' "${#problems[@]}" "${#check_failed[@]}"
+  for p in "${problems[@]}" "${check_failed[@]}"; do printf -- '- %s\n' "$p"; done
+} >>"$RUN_DIR/report.md"
+
+if ((${#problems[@]} + ${#check_failed[@]})); then
+  die "Rollback incomplete: ${#problems[@]} step(s) and ${#check_failed[@]} check(s) failed (above)" \
+    "Stop and ask the user. cutover.state is kept; rerun just cutover-rollback after fixing the cause."
+fi
+mkdir -p "$RUN_DIR/history"
+mv "$CUTOVER_STATE" "$RUN_DIR/history/cutover.state.rolled-back-$(date +%Y%m%d-%H%M%S)"
+rm -f "$RUN_DIR/old-moodle-token" "$RUN_DIR/new-moodle-token"
+ok "rollback check passed: https://$DOMAIN serves the old Moodle again; ${lost_rows:-no} new-host log rows lost. State archived in $RUN_DIR/history/"

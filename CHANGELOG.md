@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-24 (6)
+
+### Changed
+- `local_fivedays` 2026102406: `cli/setup.php` honours `MOODLE_PUSH_SOFT=1` (D30): the push access key and push check items print `WARN` instead of `FAIL` and don't change the exit code, and an exception while talking to the push server becomes a `WARN` too. `bin/cutover` sets it; everywhere else push problems still fail. No database change.
+
 ## 2026-10-24 (5)
 
 ### Changed
