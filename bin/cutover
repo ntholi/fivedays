@@ -120,6 +120,9 @@ write_report() {
       status="$(st_get "phase_$p")"
       printf '| %s | %s | %s | %s |\n' "$p" "${PHASE_NAME[$p]}" "${status:-not run}" "$(st_get "phase_${p}_secs")"
     done
+    printf '\nregistry-web LMS sync was held from phase 7 (the switch) until phase 9 passed (D37%s); lecturers were asked to wait for the all-clear.\n' \
+      "$([[ "$(st_get lms_pause_reason)" == D34 ]] && echo ', and from phase 1 because of the long window, D34')"
+    printf 'lms_sync_now: %s\n' "$([[ "$(st_get lms_paused)" == 1 ]] && echo 'PAUSED (see the failed checks below)' || echo running)"
     printf '\n## Warnings (D30 push items and others)\n\n'
     if [[ -s "$RUN_DIR/warnings" ]]; then sed 's/^/- /' "$RUN_DIR/warnings"; else echo '- none'; fi
     printf '\n## Failed checks that kept the new host live (D32)\n\n'
@@ -171,6 +174,8 @@ site_down() { site_down_reason="$1"; die "$1" "D32: the site is down; rolling ba
 
 p0() {
   local tag_lines newest out opub opriv npub npriv sname sip free need sizes
+  # The stub world first, so a rollback after any preflight failure finds it (stand-ins only).
+  if stub_on static-ip; then stub_ls_init "$old_name" "$new_name"; fi
   # rehearsal.ok: the newest line's tag, and two passes with it no older than 7 days (D33).
   [[ -s "$REHEARSAL_OK" ]] || die "rehearsal.ok is missing" "Run just rehearse <new-host> <tag> twice first."
   newest="$(tail -n1 "$REHEARSAL_OK")"
@@ -187,7 +192,6 @@ p0() {
   ok "rehearsal.ok: two passes with $tag in the last 7 days; window estimate $(fmt_secs "$window") (rehearsal + 30 min for the final offsite dump)"
 
   # Static IP and instance addresses.
-  if stub_on static-ip; then stub_ls_init "$old_name" "$new_name"; fi
   read -r sname sip < <(ls_static_ip "$OLD_INSTANCE") || true
   [[ -n "${sname:-}" ]] || die "No static IP is attached to the old instance $OLD_INSTANCE" "Check the instance names (CUTOVER_OLD_INSTANCE) and the Lightsail console."
   read -r opub opriv < <(ls_instance "$OLD_INSTANCE")
@@ -286,6 +290,7 @@ p0() {
     log "rehearsal window $(fmt_secs "$window") is over 2.5 h: pausing registry-web LMS sync (D34)"
     # Recorded first: a pause whose redeploy fails is still undone by a rollback.
     st_set lms_paused 1
+    st_set lms_pause_reason D34
     lms_sync_pause 1
   else
     st_set lms_paused 0
@@ -401,6 +406,17 @@ p7() {
     confirm switch
   fi
   local sname sip opub opriv npub npriv code server
+  # D37: registry-web LMS sync is held from the switch until phase 9 passes, so a rollback in phases 7-9 can't
+  # leave registry-web holding Moodle ids that the old host hands out again. Recorded before pausing (a rollback
+  # resumes it); a pause D34 already made stays as it is.
+  if [[ "$(st_get lms_paused)" == 1 ]]; then
+    ok "LMS sync already paused ($(st_get lms_pause_reason)); it stays paused until phase 9 passes (D37)"
+  else
+    st_set lms_paused 1
+    st_set lms_pause_reason D37
+    lms_sync_pause 1
+    ok "LMS sync paused in registry-web until phase 9 passes (D37)"
+  fi
   sname="$(st_get static_name)"
   sip="$(st_get static_ip)"
   st_set switch_time "$(date +%s)"
@@ -511,7 +527,24 @@ qa_upload() {
   return "$rc"
 }
 
+# lms_resume: turns registry-web LMS sync back on (D34/D37). A failure never rolls back a passed cutover: it goes
+# into the report with the exact manual command.
+lms_resume() {
+  [[ "$(st_get lms_paused)" == 1 ]] || return 0
+  if (lms_sync_pause 0); then
+    st_set lms_paused 0
+    ok "LMS sync resumed in registry-web ($(st_get lms_pause_reason))"
+  else
+    note_nonfatal "resuming LMS sync failed; registry-web's LMS sync is still PAUSED. Run: cd $REGISTRY_WEB_DIR && printf 0 | vercel env add LMS_SYNC_PAUSED production --force --yes && vercel redeploy \$(vercel ls --environment production --status READY --json --limit 1 | jq -r '.deployments[0].url') --environment production"
+  fi
+}
+
 p9() {
+  p9_qa
+  lms_resume
+}
+
+p9_qa() {
   if ! ((unattended)); then
     cat <<EOF
 
@@ -551,9 +584,8 @@ p10() {
     "$old_name" "$OLD_INSTANCE" "$new_name" "$NEW_INSTANCE" >"$CUTOVER_DONE"
   ok "wrote cutover.done"
   st_set freeze_end "$(date +%s)"
-  if [[ "$(st_get lms_paused)" == 1 ]]; then
-    if (lms_sync_pause 0); then st_set lms_paused 0; else note_nonfatal "resuming LMS sync failed: set LMS_SYNC_PAUSED=0 in Vercel and redeploy"; fi
-  fi
+  # Normally resumed at the end of phase 9; this retries one that failed there.
+  lms_resume
   if ekey_remove; then st_set key_installed 0; else note_nonfatal "the ephemeral key is not confirmed gone from both hosts (above)"; fi
   # The nightly backup and monthly restore test (D23) start only now: mid-window they would dump a half-transferred
   # database or hold restic's lock during the final copy.

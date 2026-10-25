@@ -66,7 +66,9 @@ Then:
 | --- | --- |
 | `just provision <new-ip>` | Every line `ok` or `changed`; a second run is all `ok`. |
 | `just rehearse <new-ip> <tag> [--unattended]` | A full dress rehearsal on last night's prod dump, then the new host is wiped. Run it twice; `rehearsal.ok` records both passes and their timings. |
-| `just cutover luct.click <new-ip> [--unattended]` | The phases from the plan, each `ok`, ending in `cutover.done`. `--resume` continues after the last passed phase. |
+| `just cutover luct.click <new-ip> [--unattended]` | The phases from the plan, each `ok`, ending in `cutover.done`. `--resume` continues after the last passed phase. registry-web's LMS sync is held from phase 7 (the switch) until phase 9 passes (D37; from phase 1 if the rehearsal window was over 2.5 h, D34), then turned back on; the report says so. |
 | `just cutover-rollback` | Only before `cutover.done`: the static IP and the old token go back, and the old host serves Moodle again. |
+
+The window notice to students and lecturers gives the date and says: lecturers please don't add or change course content in registry-web until we send the all-clear (sync with Moodle is held during the switch). Send the all-clear once `cutover.done` exists and the report shows LMS sync running.
 
 See `CHANGELOG.md` for changes and each plugin's `README.md` for its API.

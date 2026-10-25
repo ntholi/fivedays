@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # just rehearse <new-host> <tag> [--old=<host>] [--unattended]: full dress rehearsal of the cutover on the new host
-# with last night's prod dump, timed. The old host is only read: its newest nightly dump
+# with a fresh prod dump, timed. The old host is only read: a mysqldump --single-transaction (read-only backupuser)
 # (/var/backups/moodle/moodle_backup_*.sql) and its moodledata, pulled host to host by the new host with an
 # ephemeral key. Nothing on the old host changes except that key in ubuntu's authorized_keys, removed at the end.
 #
@@ -10,7 +10,7 @@
 #   setup      host files with a rehearsal env (bucket = REHEARSAL_BUCKET with its keys, MOODLE_PUSH=0,
 #              MOODLE_NOEMAIL=1, SITE_ADDRESS=http://<domain> so Caddy never asks Let's Encrypt for the real
 #              name), images pulled, ephemeral key installed.
-#   load       a temporary official MariaDB ($MARIADB_VERSION) on the new host, loaded with the nightly dump;
+#   load       a temporary official MariaDB ($MARIADB_VERSION) on the new host, loaded with a fresh dump;
 #   files      at the same time, moodledata rsync'd from the old host (plus trashdir, see host/cutover-new.sh).
 #   transfer   dbtransfer from the -transfer image into the new Postgres.
 #   verify     bin/verify <new>/fivedays-rehearsal-mariadb <new>.
@@ -129,9 +129,7 @@ p_preflight() {
   ok "new host: nothing running, volumes empty, $(kv free_mb "$out") MB free"
   out="$(old_run inspect)" || die "The old host does not look like the old prod host" "Check the pre-check report."
   [[ "$(kv dbtype "$out")" == mariadb ]] || die "The old host's config.php has dbtype $(kv dbtype "$out")" "Check the pre-check report."
-  [[ -n "$(kv nightly_dump "$out")" ]] || die "The old host has no nightly dump in /var/backups/moodle" "Wait for the root cron's 02:00 mysqldump."
-  ok "old host: Moodle on MariaDB, nightly dump $(kv nightly_dump "$out") ($(( $(kv nightly_dump_bytes "$out") / 1048576 )) MB, $(kv nightly_dump_age_h "$out") h old)"
-  (( $(kv nightly_dump_age_h "$out") <= 26 )) || note_warn "the nightly dump is $(kv nightly_dump_age_h "$out") h old (expected under 26 h)"
+  ok "old host: Moodle on MariaDB (the rehearsal dumps it fresh, read-only, with /root/.my.cnf)"
   (load_env "$ENV_FILE" >/dev/null && deploy_check_images "$IMAGE_NAME" "$tag")
   ok "old host $old (instance $OLD_INSTANCE), new host $new (instance $NEW_INSTANCE)"
 }
@@ -156,13 +154,12 @@ p_load_files() {
   host_compose "$new" up -d db >/dev/null 2>&1 || die "Could not start the db service on $new" "Read: the output above."
   started_stack=1
   new_run rehearsal-db-up "$MARIADB_VERSION"
-  # Both read from the old host at once: the dump into MariaDB, moodledata into the volume.
-  local t=$SECONDS lt ft
+  # The dump first, then moodledata: every file the dump references is then on disk or in trashdir/.
+  local t=$SECONDS lt ft rc
   rm -f "$RUN_DIR/load.rc" "$RUN_DIR/files.rc"
-  # errexit would end each subshell before the rc line; capture the code explicitly.
-  (rc=0; new_run rehearsal-db-load >"$RUN_DIR/load.out" 2>&1 || rc=$?; echo "$rc $((SECONDS - t))" >"$RUN_DIR/load.rc") &
-  (rc=0; new_run pull-files rehearsal >"$RUN_DIR/files.out" 2>&1 || rc=$?; echo "$rc $((SECONDS - t))" >"$RUN_DIR/files.rc") &
-  wait
+  rc=0; new_run rehearsal-db-load >"$RUN_DIR/load.out" 2>&1 || rc=$?; echo "$rc $((SECONDS - t))" >"$RUN_DIR/load.rc"
+  t=$SECONDS
+  rc=0; new_run pull-files rehearsal >"$RUN_DIR/files.out" 2>&1 || rc=$?; echo "$rc $((SECONDS - t))" >"$RUN_DIR/files.rc"
   sed 's/^/      load  /' "$RUN_DIR/load.out"
   sed 's/^/      files /' "$RUN_DIR/files.out"
   [[ -s "$RUN_DIR/load.rc" && -s "$RUN_DIR/files.rc" ]] || die "A copy job ended without an exit code" "Read the output above; rerun just rehearse."
@@ -170,7 +167,7 @@ p_load_files() {
   read -r frc ft <"$RUN_DIR/files.rc"
   secs[load]=$lt
   secs[files]=$ft
-  [[ "$lrc" == 0 ]] || die "Loading the nightly dump into the temporary MariaDB failed (above)" "Read the error; rerun just rehearse."
+  [[ "$lrc" == 0 ]] || die "Loading the dump into the temporary MariaDB failed (above)" "Read the error; rerun just rehearse."
   [[ "$frc" == 0 ]] || die "Copying moodledata from the old host failed (above)" "Read the error; rerun just rehearse."
   local o n
   o="$(sed -n 's/.*old_filedir_files=\([0-9]*\).*/\1/p' "$RUN_DIR/files.out")"

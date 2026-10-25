@@ -15,7 +15,7 @@
 #   tunnel-test <image> <socket>    SSH tunnel to the old MariaDB socket + a SELECT through it, from <image>
 #   pull-files cutover|rehearsal    rsync -aH --numeric-ids --delete of the old moodledata into the volume
 #   rehearsal-db-up <version>       temporary official MariaDB container $RDB (database moodle) on the stack network
-#   rehearsal-db-load               streams the old host's newest nightly dump into it
+#   rehearsal-db-load               streams a fresh mysqldump --single-transaction of the old host into it
 #   rehearsal-db-down               removes it
 #   transfer cutover|rehearsal <image> [socket]  dbtransfer's migrate.php from the -transfer image into Postgres
 #   db-tables                       number of tables in the new Postgres database
@@ -190,7 +190,7 @@ case "$cmd" in
     addr="$(old_addr)"
     mapfile -t opts < <(ssh_opts "$addr")
     excludes=(--exclude=/climaintenance.html --exclude=/cache/ --exclude=/localcache/ --exclude=/temp/ --exclude=/sessions/ --exclude=/lock/)
-    # The rehearsal pairs last night's dump with today's files: a file deleted since the dump sits in trashdir/
+    # The rehearsal copies files after its dump: a file deleted in between sits in trashdir/
     # (same <2>/<2>/<sha1> layout, lib/filestorage/file_system_filedir.php), so it is copied back into filedir/.
     [[ "$mode" == rehearsal ]] || excludes+=(--exclude=/trashdir/)
     ssh_cmd="ssh $(printf '%q ' "${opts[@]:0:$((${#opts[@]} - 1))}") -o SetEnv=FIVEDAYS=fivedays-cutover-rsync"
@@ -226,13 +226,15 @@ case "$cmd" in
     say "rehearsal_db=$RDB"
     ;;
   rehearsal-db-load)
-    dump="$(ssh_old "sudo find /var/backups/moodle -maxdepth 1 -name 'moodle_backup_*.sql' -type f -printf '%T@ %p\n' | sort -n | tail -n1 | cut -d' ' -f2-")"
-    [[ -n "$dump" ]] || fail "no nightly dump in /var/backups/moodle on the old host"
-    say "dump=$dump"
+    # A fresh consistent dump (read-only backupuser, one snapshot, the same command bin/backup uses for the
+    # offsite copy), not last night's file: Moodle's file cron empties trashdir/ (file_system_filedir.php:326-333),
+    # so files deleted since the night can be gone from disk and verify's check 4 would fail on a good transfer.
+    # Taken before the moodledata copy, so a file deleted in between is still in trashdir/.
+    say "dump=mysqldump --single-transaction (now)"
     trailer="$(mktemp)"
-    # Compressed on the wire (gzip -1 on the old host), never written to this host's disk.
+    # Compressed on the wire (gzip -1 on the old host), never written to either host's disk.
     set +e
-    ssh_old "sudo gzip -1 -c $(printf '%q' "$dump")" | gunzip | tee >(tail -c 300 >"$trailer") |
+    ssh_old "sudo sh -c 'mysqldump --defaults-file=/root/.my.cnf --single-transaction --quick --no-tablespaces --hex-blob --default-character-set=utf8mb4 moodle | gzip -1'" | gunzip | tee >(tail -c 300 >"$trailer") |
       docker exec -i "$RDB" sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" exec mariadb -uroot moodle'
     rc=("${PIPESTATUS[@]}")
     set -e

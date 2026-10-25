@@ -137,6 +137,13 @@ standins_up() {
   "$FIVEDAYS_ROOT/bin/backup" --offsite-today "$OLD"
 }
 
+# The stub Vercel's LMS_SYNC_PAUSED changes (D34/D37) and its value now.
+lms_history() {
+  printf 'stub Vercel LMS_SYNC_PAUSED changes:\n'
+  sed 's/^/  /' "$STATE/stub/vercel.history" 2>/dev/null || echo "  none"
+  printf 'stub Vercel LMS_SYNC_PAUSED now: %s\n' "$(sed -n 's/^LMS_SYNC_PAUSED=//p' "$STATE/stub/vercel.env")"
+}
+
 cmd="${1:-}"
 set -a
 # shellcheck disable=SC1091
@@ -146,6 +153,8 @@ case "$cmd" in
   setup)
     start_log dry-run-setup
     write_env
+    # The env just got new keys: an S3 stand-in still running from before would refuse them.
+    "$STANDIN" s3 down
     standins_up
     ok "dry run ready: test/dry-run rehearse"
     ;;
@@ -168,6 +177,7 @@ case "$cmd" in
   cutover)
     dry_env
     just cutover "$OLD" "$NEW" --unattended
+    lms_history
     ;;
   rollback)
     dry_env
@@ -175,6 +185,7 @@ case "$cmd" in
     just cutover-rollback --unattended
     "$STANDIN" exec old bash -c 'echo "php-fpm: $(systemctl is-active php8.3-fpm)"; echo "cron: $(crontab -u www-data -l)"; echo "maintenance file: $(ls /var/www/data/moodledata/climaintenance.html 2>&1)"; echo "ephemeral key lines: $(grep -c fivedays-cutover-ephemeral /home/ubuntu/.ssh/authorized_keys || true)"'
     printf 'stub static IP owner: %s\n' "$(sed -n 's/^owner=//p' "$STATE/stub/lightsail")"
+    lms_history
     ;;
   fail)
     dry_env

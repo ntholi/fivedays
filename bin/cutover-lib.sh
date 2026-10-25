@@ -279,6 +279,8 @@ vercel_env_set() {
   if stub_on vercel; then
     { grep -v "^$key=" "$STUB_DIR/vercel.env" || true; printf '%s=%s\n' "$key" "$(cat "$file")"; } >"$STUB_DIR/vercel.env.tmp"
     mv "$STUB_DIR/vercel.env.tmp" "$STUB_DIR/vercel.env"
+    # Non-secret keys only, for the dry run's evidence of when sync was paused and resumed.
+    [[ "$key" != LMS_SYNC_PAUSED ]] || printf '%s LMS_SYNC_PAUSED=%s\n' "$(date +%H:%M:%S)" "$(cat "$file")" >>"$STUB_DIR/vercel.history"
     ok "stub: Vercel production $key set"
     return 0
   fi
