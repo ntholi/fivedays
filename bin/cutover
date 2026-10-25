@@ -284,8 +284,9 @@ p0() {
   fi
   if (( window > LMS_PAUSE_OVER )); then
     log "rehearsal window $(fmt_secs "$window") is over 2.5 h: pausing registry-web LMS sync (D34)"
-    lms_sync_pause 1
+    # Recorded first: a pause whose redeploy fails is still undone by a rollback.
     st_set lms_paused 1
+    lms_sync_pause 1
   else
     st_set lms_paused 0
     ok "rehearsal window $(fmt_secs "$window") is under 2.5 h: LMS sync keeps running (D34)"
@@ -302,7 +303,7 @@ write_host_env() {
     cl_overlay_env "$overlay" "MOODLE_PUSH_SOFT=0"
   fi
   ENV_FILE="$overlay" deploy_check_env >/dev/null
-  ENV_FILE="$overlay" deploy_write_files "$NEW_SSH" "$tag"
+  DEPLOY_HOST_CRON=0 ENV_FILE="$overlay" deploy_write_files "$NEW_SSH" "$tag"
   rm -f "$overlay"
 }
 
@@ -327,13 +328,15 @@ p2() {
   ok "FiveDays tokens on the old host: $(st_get old_tokens)"
   local t=$SECONDS brc frc
   log "final offsite copy (bin/backup $old_name) and moodledata rsync to the new host, in parallel"
-  (BACKUP_ENV_FILE="$ENV_FILE" "$FIVEDAYS_ROOT/bin/backup" "$old_name" >"$RUN_DIR/backup.out" 2>&1; echo $? >"$RUN_DIR/backup.rc") &
-  (new_run pull-files cutover >"$RUN_DIR/files.out" 2>&1; echo $? >"$RUN_DIR/files.rc") &
+  rm -f "$RUN_DIR/backup.rc" "$RUN_DIR/files.rc"
+  # errexit would end each subshell before the rc line; capture the code explicitly.
+  (rc=0; BACKUP_ENV_FILE="$ENV_FILE" "$FIVEDAYS_ROOT/bin/backup" "$old_name" >"$RUN_DIR/backup.out" 2>&1 || rc=$?; echo "$rc" >"$RUN_DIR/backup.rc") &
+  (rc=0; new_run pull-files cutover >"$RUN_DIR/files.out" 2>&1 || rc=$?; echo "$rc" >"$RUN_DIR/files.rc") &
   wait
   sed 's/^/      backup /' "$RUN_DIR/backup.out" | tail -n 25
   sed 's/^/      files  /' "$RUN_DIR/files.out"
-  brc="$(cat "$RUN_DIR/backup.rc")"
-  frc="$(cat "$RUN_DIR/files.rc")"
+  brc="$(cat "$RUN_DIR/backup.rc" 2>/dev/null || echo missing)"
+  frc="$(cat "$RUN_DIR/files.rc" 2>/dev/null || echo missing)"
   [[ "$brc" == 0 ]] || die "The final offsite dump failed (above)" "Rolled back by D32 under --unattended."
   [[ "$frc" == 0 ]] || die "rsync of moodledata to the new host failed (above)" "Rolled back by D32 under --unattended."
   local o n
@@ -349,7 +352,7 @@ p3() {
   local tables
   tables="$(new_run db-tables)"
   if [[ "$tables" != 0 ]]; then
-    [[ "$(st_get phase_3)" =~ ^(started|interrupted|failed)$ ]] || die "The new database already has $tables tables" "Stop and ask: only an interrupted transfer may be reset."
+    [[ "$prev_status" =~ ^(started|interrupted|failed)$ ]] || die "The new database already has $tables tables" "Stop and ask: only an interrupted transfer may be reset."
     log "the new database holds $tables tables from the interrupted transfer: resetting it (the old host is still the source)"
     new_run db-reset
   fi
@@ -362,7 +365,9 @@ p4() {
 
 p5() {
   write_host_env soft
-  deploy_start "$NEW_SSH"
+  # No cron before the switch: it would run tasks (push, cleanups) for a site that is not prod yet and race
+  # cutover-objectfs.php. Phase 7 starts it once the IP has moved; a rollback stops the whole stack.
+  deploy_start "$NEW_SSH" --scale cron=0
   new_run maintenance-off
   deploy_health "$NEW_SSH"
   local warns
@@ -420,6 +425,11 @@ p7() {
   ok "https://$DOMAIN answers from the new host (Server: $server) with a valid certificate$(stub_on cert && echo ' (stub: Caddy local CA)')"
   [[ -n "$(public_site_info "$(token_file old)")" ]] || site_down "core_webservice_get_site_info with the old admin token failed on https://$DOMAIN"
   ok "old admin token answers on https://$DOMAIN"
+  if host_compose "$NEW_SSH" up -d --no-deps cron >/dev/null 2>&1; then
+    ok "Moodle cron started on the new host"
+  else
+    note_nonfatal "phase 7: the cron service did not start on the new host (start it with just deploy)"
+  fi
 }
 
 # course_list <token file>: the course list registry-web reads with MOODLE_TOKEN (core_course_get_courses_by_field,
@@ -432,9 +442,16 @@ course_list() {
 p8() {
   local new_token readback n
   new_token="$(token_file new)"
-  (umask 077 && new_run ws-token | tr -d '\n' >"$new_token")
-  [[ -s "$new_token" ]] || die "No fivedays_ws token in the new database" "setup.php creates it; read the phase 5 output."
-  [[ "$(public_site_info "$new_token")" =~ ^[0-9]+$ ]] || die "The fivedays_ws token does not answer on https://$DOMAIN" "Keeping the old token (nothing was changed in Vercel)."
+  # D32: from here on only a down site rolls back; a token problem keeps the old token (nothing changed in Vercel).
+  (umask 077 && new_run ws-token | tr -d '\n' >"$new_token") || true
+  if [[ ! -s "$new_token" ]]; then
+    note_nonfatal "phase 8: no fivedays_ws token in the new database; registry-web keeps the old admin token (Vercel unchanged)"
+    return 0
+  fi
+  if ! [[ "$(public_site_info "$new_token")" =~ ^[0-9]+$ ]]; then
+    note_nonfatal "phase 8: the fivedays_ws token does not answer on https://$DOMAIN; registry-web keeps the old admin token (Vercel unchanged)"
+    return 0
+  fi
   if ! (
     set -e
     st_set token_swapped 1
@@ -521,8 +538,11 @@ EOF
   [[ -n "$(public_site_info "$(token_file old)")" ]] || site_down "QA: core_webservice_get_site_info with the old admin token failed"
   ok "QA: old admin token answers"
   qa_upload || note_nonfatal "phase 9: 20 MB upload/download through the web service failed (above)"
-  copy_contract
-  new_run contract "$DOMAIN" 10-assignments.php || note_nonfatal "phase 9: the rubric grading contract case (10-assignments.php) failed (above)"
+  if ! copy_contract; then
+    note_nonfatal "phase 9: copying the contract test to the new host failed; rubric grading not checked"
+  elif ! new_run contract "$DOMAIN" 10-assignments.php; then
+    note_nonfatal "phase 9: the rubric grading contract case (10-assignments.php) failed (above)"
+  fi
   note_warn "phase 9: one LMS sync job completing in registry-web was not checked (needs the prod database): morning QA"
 }
 
@@ -535,6 +555,9 @@ p10() {
     if (lms_sync_pause 0); then st_set lms_paused 0; else note_nonfatal "resuming LMS sync failed: set LMS_SYNC_PAUSED=0 in Vercel and redeploy"; fi
   fi
   if ekey_remove; then st_set key_installed 0; else note_nonfatal "the ephemeral key is not confirmed gone from both hosts (above)"; fi
+  # The nightly backup and monthly restore test (D23) start only now: mid-window they would dump a half-transferred
+  # database or hold restic's lock during the final copy.
+  if (deploy_install_host_cron "$NEW_SSH"); then :; else note_nonfatal "phase 10: /etc/cron.d/fivedays not installed (nightly backups): run just deploy"; fi
   rm -f "$(token_file new)"
 }
 
@@ -547,6 +570,8 @@ for ((i = start_idx; i < ${#PHASES[@]}; i++)); do
   p="${PHASES[$i]}"
   current_phase="$p"
   log "== phase $p: ${PHASE_NAME[$p]}"
+  # The status this phase had before this run (p3 resets only a transfer that had started before).
+  prev_status="$(st_get "phase_$p")"
   st_set "phase_$p" started
   t=$SECONDS
   "p$p"

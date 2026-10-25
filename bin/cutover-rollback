@@ -59,10 +59,14 @@ if ((!unattended)); then
 fi
 
 problems=()
+# step "<what>" <command...>: runs it in a background subshell, so errexit stays on inside (it is off in any
+# command an `if` tests) and a failing middle command fails the step; the step's result is wait's status.
 step() {
-  local what="$1"
+  local what="$1" pid
   shift
-  if ("$@"); then ok "$what"; else warn "FAILED: $what"; problems+=("$what"); fi
+  ( set -e; "$@" ) &
+  pid=$!
+  if wait "$pid"; then ok "$what"; else warn "FAILED: $what"; problems+=("$what"); fi
 }
 phase_ran() { [[ -n "$(st_get "phase_$1")" ]]; }
 

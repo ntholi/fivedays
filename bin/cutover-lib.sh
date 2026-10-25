@@ -265,9 +265,13 @@ vercel_env_get() {
   (umask 077 && : >"$out")
   if stub_on vercel; then sed -n "s/^$key=//p" "$STUB_DIR/vercel.env" | tail -n1 | tr -d '\n' >"$out"; return 0; fi
   tmp="$(mktemp -d "$RUN_DIR/vercel-pull.XXXXXX")"
-  vercel_cli env pull "$tmp/env" --environment=production --yes >/dev/null 2>&1 || { rm -rf "$tmp"; die "vercel env pull failed" "Check: vercel whoami, and that registry-web is linked."; }
-  sed -n "s/^$key=//p" "$tmp/env" | tail -n1 | sed 's/^"\(.*\)"$/\1/' | tr -d '\n' >"$out"
-  rm -rf "$tmp"
+  # The pulled file holds every production secret: removed on any exit of this subshell, interrupts included.
+  (
+    trap 'rm -rf "$tmp"' EXIT
+    trap 'exit 130' INT TERM HUP
+    vercel_cli env pull "$tmp/env" --environment=production --yes >/dev/null 2>&1 || die "vercel env pull failed" "Check: vercel whoami, and that registry-web is linked."
+    sed -n "s/^$key=//p" "$tmp/env" | tail -n1 | sed 's/^"\(.*\)"$/\1/' | tr -d '\n' >"$out"
+  )
 }
 # vercel_env_set <KEY> <value file>: sets the production value (from the file, never on a command line).
 vercel_env_set() {

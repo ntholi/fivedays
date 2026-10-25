@@ -19,7 +19,8 @@
 # Sourcing it (`source bin/deploy`) only defines the functions, for scripts that run the steps themselves:
 #   deploy_check_host <host>                    marker present; prints nothing else
 #   deploy_check_images <image> <tag>           <tag>, <tag>-web, <tag>-transfer exist (docker manifest inspect)
-#   deploy_write_files <host> <tag>             steps 2–3 (needs ENV_FILE)
+#   deploy_write_files <host> <tag>             steps 2–3 (needs ENV_FILE; DEPLOY_HOST_CRON=0 leaves out cron.d)
+#   deploy_install_host_cron <host>             installs host/cron.d-fivedays as /etc/cron.d/fivedays
 #   deploy_start <host> [up args...]            step 4 (pull, up -d, migrate exit 0); extra args go to
 #                                               `up -d`, e.g. --scale cron=0 (rehearsals run without cron)
 #   deploy_health <host>                        step 5
@@ -111,13 +112,24 @@ deploy_write_files() {
   tar -C "$FIVEDAYS_ROOT" -cf - compose.yaml versions.env host |
     on_host "$host" "tar -C $HOST_DIR --no-same-owner -xf - && chown -R root:root $HOST_DIR/compose.yaml $HOST_DIR/versions.env $HOST_DIR/host && chmod -R go-w $HOST_DIR/host"
   ok "files in $HOST_DIR"
-  if [[ -f "$FIVEDAYS_ROOT/host/cron.d-fivedays" ]]; then
-    on_host "$host" "install -m 644 -o root -g root $HOST_DIR/host/cron.d-fivedays /etc/cron.d/fivedays"
-    ok "installed /etc/cron.d/fivedays"
+  # DEPLOY_HOST_CRON=0 (bin/rehearse, bin/cutover before phase 10): the nightly backup must not start mid-window
+  # (a half-transferred database, restic's lock during the final copy); bin/cutover installs it in phase 10.
+  if [[ "${DEPLOY_HOST_CRON:-1}" == 1 ]]; then
+    deploy_install_host_cron "$host"
+  else
+    on_host "$host" "rm -f /etc/cron.d/fivedays"
+    ok "/etc/cron.d/fivedays not installed (DEPLOY_HOST_CRON=0)"
   fi
 
   copy_to_host "$host" <(build_host_env "$tag" "$previous" "$children") "$HOST_DIR/.env" 600
   ok "wrote $HOST_DIR/.env (600): IMAGE_TAG=$tag PREVIOUS_IMAGE_TAG=${previous:-(none)} FPM_MAX_CHILDREN=$children"
+}
+
+deploy_install_host_cron() {
+  if [[ -f "$FIVEDAYS_ROOT/host/cron.d-fivedays" ]]; then
+    on_host "$1" "install -m 644 -o root -g root $HOST_DIR/host/cron.d-fivedays /etc/cron.d/fivedays"
+    ok "installed /etc/cron.d/fivedays"
+  fi
 }
 
 deploy_start() {
@@ -132,7 +144,8 @@ deploy_start() {
   [[ -n "$id" ]] || die "No migrate container on $host (compose up failed before it, see above)" "Run: just rollback $host"
   code="$(on_host "$host" "docker wait $id")"
   if [[ "$code" != "0" ]]; then
-    host_compose "$host" logs --no-log-prefix --tail 40 migrate || true
+    host_compose "$host" logs --no-log-prefix --tail 40 migrate 2>&1 |
+      sed -E 's/(shown once\): ).*/\1(hidden; bin\/cutover reads it from the database)/' || true
     die "migrate exited $code on $host (last 40 lines above)" "just rollback $host"
   fi
   ok "migrate exited 0"

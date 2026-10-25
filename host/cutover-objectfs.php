@@ -34,8 +34,13 @@ $bylocation = static function (): array {
           GROUP BY o.location');
 };
 
+// 90 minutes fits the window (prod: about 1 GB, 7,300 files; 2 minutes locally). A push that stops making progress
+// (the same number of files left for STALL_ROUNDS rounds, e.g. bucket errors) fails early instead.
+const STALL_ROUNDS = 5;
 $start = time();
-$deadline = $start + 4 * HOURSECS;
+$deadline = $start + 90 * MINSECS;
+$best = PHP_INT_MAX;
+$stalled = 0;
 for ($round = 1; ; $round++) {
     foreach (['\tool_objectfs\task\check_objects_location', '\tool_objectfs\task\push_objects_to_storage'] as $class) {
         \core\task\manager::get_scheduled_task($class)->execute();
@@ -49,8 +54,16 @@ for ($round = 1; ; $round++) {
     if ($left === 0 && $local === 0) {
         break;
     }
+    $remaining = $left + $local;
+    if ($remaining < $best) {
+        $best = $remaining;
+        $stalled = 0;
+    } else if (++$stalled >= STALL_ROUNDS) {
+        fwrite(STDERR, "FAIL  objectfs: {$remaining} files still not in the bucket and no progress for " . STALL_ROUNDS . " rounds\n");
+        exit(1);
+    }
     if (time() > $deadline) {
-        fwrite(STDERR, "FAIL  objectfs: files still local only after 4 hours\n");
+        fwrite(STDERR, "FAIL  objectfs: {$remaining} files still not in the bucket after 90 minutes\n");
         exit(1);
     }
 }

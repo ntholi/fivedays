@@ -435,7 +435,7 @@ case "$cmd" in
     # shellcheck disable=SC2016
     left="$(aws s3api list-objects-v2 --bucket "$bucket" --query 'length(Contents || `[]`)' --output text)"
     docker network rm fivedays-cutover-aws >/dev/null 2>&1 || true
-    rm -f "$DIR/.env"
+    rm -f "$DIR/.env" /etc/cron.d/fivedays
     for v in "${VOLUMES[@]}"; do
       [[ -z "$(find "$(volpath "$v")" -mindepth 1 -maxdepth 1)" ]] || fail "volume $v is not empty after the wipe"
     done

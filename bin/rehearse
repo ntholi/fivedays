@@ -142,7 +142,7 @@ p_setup() {
     "MOODLE_BUCKET_SECRET=$(env_value REHEARSAL_BUCKET_SECRET)" MOODLE_PUSH=0 MOODLE_NOEMAIL=1 MOODLE_ALLOW_INSTALL=0 \
     "SITE_ADDRESS=http://$DOMAIN"
   ENV_FILE="$overlay" deploy_check_env
-  ENV_FILE="$overlay" deploy_write_files "$new" "$tag"
+  DEPLOY_HOST_CRON=0 ENV_FILE="$overlay" deploy_write_files "$new" "$tag"
   rm -f "$overlay"
   new_run pull-images "$IMAGE_NAME" "$tag"
   installxml_check "$(host_name "$old")" "$IMAGE_NAME:$tag-transfer"
@@ -158,11 +158,14 @@ p_load_files() {
   new_run rehearsal-db-up "$MARIADB_VERSION"
   # Both read from the old host at once: the dump into MariaDB, moodledata into the volume.
   local t=$SECONDS lt ft
-  (new_run rehearsal-db-load >"$RUN_DIR/load.out" 2>&1; echo "$? $((SECONDS - t))" >"$RUN_DIR/load.rc") &
-  (new_run pull-files rehearsal >"$RUN_DIR/files.out" 2>&1; echo "$? $((SECONDS - t))" >"$RUN_DIR/files.rc") &
+  rm -f "$RUN_DIR/load.rc" "$RUN_DIR/files.rc"
+  # errexit would end each subshell before the rc line; capture the code explicitly.
+  (rc=0; new_run rehearsal-db-load >"$RUN_DIR/load.out" 2>&1 || rc=$?; echo "$rc $((SECONDS - t))" >"$RUN_DIR/load.rc") &
+  (rc=0; new_run pull-files rehearsal >"$RUN_DIR/files.out" 2>&1 || rc=$?; echo "$rc $((SECONDS - t))" >"$RUN_DIR/files.rc") &
   wait
   sed 's/^/      load  /' "$RUN_DIR/load.out"
   sed 's/^/      files /' "$RUN_DIR/files.out"
+  [[ -s "$RUN_DIR/load.rc" && -s "$RUN_DIR/files.rc" ]] || die "A copy job ended without an exit code" "Read the output above; rerun just rehearse."
   read -r lrc lt <"$RUN_DIR/load.rc"
   read -r frc ft <"$RUN_DIR/files.rc"
   secs[load]=$lt
