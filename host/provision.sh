@@ -8,6 +8,8 @@
 # external volumes, FPM_MAX_CHILDREN (stored in /opt/fivedays/provision.env for bin/deploy), and the
 # marker /opt/fivedays/.provisioned (written last, so a failed run leaves no marker).
 set -euo pipefail
+# errexit stops silently; name the command so a stop is never without a FAIL line.
+trap 'echo "FAIL     line $LINENO exited $?: $BASH_COMMAND"' ERR
 export DEBIAN_FRONTEND=noninteractive
 
 DIR=/opt/fivedays
@@ -145,7 +147,8 @@ ok "docker $(docker version -f '{{.Server.Version}}' 2>/dev/null), compose $(doc
 # ufw keeps established connections (its before.rules accept RELATED,ESTABLISHED).
 # Docker-published ports bypass ufw; compose publishes only 80/443 publicly and 8080 on 127.0.0.1.
 if apt_install ufw; then changed "packages: ufw"; else ok "packages: ufw"; fi
-ssh_port="$(sshd -T 2>/dev/null | awk '$1 == "port" { print $2; exit }')"
+# awk reads to the end: an early exit can kill sshd with SIGPIPE, which pipefail turns into a silent stop.
+ssh_port="$(sshd -T 2>/dev/null | awk '$1 == "port" && !p { print $2; p = 1 }')"
 ssh_port="${ssh_port:-22}"
 for rule in "$ssh_port/tcp" 80/tcp 443/tcp 443/udp; do
   out="$(ufw allow "$rule")"
