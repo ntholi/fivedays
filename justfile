@@ -80,7 +80,7 @@ update *args:
 rehearse *args:
     @bin/rehearse "$@"
 
-# The cutover (one window): --resume continues after the last passed phase; --unattended per D29
+# The cutover (one window): --resume continues after the last passed phase; --unattended per D29; --token reruns phase 8 after cutover.done
 cutover *args:
     @bin/cutover "$@"
 

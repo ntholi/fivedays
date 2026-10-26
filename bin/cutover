@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # just cutover <old-host> <new-host> [--unattended]   the one-window move of prod Moodle to the new host
 # just cutover --resume [--unattended]                continue after the last passed phase (cutover.state)
+# just cutover --token                                after cutover.done: rerun phase 8 (MOODLE_TOKEN → fivedays_ws) only
 #
 # Phases (plan "Cutover"); each prints what it does, does it, checks it and records the result in cutover.state:
 #    0 preflight    rehearsal.ok (2 passes ≤ 7 days, same tag: the tag deployed), offsite copy from today, new host
@@ -43,14 +44,16 @@ declare -A PHASE_NAME=([0]=preflight [1]=freeze [2]=final-copy [3]=transfer [4]=
   [7]=switch [8]=token [9]=qa [10]="done")
 LMS_PAUSE_OVER=9000
 
-usage() { die "Usage: just cutover <old-host> <new-host> [--unattended]   or   just cutover --resume [--unattended]" "e.g. just cutover luct.click 63.181.79.8 --unattended"; }
+usage() { die "Usage: just cutover <old-host> <new-host> [--unattended]   or   just cutover --resume [--unattended]   or   just cutover --token" "e.g. just cutover luct.click 63.181.79.8 --unattended"; }
 resume=0
+token_only=0
 unattended=0
 stop_after=""
 args=()
 for a in "$@"; do
   case "$a" in
     --resume) resume=1 ;;
+    --token) token_only=1 ;;
     --unattended) unattended=1 ;;
     --stop-after=*) stop_after="${a#--stop-after=}" ;;
     -*) usage ;;
@@ -62,7 +65,12 @@ start_log cutover
 cl_load_env
 need_cmd jq "Install jq (sudo apt install jq)."
 
-if ((resume)); then
+if ((token_only)); then
+  ((${#args[@]} == 0 && !resume && !unattended)) || usage
+  [[ -f "$CUTOVER_DONE" && -f "$CUTOVER_STATE" ]] || die "just cutover --token reruns phase 8 after a finished cutover" "Finish the cutover first."
+  old_name="$(st_get old_name)"
+  new_name="$(st_get new_name)"
+elif ((resume)); then
   ((${#args[@]} == 0)) || usage
   [[ -f "$CUTOVER_STATE" ]] || die "No cutover.state to resume" "Start the cutover: just cutover <old-host> <new-host>"
   [[ ! -f "$CUTOVER_DONE" ]] || die "cutover.done exists: the cutover finished" "Nothing to resume."
@@ -78,8 +86,8 @@ else
 fi
 cl_stubs_init "$old_name" "$new_name"
 [[ -z "$stop_after" ]] || all_local "$old_name" "$new_name" || die "--stop-after is a test flag for the local stand-ins" "Run the cutover without it."
-cl_ssh_init "$WORK_HOME/cutover" "$((1 - resume))"
-if ((resume)); then
+cl_ssh_init "$WORK_HOME/cutover" "$((resume || token_only ? 0 : 1))"
+if ((resume || token_only)); then
   o="$(st_get old_ssh)"
   n="$(st_get new_ssh)"
   cl_hosts "${o:-$old_name}" "${n:-$new_name}"
@@ -459,7 +467,7 @@ course_list() {
 }
 
 p8() {
-  local new_token readback n
+  local new_token n
   new_token="$(token_file new)"
   # D32: from here on only a down site rolls back; a token problem keeps the old token (nothing changed in Vercel).
   (umask 077 && new_run ws-token | tr -d '\n' >"$new_token") || true
@@ -476,10 +484,7 @@ p8() {
     st_set token_swapped 1
     vercel_env_set MOODLE_TOKEN "$new_token"
     vercel_redeploy
-    readback="$RUN_DIR/vercel-readback"
-    vercel_env_get MOODLE_TOKEN "$readback"
-    if [[ -s "$readback" ]]; then cmp -s "$readback" "$new_token" || { rm -f "$readback"; exit 1; }; fi
-    rm -f "$readback"
+    # No read-back: Vercel stores it as a Secret, and env pull returns a placeholder for those.
     n="$(course_list "$new_token")"
     [[ "$n" =~ ^[0-9]+$ && "$n" -gt 0 ]] || { warn "course list with the new token: $n"; exit 1; }
     ok "registry-web's MOODLE_TOKEN is the fivedays_ws token; course list over https://$DOMAIN: $n courses"
@@ -597,6 +602,19 @@ p10() {
 }
 
 # ---- run ----
+if ((token_only)); then
+  [[ -s "$(token_file old)" ]] || die "No saved old token in $(token_file old) to fall back to" "Nothing was changed."
+  before="$(grep -c . "$RUN_DIR/nonfatal" || true)"
+  log "== phase 8 again (--token): registry-web MOODLE_TOKEN → fivedays_ws"
+  p8
+  rm -f "$(token_file new)"
+  if [[ "$(st_get token_swapped)" != 1 || "$(grep -c . "$RUN_DIR/nonfatal" || true)" != "$before" ]]; then
+    tail -n +"$((before + 1))" "$RUN_DIR/nonfatal" | sed 's/^/  /'
+    die "The token swap did not pass (above)" "registry-web keeps the old admin token unless the line above says restoring it failed."
+  fi
+  ok "token swap done (just cutover --token)"
+  exit 0
+fi
 last="$(st_get last_passed)"
 start_idx=0
 [[ -z "$last" ]] || start_idx=$(( $(phase_index "$last") + 1 ))
