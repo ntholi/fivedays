@@ -244,8 +244,11 @@ p0() {
   installxml_check "$(host_name "$old_name")" "$IMAGE_NAME:$tag-transfer"
 
   # Prod bucket.
+  local versioning
+  versioning="$(ls_bucket_versioning "$(env_value MOODLE_BUCKET)")" ||
+    die "Lightsail did not answer for bucket $(env_value MOODLE_BUCKET) (above)" "The cutover IAM policy needs lightsail:GetBuckets."
+  [[ "$versioning" == Enabled ]] || die "Bucket versioning is \"$versioning\", not Enabled (D19)" "Turn versioning on in the Lightsail console."
   out="$(new_run bucket-check)" || die "The prod bucket does not answer (above)" "Check MOODLE_BUCKET and its keys."
-  [[ "$(kv versioning "$out")" == Enabled ]] || die "Bucket versioning is \"$(kv versioning "$out")\", not Enabled (D19)" "Turn versioning on in the Lightsail console."
   [[ "$(kv foreign "$out")" == 0 ]] || die "The prod bucket holds $(kv foreign "$out") objects that objectfs did not write" "The prod bucket must start empty; check it is not the rehearsal or another bucket."
   if [[ "$(kv objects "$out")" == 0 ]]; then
     ok "prod bucket $(kv bucket "$out"): versioning on, empty"

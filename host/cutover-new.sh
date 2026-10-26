@@ -29,7 +29,7 @@
 #   cleanup <course ids>            contract cleanup.php for courses the upload QA created
 #   objectfs                        push every file to the bucket (host/cutover-objectfs.php), then list the bucket
 #                                   and compare every distinct mdl_files.contenthash and its size
-#   bucket-check                    the host .env's bucket: versioning, object count, keys that are not objectfs's
+#   bucket-check                    the host .env's bucket: object count, keys that are not objectfs's
 #   caddy-root                      Caddy's local CA root certificate (test stand-ins with a .localhost site)
 #   logstore-since <unix time>      logstore_standard_log rows written since then
 #   wipe-rehearsal <bucket>         rehearsal only: stack down, temporary MariaDB gone, fivedays_* volumes
@@ -385,7 +385,8 @@ case "$cmd" in
     [[ "$missing" == 0 && "$wrongsize" == 0 ]] || fail "the bucket is missing $missing objects and $wrongsize have the wrong size"
     ;;
   bucket-check)
-    # Preflight: the prod bucket answers with the host's keys, has versioning on (D19) and holds no objects yet.
+    # Preflight: the prod bucket answers with the host's keys and holds no objects yet. Versioning (D19) is checked
+    # on the laptop through the Lightsail API: bucket keys are object-only (AccessDenied on GetBucketVersioning).
     bucket="$(envval MOODLE_BUCKET)"
     endpoint="$(envval MOODLE_BUCKET_ENDPOINT)"
     ep=()
@@ -396,15 +397,15 @@ case "$cmd" in
         -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION=eu-central-1 --network fivedays-cutover-aws \
         "amazon/aws-cli:$(verval AWSCLI_VERSION)" "${ep[@]}" "$@"
     }
-    versioning="$(aws s3api get-bucket-versioning --bucket "$bucket" --query Status --output text)" || fail "bucket $bucket does not answer with the host's keys"
-    keys="$(aws s3api list-objects-v2 --bucket "$bucket" --query 'Contents[].Key' --output text | tr '\t' '\n' | grep -v '^None$' | grep . || true)"
+    listing="$(aws s3api list-objects-v2 --bucket "$bucket" --query 'Contents[].Key' --output text)" || fail "bucket $bucket does not answer with the host's keys"
+    keys="$(tr '\t' '\n' <<<"$listing" | grep -v '^None$' | grep . || true)"
     docker network rm fivedays-cutover-aws >/dev/null 2>&1 || true
     objects="$(grep -c . <<<"$keys" || true)"
     # objectfs keys are <2>/<2>/<sha1> of the content (classes/local/store/s3/client.php:298-302), so objects an
     # earlier, rolled-back attempt pushed hold exactly what this one would push; anything else is foreign.
     foreign="$(grep -cvE '^([0-9a-f]{2})/([0-9a-f]{2})/\1\2[0-9a-f]{36}$' <<<"$keys" || true)"
     [[ -n "$keys" ]] || foreign=0
-    printf 'bucket=%s\nversioning=%s\nobjects=%s\nforeign=%s\n' "$bucket" "$versioning" "$objects" "$foreign"
+    printf 'bucket=%s\nobjects=%s\nforeign=%s\n' "$bucket" "$objects" "$foreign"
     ;;
   caddy-root)
     docker run --rm -v "${PROJECT}_caddydata:/data:ro" --entrypoint cat "$(docker inspect -f '{{.Config.Image}}' "$(dc ps -q web)")" \

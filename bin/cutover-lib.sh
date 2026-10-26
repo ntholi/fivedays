@@ -180,6 +180,12 @@ ls_instance() {
   if stub_on static-ip; then printf '%s %s\n' "$(stub_ls_get "$1_pub")" "$(stub_ls_get "$1_priv")"; return 0; fi
   aws_ls get-instance --instance-name "$1" --query 'instance.[publicIpAddress, privateIpAddress]' --output text
 }
+# ls_bucket_versioning <bucket>: Enabled | Suspended | NeverEnabled. Asked of the Lightsail API with the cutover
+# key, because Lightsail bucket access keys are object-only and get AccessDenied on s3:GetBucketVersioning.
+ls_bucket_versioning() {
+  if stub_on static-ip; then echo Enabled; return 0; fi
+  aws_ls get-buckets --bucket-name "$1" --query 'buckets[0].objectVersioning' --output text
+}
 # ls_move_static_ip <name> <to instance>: detach, attach, and wait until Lightsail reports it attached.
 ls_move_static_ip() {
   local name="$1" to="$2" state
