@@ -6,7 +6,7 @@
 #     keeps its key when the static IP moves) and the remote helpers host/cutover-old.sh / host/cutover-new.sh;
 #   - cutover.state (key=value lines on the laptop) and build/cutover/report.md;
 #   - Lightsail (static IP, instance addresses) through the pinned amazon/aws-cli image and the CUTOVER_* key;
-#   - Vercel (registry-web's MOODLE_TOKEN and LMS_SYNC_PAUSED, redeploy) through the vercel CLI;
+#   - Vercel (luct's MOODLE_TOKEN and LMS_SYNC_PAUSED, redeploy) through the vercel CLI;
 #   - the public URL checks and the ephemeral host-to-host key.
 #
 # Test stubs (CUTOVER_STUBS=static-ip,vercel,cert) replace Lightsail, Vercel and the public certificate check,
@@ -14,14 +14,14 @@
 #   static-ip  Lightsail is a file (build/stub/lightsail): the static IP "moves" by changing its owner, instance
 #              addresses are the stand-ins' SSH specs and container IPs, and the "public URL" goes to the
 #              owner's container (curl --resolve).
-#   vercel     registry-web's production env is a file (build/stub/vercel.env); a redeploy is a log line.
+#   vercel     luct's production env is a file (build/stub/vercel.env); a redeploy is a log line.
 #   cert       the public HTTPS check trusts the new stand-in's Caddy local CA (a .localhost site) and accepts the
 #              old stand-in's self-signed certificate (-k); real runs use the system trust store, no -k.
 
 source "$FIVEDAYS_ROOT/bin/deploy"
 
 # CUTOVER_STATE_DIR (local stand-ins only, test/dry-run) keeps a dry run's cutover.state, cutover.done,
-# rehearsal.ok and work files away from the real ones (registry-web's deploy reads fivedays/cutover.done).
+# rehearsal.ok and work files away from the real ones (luct's deploy reads fivedays/cutover.done).
 if [[ -n "${CUTOVER_STATE_DIR:-}" ]]; then
   STATE_HOME="$CUTOVER_STATE_DIR"
   WORK_HOME="$CUTOVER_STATE_DIR"
@@ -35,7 +35,7 @@ CUTOVER_DONE="$STATE_HOME/cutover.done"
 # shellcheck disable=SC2034
 REHEARSAL_OK="$STATE_HOME/rehearsal.ok"
 STUB_DIR="$WORK_HOME/stub"
-REGISTRY_WEB_DIR="${REGISTRY_WEB_DIR:-$HOME/dev/registry-web}"
+LUCT_DIR="${LUCT_DIR:-$HOME/dev/luct}"
 KEY_MARKER=fivedays-cutover-ephemeral
 STUBS=""
 
@@ -222,7 +222,7 @@ public_target_ip() {
   getent ahostsv4 "$DOMAIN" | awk 'NR == 1 { print $1 }'
 }
 
-# public_curl <path> [curl args...]: HTTPS to the public name, exactly as a browser or registry-web reaches it.
+# public_curl <path> [curl args...]: HTTPS to the public name, exactly as a browser or luct reaches it.
 public_curl() {
   local path="$1" extra=()
   shift
@@ -254,16 +254,16 @@ public_site_info() {
     -d moodlewsrestformat=json | grep -o '"userid":[0-9]*' | head -n1 | cut -d: -f2 || true
 }
 
-# ---- Vercel (registry-web production env) ----
+# ---- Vercel (luct production env) ----
 
-vercel_cli() { (cd "$REGISTRY_WEB_DIR" && vercel "$@"); }
-# vercel_check: CLI logged in and registry-web linked.
+vercel_cli() { (cd "$LUCT_DIR" && vercel "$@"); }
+# vercel_check: CLI logged in and luct linked.
 vercel_check() {
   if stub_on vercel; then [[ -f "$STUB_DIR/vercel.env" ]] || die "Stub Vercel env $STUB_DIR/vercel.env missing" "The dry-run driver writes it."; ok "stub: Vercel"; return 0; fi
-  need_cmd vercel "Install the Vercel CLI (registry-web uses it)."
-  [[ -f "$REGISTRY_WEB_DIR/.vercel/project.json" ]] || die "$REGISTRY_WEB_DIR/.vercel/project.json missing" "Run vercel link in registry-web."
+  need_cmd vercel "Install the Vercel CLI (luct uses it)."
+  [[ -f "$LUCT_DIR/.vercel/project.json" ]] || die "$LUCT_DIR/.vercel/project.json missing" "Run vercel link in luct."
   vercel_cli whoami >/dev/null 2>&1 || die "The Vercel CLI is not logged in" "Run: vercel login"
-  ok "Vercel CLI logged in; registry-web linked ($(grep -o '"projectName": *"[^"]*"' "$REGISTRY_WEB_DIR/.vercel/project.json" | cut -d'"' -f4))"
+  ok "Vercel CLI logged in; luct linked ($(grep -o '"projectName": *"[^"]*"' "$LUCT_DIR/.vercel/project.json" | cut -d'"' -f4))"
 }
 # vercel_env_get <KEY> <out file>: writes the production value (mode 600); empty file if unset or unreadable.
 vercel_env_get() {
@@ -275,7 +275,7 @@ vercel_env_get() {
   (
     trap 'rm -rf "$tmp"' EXIT
     trap 'exit 130' INT TERM HUP
-    vercel_cli env pull "$tmp/env" --environment=production --yes >/dev/null 2>&1 || die "vercel env pull failed" "Check: vercel whoami, and that registry-web is linked."
+    vercel_cli env pull "$tmp/env" --environment=production --yes >/dev/null 2>&1 || die "vercel env pull failed" "Check: vercel whoami, and that luct is linked."
     sed -n "s/^$key=//p" "$tmp/env" | tail -n1 | sed 's/^"\(.*\)"$/\1/' | tr -d '\n' >"$out"
   )
 }
@@ -298,12 +298,12 @@ vercel_redeploy() {
   local url
   if stub_on vercel; then printf '%s redeploy\n' "$(date -u +%FT%TZ)" >>"$STUB_DIR/vercel.redeploys"; ok "stub: Vercel production redeployed"; return 0; fi
   url="$(vercel_cli ls --environment production --status READY --json --limit 1 2>/dev/null | grep -o '"url": *"[^"]*"' | head -n1 | cut -d'"' -f4)"
-  [[ -n "$url" ]] || die "No READY production deployment found with vercel ls" "Redeploy registry-web from the Vercel dashboard."
+  [[ -n "$url" ]] || die "No READY production deployment found with vercel ls" "Redeploy luct from the Vercel dashboard."
   log "redeploying $url (production)"
-  vercel_cli redeploy "$url" --environment production >/dev/null || die "vercel redeploy $url failed" "Redeploy registry-web from the Vercel dashboard."
+  vercel_cli redeploy "$url" --environment production >/dev/null || die "vercel redeploy $url failed" "Redeploy luct from the Vercel dashboard."
   ok "Vercel production redeployed from $url"
 }
-# lms_sync_pause 1|0 (D34): LMS_SYNC_PAUSED in registry-web, then redeploy.
+# lms_sync_pause 1|0 (D34): LMS_SYNC_PAUSED in luct, then redeploy.
 lms_sync_pause() {
   local f="$RUN_DIR/lms-paused.value"
   printf '%s' "$1" >"$f"

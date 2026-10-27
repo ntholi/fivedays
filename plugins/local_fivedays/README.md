@@ -34,7 +34,7 @@ The Docker stack in this repo installs the plugin and runs `cli/setup.php` after
 
 - `db/services.php` declares the **FiveDays** web service (shortname `fivedays`) with every `local_fivedays_*` function plus the core functions the prod service already had. Moodle's upgrade keeps the service's function list equal to it. Version 2026102404 hands the older, runtime-created service row over to the plugin, keeping all its per-user tokens.
 - `cli/setup.php` (idempotent, prints `ok` / `changed` / `FAIL` per item, exits 1 on any `FAIL`):
-  - creates the `fivedays_ws` user with a system role copied from the Manager archetype plus `webservice/rest:use`, and prints its token once (registry-web's `MOODLE_TOKEN`);
+  - creates the `fivedays_ws` user with a system role copied from the Manager archetype plus `webservice/rest:use`, and prints its token once (luct's `MOODLE_TOKEN`);
   - creates or updates the Google OAuth issuer from `MOODLE_GOOGLE_CLIENT_ID` / `MOODLE_GOOGLE_CLIENT_SECRET`;
   - adds the Redis store `fivedays_redis` and maps the application cache to it;
   - turns on phone push (`airnotifier`) and adds it to every notification type's default outputs, never touching locked defaults or users' own preferences;
@@ -1708,4 +1708,4 @@ All capabilities granted to **editing teachers** and **managers** by default.
 
 ## License
 
-Developed for Limkokwing University Registry Portal integration.
+Developed for luct.

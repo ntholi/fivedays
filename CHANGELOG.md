@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-27 (2)
+
+### Changed
+- `local_fivedays` 2026102701: registry-web is now called luct. `cli/setup.php` names the `fivedays_ws` token `luct` and describes the `fivedays_ws` role as used by luct; on an existing site it renames the token and updates the role description (reported as `changed`). `bin/cutover-lib.sh` reads the app checkout from `LUCT_DIR` (default `~/dev/luct`). No database change.
+
 ## 2026-10-27
 
 ### Changed

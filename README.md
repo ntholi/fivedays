@@ -1,6 +1,6 @@
 # FiveDays Moodle
 
-Moodle plugins for FiveDays, the LMS side of registry-web, and the Docker stack that runs Moodle. Each folder under `plugins/` is one plugin, named by its Moodle component.
+Moodle plugins for FiveDays, the LMS side of luct, and the Docker stack that runs Moodle. Each folder under `plugins/` is one plugin, named by its Moodle component.
 
 | Folder | Moodle component | Shown in Moodle as | Installs to |
 | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ Moodle names every plugin `<type>_<name>`, and the type decides where it install
 
 ## Running Moodle (runbook)
 
-Moodle runs as one Docker image: the pinned Moodle core plus these plugins. The same `compose.yaml` runs locally and on the host; only `compose.dev.yaml` differs. Every command below is a `just` recipe over a script in `bin/` that checks its own preconditions, logs to `logs/` and stops with a "What to do" line when something is wrong. The plan behind it is `plans/moodle-docker-stack.md` in registry-web.
+Moodle runs as one Docker image: the pinned Moodle core plus these plugins. The same `compose.yaml` runs locally and on the host; only `compose.dev.yaml` differs. Every command below is a `just` recipe over a script in `bin/` that checks its own preconditions, logs to `logs/` and stops with a "What to do" line when something is wrong. The plan behind it is `plans/moodle-docker-stack.md` in luct.
 
 ### Laptop setup
 
@@ -37,7 +37,7 @@ Moodle runs as one Docker image: the pinned Moodle core plus these plugins. The 
 | --- | --- |
 | `just release` | Refuses a dirty tree or an unpushed HEAD. Builds, runs `just test` and `just phpunit`, then pushes `sha-<short>`, `-web` and `-transfer` to `ghcr.io/ntholi/fivedays-moodle`. Tags are never overwritten. |
 | `just release --patch` | The same commit rebuilt with fresh OS packages as `sha-<short>-<yyyymmdd>`. |
-| `just deploy luct.click sha-<short>` | `migrate exited 0`, `caddy-health 200`, `login page 200`. `pnpm deploy:prod` in registry-web runs this for you after the cutover. |
+| `just deploy luct.click sha-<short>` | `migrate exited 0`, `caddy-health 200`, `login page 200`. `pnpm deploy:prod` in luct runs this for you after the cutover. |
 | `just rollback luct.click` | Back on the previous tag. After a Moodle or plugin version bump it refuses and prints the `just restore … --tag=…` command instead. |
 | `just update [--dry-run] [--major]` | An `old → new` table of pinned versions; type `update` to build, test and commit. Moodle and objectfs pins are held until the cutover is done. |
 
@@ -55,7 +55,7 @@ Moodle runs as one Docker image: the pinned Moodle core plus these plugins. The 
 Console steps a script can't do:
 
 1. Lightsail (eu-central-1): a 4 GB Ubuntu 24.04 instance with ports 22/80/443 open, the default SSH key and no static IP. The bucket `fivedays-moodle-files` ($3 plan, versioning on) and `fivedays-moodle-rehearsal` ($1 plan), each with its own access key (bucket → Permissions → Create access key).
-2. Cloudflare R2: a bucket for Moodle backups (not the registry-web bucket), with a write token (host) and a read-only token (laptops).
+2. Cloudflare R2: a bucket for Moodle backups (not the luct bucket), with a write token (host) and a read-only token (laptops).
 3. AWS IAM: the user `fivedays-cutover` with only the Lightsail static-IP policy from the plan, and an access key. Delete it on day 14.
 4. Google Cloud: the Moodle OAuth client ID and secret.
 5. `just init prod`, which asks for all of the above and writes `.env.prod` (mode 600). Paste it into the password manager.
@@ -66,9 +66,9 @@ Then:
 | --- | --- |
 | `just provision <new-ip>` | Every line `ok` or `changed`; a second run is all `ok`. |
 | `just rehearse <new-ip> <tag> [--unattended]` | A full dress rehearsal on last night's prod dump, then the new host is wiped. Run it twice; `rehearsal.ok` records both passes and their timings. |
-| `just cutover luct.click <new-ip> [--unattended]` | The phases from the plan, each `ok`, ending in `cutover.done`. `--resume` continues after the last passed phase. registry-web's LMS sync is held from phase 7 (the switch) until phase 9 passes (D37; from phase 1 if the rehearsal window was over 2.5 h, D34), then turned back on; the report says so. |
+| `just cutover luct.click <new-ip> [--unattended]` | The phases from the plan, each `ok`, ending in `cutover.done`. `--resume` continues after the last passed phase. luct's LMS sync is held from phase 7 (the switch) until phase 9 passes (D37; from phase 1 if the rehearsal window was over 2.5 h, D34), then turned back on; the report says so. |
 | `just cutover-rollback` | Only before `cutover.done`: the static IP and the old token go back, and the old host serves Moodle again. |
 
-The window notice to students and lecturers gives the date and says: lecturers please don't add or change course content in registry-web until we send the all-clear (sync with Moodle is held during the switch). Send the all-clear once `cutover.done` exists and the report shows LMS sync running.
+The window notice to students and lecturers gives the date and says: lecturers please don't add or change course content in luct until we send the all-clear (sync with Moodle is held during the switch). Send the all-clear once `cutover.done` exists and the report shows LMS sync running.
 
 See `CHANGELOG.md` for changes and each plugin's `README.md` for its API.

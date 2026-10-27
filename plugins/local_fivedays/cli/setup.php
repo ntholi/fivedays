@@ -32,14 +32,17 @@ $pushfail = $env('MOODLE_PUSH_SOFT') === '1' ? 'WARN' : 'FAIL';
 \core\session\manager::set_user(get_admin());
 
 // Web-service user (D21): a Manager-archetype system role, not a site admin.
+$wsroledescription = 'Used by luct for provisioning and for writing into classes the lecturer is not assigned to.';
 $wsrole = $DB->get_record('role', ['shortname' => 'fivedays_ws']);
 if (!$wsrole) {
-    $roleid = create_role('FiveDays web service', 'fivedays_ws',
-        'Used by registry-web for provisioning and for writing into classes the lecturer is not assigned to.', 'manager');
+    $roleid = create_role('FiveDays web service', 'fivedays_ws', $wsroledescription, 'manager');
     reset_role_capabilities($roleid);
     set_role_contextlevels($roleid, [CONTEXT_SYSTEM]);
     $wsrole = $DB->get_record('role', ['id' => $roleid], '*', MUST_EXIST);
     $report('changed', 'fivedays_ws role', 'created from the Manager archetype');
+} else if ($wsrole->description !== $wsroledescription) {
+    $DB->set_field('role', 'description', $wsroledescription, ['id' => $wsrole->id]);
+    $report('changed', 'fivedays_ws role', 'description updated');
 } else {
     $report('ok', 'fivedays_ws role');
 }
@@ -90,13 +93,17 @@ if (!user_has_role_assignment($wsuser->id, $wsrole->id, $systemcontext->id)) {
 }
 
 $service = provision_helper::rest_service();
-if ($DB->record_exists('external_tokens', ['userid' => $wsuser->id, 'externalserviceid' => $service->id,
-        'tokentype' => EXTERNAL_TOKEN_PERMANENT])) {
-    $report('ok', 'fivedays_ws token');
-} else {
+$wstokenwhere = ['userid' => $wsuser->id, 'externalserviceid' => $service->id, 'tokentype' => EXTERNAL_TOKEN_PERMANENT];
+$wstoken = $DB->get_record('external_tokens', $wstokenwhere, 'id, name', IGNORE_MULTIPLE);
+if (!$wstoken) {
     $token = \core_external\util::generate_token(EXTERNAL_TOKEN_PERMANENT, $service, $wsuser->id, $systemcontext,
-        0, '', 'registry-web');
-    $report('changed', 'fivedays_ws token', "created, set it as MOODLE_TOKEN in registry-web (shown once): {$token}");
+        0, '', 'luct');
+    $report('changed', 'fivedays_ws token', "created, set it as MOODLE_TOKEN in luct (shown once): {$token}");
+} else if ($wstoken->name !== 'luct') {
+    $DB->set_field('external_tokens', 'name', 'luct', $wstokenwhere);
+    $report('changed', 'fivedays_ws token', 'renamed to luct');
+} else {
+    $report('ok', 'fivedays_ws token');
 }
 
 // Google login. Prod updates the existing issuer (matched by name), so linked logins keep working.

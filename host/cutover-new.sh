@@ -105,7 +105,7 @@ close_tunnel() {
   docker rm -f "$HELPER" >/dev/null 2>&1 || true
 }
 
-# ws <token> <function> [curl args...]: one REST call through the internal listener, like registry-web makes it.
+# ws <token> <function> [curl args...]: one REST call through the internal listener, like luct makes it.
 ws() {
   local token="$1" fn="$2"
   shift 2

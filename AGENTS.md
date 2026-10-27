@@ -1,6 +1,6 @@
 # FiveDays — agent instructions
 
-This repo holds the FiveDays Moodle plugins (`local_fivedays`, `gradingform_fivedays`) and the Docker stack that runs Moodle locally and on prod (`luct.click`). The plan behind the stack is `plans/moodle-docker-stack.md` in registry-web. Plugin conventions are in `.github/copilot-instructions.md`.
+This repo holds the FiveDays Moodle plugins (`local_fivedays`, `gradingform_fivedays`) and the Docker stack that runs Moodle locally and on prod (`luct.click`). The plan behind the stack is `plans/moodle-docker-stack.md` in luct. Plugin conventions are in `.github/copilot-instructions.md`.
 
 **Prod holds live data. Nothing may be lost.**
 

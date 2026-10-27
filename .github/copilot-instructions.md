@@ -69,7 +69,7 @@ Key conventions:
 
 ## Build & Install
 
-Installed from registry-web: `pnpm moodle:install-local` (local Docker Moodle) and `pnpm deploy:prod` (production). Both copy each plugin folder into Moodle, run the CLI upgrade and add new functions to the FiveDays web service.
+Installed from luct: `pnpm moodle:install-local` (local Docker Moodle) and `pnpm deploy:prod` (production). Both copy each plugin folder into Moodle, run the CLI upgrade and add new functions to the FiveDays web service.
 
 ## Response Format
 All endpoints return consistent structure with `success` boolean and `message` string, plus operation-specific fields.

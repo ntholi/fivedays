@@ -712,7 +712,7 @@ $functions = array(
     ),
 );
 
-// The service registry-web calls. Moodle's upgrade keeps its function list equal to this one.
+// The service luct calls. Moodle's upgrade keeps its function list equal to this one.
 // The array key must stay 'FiveDays': Moodle matches existing rows by name and deletes (with every
 // per-user token) any local_fivedays service whose name is not a key here. db/upgrade.php hands the
 // row created by provision_helper over to this component.

@@ -1,7 +1,7 @@
 <?php
 // Contract test: calls every function on the FiveDays web service once with the fivedays_ws token,
 // through the web server, so a function missing from $services or a missing capability fails here
-// instead of in registry-web. Cases live in cases/*.php (run in name order, sharing $ctx).
+// instead of in luct. Cases live in cases/*.php (run in name order, sharing $ctx).
 // Run in a one-off `app` container: php /contract/run.php [base-url] [host-header]
 
 define('CLI_SCRIPT', true);
