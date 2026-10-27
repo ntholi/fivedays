@@ -57,6 +57,7 @@ class delete_assignment extends external_api {
         $assignname = $assign->name;
 
         \core_courseformat\formatactions::cm((int) $cm->course)->delete((int) $cm->id);
+        \local_fivedays\assignment_teams::delete_owned_groups((int) $cm->course, (int) $assign->id);
 
         return [
             'success' => true,

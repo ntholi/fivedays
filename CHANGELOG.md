@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-27
+
+### Changed
+- `local_fivedays` 2026102700: `delete_assignment` also deletes the groups and grouping made for that assignment (idnumbers `fivedays-a<assignmentid>-*` and `fivedays-assign-<assignmentid>`), so deleting a group assignment no longer leaves its students in orphan groups. Other course groups stay. The activity still goes to the recycle bin when it is on. No database change.
+
 ## 2026-10-24 (6)
 
 ### Changed

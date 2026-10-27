@@ -8,6 +8,7 @@ require_once($CFG->dirroot . '/mod/assign/locallib.php');
 require_once($CFG->dirroot . '/group/lib.php');
 
 use advanced_testcase;
+use local_fivedays\external\assignment\delete_assignment;
 use local_fivedays\external\assignment\get_assignment_grades;
 use local_fivedays\external\assignment\get_assignment_teams;
 use local_fivedays\external\assignment\save_assignment_grade;
@@ -302,5 +303,25 @@ class assignment_teams_test extends advanced_testcase {
         $this->assertEquals(72.5, $grades[$this->id(2)]);
         $this->assertEquals(72.5, $grades[$this->id(3)]);
         $this->assertArrayNotHasKey($this->id(4), $grades);
+    }
+
+    public function test_delete_removes_the_assignments_own_groups_only(): void {
+        global $DB;
+
+        $other = groups_create_group((object)['courseid' => $this->course->id, 'name' => 'Tutorial A']);
+        groups_add_member($other, $this->id(1));
+        sync_assignment_groups::execute((int)$this->assign->id, true, [
+            ['key' => 'g1', 'name' => 'Group 1', 'userids' => [$this->id(1), $this->id(2)]],
+        ]);
+        $prefix = 'fivedays-a' . $this->assign->id . '-%';
+        $this->assertGreaterThan(0, $DB->count_records_select('groups', $DB->sql_like('idnumber', ':p'), ['p' => $prefix]));
+
+        $result = delete_assignment::execute((int)$this->assign->cmid);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(0, $DB->count_records_select('groups', $DB->sql_like('idnumber', ':p'), ['p' => $prefix]));
+        $this->assertFalse(groups_get_grouping_by_idnumber($this->course->id, 'fivedays-assign-' . $this->assign->id));
+        $this->assertTrue($DB->record_exists('groups', ['id' => $other]));
+        $this->assertTrue(groups_is_member($other, $this->id(1)));
     }
 }

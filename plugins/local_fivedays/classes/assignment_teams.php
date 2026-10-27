@@ -136,7 +136,16 @@ class assignment_teams {
     }
 
     private static function remove(\stdClass $instance, int $courseid): void {
-        $assignmentid = (int)$instance->id;
+        self::delete_owned_groups($courseid, (int)$instance->id);
+        self::set_team_settings($instance, $courseid, 0, 0);
+    }
+
+    /** Deletes the groups and grouping made for this assignment; other course groups stay. */
+    public static function delete_owned_groups(int $courseid, int $assignmentid): void {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/group/lib.php');
+
         foreach (self::existing_groups($courseid, $assignmentid) as $group) {
             groups_delete_group($group);
         }
@@ -144,7 +153,6 @@ class assignment_teams {
         if ($grouping) {
             groups_delete_grouping($grouping);
         }
-        self::set_team_settings($instance, $courseid, 0, 0);
     }
 
     /** Group ids whose shared submission moved past "new". */
