@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-28 (2)
+
+### Added
+- `local_fivedays` 2026102800: `search_rubrics(targetcmid, query, limit)` lists FiveDays rubrics (with at least one criterion) on any assignment site-wide, matching every query word against the assignment name, course full name or short name; rubrics in the target's own course come first, then newest. `preview_rubric(sourcecmid, targetcmid)` returns a source rubric's criteria and levels. Both only require `local/fivedays:managerubric` on the target, so a lecturer can reuse a rubric from a course they do not teach. luct imports by appending the previewed criteria through `create_rubric` / `update_rubric`. No database change.
+
 ## 2026-10-28
 
 ### Changed

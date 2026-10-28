@@ -295,6 +295,22 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:managerubric',
     ),
+    'local_fivedays_search_rubrics' => array(
+        'classname' => 'local_fivedays\external\rubric\search_rubrics',
+        'methodname' => 'execute',
+        'description' => 'Search FiveDays rubrics on any assignment site-wide, to import into a target assignment',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:managerubric',
+    ),
+    'local_fivedays_preview_rubric' => array(
+        'classname' => 'local_fivedays\external\rubric\preview_rubric',
+        'methodname' => 'execute',
+        'description' => 'Read any assignment\'s FiveDays rubric to preview or import it into a target assignment',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:managerubric',
+    ),
     'local_fivedays_fill_rubric' => array(
         'classname' => 'local_fivedays\external\rubric\fill_rubric',
         'methodname' => 'execute',
