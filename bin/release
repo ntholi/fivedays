@@ -28,7 +28,8 @@ ok "tree clean, HEAD $(git rev-parse --short HEAD) is pushed"
 
 # Moodle upgrades a plugin (services, capabilities, tables, caches) only when $plugin->version goes up, so a
 # plugin file changed after the last version bump would ship as code the database never installs.
-version_at() { git show "$1:$2/version.php" 2>/dev/null | sed -nE 's/^\$plugin->version[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p'; }
+# Empty when the file is not in that commit (the bump that created version.php has no older version).
+version_at() { { git show "$1:$2/version.php" 2>/dev/null || true; } | sed -nE 's/^\$plugin->version[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p'; }
 for dir in plugins/*/; do
   dir="${dir%/}"
   bump="$(git log -1 --format=%H -G'plugin->version' -- "$dir/version.php")"
