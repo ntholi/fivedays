@@ -5,7 +5,8 @@
 #      the current tag upgraded the database, and older code can't run on it. It prints the dump and the
 #      exact `just restore <host> <file> --tag=<previous>` command, and changes nothing.
 #   3. Otherwise swaps IMAGE_TAG and PREVIOUS_IMAGE_TAG in the host .env (so a second rollback returns to
-#      the newer tag), pulls, starts the stack (migrate must exit 0) and health-checks it like just deploy.
+#      the newer tag), pulls, starts the stack (migrate must exit 0), health-checks it and checks the plugin
+#      versions like just deploy.
 # The compose.yaml and host/ files already on the host stay as the last deploy left them.
 set -euo pipefail
 source "$(dirname "$0")/deploy"
@@ -52,5 +53,6 @@ ok "$HOST_DIR/.env: IMAGE_TAG=$previous PREVIOUS_IMAGE_TAG=$current"
 
 deploy_start "$host"
 deploy_health "$host"
+deploy_check_plugins "$host"
 deploy_show "$host"
 ok "$host rolled back to $previous (just rollback again returns to $current)"

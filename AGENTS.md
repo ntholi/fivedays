@@ -20,4 +20,4 @@ This repo holds the FiveDays Moodle plugins (`local_fivedays`, `gradingform_five
 - Host commands are Bash scripts in `bin/` (`set -euo pipefail`, source `bin/lib.sh`), wrapped by the `justfile`. No Node.
 - Scripts check their own preconditions, log to `logs/`, and stop with `die "<what happened>" "<what to do>"`.
 - `.env` is never committed and stays mode 600.
-- Plugin changes: bump `version.php`, update the plugin `README.md` and `CHANGELOG.md` in the same change.
+- Plugin changes: bump `version.php`, update the plugin `README.md` and `CHANGELOG.md` in the same change. `just release` refuses a plugin changed after its last bump, and `just deploy` checks prod installed the image's versions.

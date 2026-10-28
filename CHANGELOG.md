@@ -2,6 +2,12 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-28
+
+### Changed
+- `just release` refuses to build when a plugin file other than its `README.md` or `tests/` changed after the plugin's last `$plugin->version` bump, or when a bump lowered the version. Without a bump Moodle never runs the plugin's upgrade, so new web-service functions, capabilities and tables would not install in prod.
+- `just deploy` and `just rollback` end with `host/plugin-versions.php`: every plugin's `version.php` in the image must equal its installed version in `config_plugins`, else the command fails with `just rollback <host>`. It reads both directly, past the Moodle caches. No plugin version change.
+
 ## 2026-10-27 (2)
 
 ### Changed

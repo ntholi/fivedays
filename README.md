@@ -35,9 +35,9 @@ Moodle runs as one Docker image: the pinned Moodle core plus these plugins. The 
 
 | Command | What you should see |
 | --- | --- |
-| `just release` | Refuses a dirty tree or an unpushed HEAD. Builds, runs `just test` and `just phpunit`, then pushes `sha-<short>`, `-web` and `-transfer` to `ghcr.io/ntholi/fivedays-moodle`. Tags are never overwritten. |
+| `just release` | Refuses a dirty tree, an unpushed HEAD, or a plugin changed after its last `version.php` bump (README and `tests/` changes are fine). Builds, runs `just test` and `just phpunit`, then pushes `sha-<short>`, `-web` and `-transfer` to `ghcr.io/ntholi/fivedays-moodle`. Tags are never overwritten. |
 | `just release --patch` | The same commit rebuilt with fresh OS packages as `sha-<short>-<yyyymmdd>`. |
-| `just deploy luct.click sha-<short>` | `migrate exited 0`, `caddy-health 200`, `login page 200`. `pnpm deploy:prod` in luct runs this for you after the cutover. |
+| `just deploy luct.click sha-<short>` | `migrate exited 0`, `caddy-health 200`, `login page 200`, then `ok local_fivedays <version>` per plugin (the database runs the image's `version.php` versions). `pnpm deploy:prod` in luct runs this for you after the cutover. |
 | `just rollback luct.click` | Back on the previous tag. After a Moodle or plugin version bump it refuses and prints the `just restore … --tag=…` command instead. |
 | `just update [--dry-run] [--major]` | An `old → new` table of pinned versions; type `update` to build, test and commit. Moodle and objectfs pins are held until the cutover is done. |
 

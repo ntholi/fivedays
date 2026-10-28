@@ -26,6 +26,24 @@ git fetch -q origin main
   die "HEAD is not the pushed origin/main" "Push main first (git push origin main), then rerun."
 ok "tree clean, HEAD $(git rev-parse --short HEAD) is pushed"
 
+# Moodle upgrades a plugin (services, capabilities, tables, caches) only when $plugin->version goes up, so a
+# plugin file changed after the last version bump would ship as code the database never installs.
+version_at() { git show "$1:$2/version.php" 2>/dev/null | sed -nE 's/^\$plugin->version[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p'; }
+for dir in plugins/*/; do
+  dir="${dir%/}"
+  bump="$(git log -1 --format=%H -G'plugin->version' -- "$dir/version.php")"
+  [[ -n "$bump" ]] || die "$dir/version.php has no \$plugin->version in git history" "Add \$plugin->version to it, commit and push, then rerun."
+  new="$(version_at HEAD "$dir")"
+  old="$(version_at "$bump^" "$dir")"
+  [[ -z "$old" || "$new" -gt "$old" ]] ||
+    die "$dir/version.php went from $old to $new in $(git rev-parse --short "$bump"), not up" "Set a higher \$plugin->version (YYYYMMDDXX), commit and push, then rerun."
+  unbumped="$(git diff --name-only "$bump" HEAD -- "$dir" ":(exclude)$dir/README.md" ":(exclude)$dir/tests")"
+  [[ -z "$unbumped" ]] ||
+    die "$dir changed after its last version bump ($new, $(git rev-parse --short "$bump")): $(tr '\n' ' ' <<<"$unbumped")" \
+      "Bump \$plugin->version in $dir/version.php (YYYYMMDDXX), add a CHANGELOG.md entry, commit and push, then rerun."
+  ok "$dir: no change since version $new"
+done
+
 short="$(git rev-parse --short HEAD)"
 tag="sha-$short"
 (( patch )) && tag="$tag-$(date +%Y%m%d)"

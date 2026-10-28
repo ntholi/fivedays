@@ -11,6 +11,8 @@
 #   4. compose pull, up -d; waits for migrate (exit 0, else its last 40 lines and "just rollback <host>").
 #   5. Health check from the host itself through the internal listener 127.0.0.1:8080: /caddy-health,
 #      then /login/index.php with Host: <wwwroot host> (200).
+#   6. Plugin check (host/plugin-versions.php): every plugin's version.php in the image equals its
+#      config_plugins version, else it fails with "just rollback <host>".
 #
 # Modes (for bin/cutover and tests):
 #   bin/deploy <host> <tag>                 all of the above
@@ -24,6 +26,7 @@
 #   deploy_start <host> [up args...]            step 4 (pull, up -d, migrate exit 0); extra args go to
 #                                               `up -d`, e.g. --scale cron=0 (rehearsals run without cron)
 #   deploy_health <host>                        step 5
+#   deploy_check_plugins <host>                 step 6
 #   host_env_get <host> <KEY>                   one non-secret value from the host .env (tags only)
 #
 # Env: ENV_FILE (default .env.prod), SSH_KEY / SSH_OPTS / REMOTE_USER (lib.sh). IMAGE (registry name) is
@@ -184,6 +187,19 @@ deploy_health() {
   ok "login page 200 (Host: $domain)"
 }
 
+# A plugin code change shipped without a version.php bump, or an upgrade that stopped halfway, leaves the
+# database on older plugin code while the login page still answers 200 (host/plugin-versions.php).
+deploy_check_plugins() {
+  local host="$1"
+  on_host "$host" "test -f $HOST_DIR/host/plugin-versions.php" ||
+    die "$HOST_DIR/host/plugin-versions.php is missing on $host" "Rerun: just deploy $host <tag> (it copies host/)."
+  log "plugin versions on $host (image version.php vs database)"
+  host_compose "$host" run --rm --no-deps -T -v "$HOST_DIR/host:/fivedays-host:ro" app php /fivedays-host/plugin-versions.php </dev/null ||
+    die "The database on $host is not on the image's plugin versions (FAIL lines above)" \
+      "Read the migrate log: just logs; then roll back: just rollback $host"
+  ok "every plugin in the image is installed at its version.php version"
+}
+
 deploy_show() {
   local host="$1"
   host_compose "$host" ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
@@ -227,6 +243,7 @@ deploy_main() {
       deploy_write_files "$host" "$tag"
       deploy_start "$host"
       deploy_health "$host"
+      deploy_check_plugins "$host"
       deploy_show "$host"
       local previous
       previous="$(host_env_get "$host" PREVIOUS_IMAGE_TAG)"
