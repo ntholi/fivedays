@@ -369,6 +369,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:deleteforum',
     ),
+    'local_fivedays_add_announcement' => array(
+        'classname' => 'local_fivedays\external\forum\add_announcement',
+        'methodname' => 'execute',
+        'description' => 'Post a course announcement as a given author, optionally back-dated and without notifying',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:addannouncement',
+    ),
 
     'local_fivedays_create_url' => array(
         'classname' => 'local_fivedays\external\url\create_url',

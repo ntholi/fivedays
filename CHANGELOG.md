@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-30
+
+### Added
+- `local_fivedays` 2026103000: `add_announcement(courseid, subject, message, draftitemid, timecreated, userid, notify)` posts in the course's announcements forum (created with `forum_get_course_forum` when missing) as `userid`, who must be enrolled and hold `mod/forum:addnews`. `timecreated` keeps the original posted date on the post and discussion. `notify=0` stores the post with `mailed = FORUM_MAILED_SUCCESS`, so `mod_forum\task\cron_task` (the only sender of forum emails and notifications) skips it. New capability `local/fivedays:addannouncement` (editing teacher, manager). luct uses it to import Google Classroom announcements. No database change.
+
 ## 2026-10-28 (2)
 
 ### Added

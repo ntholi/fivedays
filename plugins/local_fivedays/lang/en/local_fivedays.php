@@ -39,6 +39,7 @@ $string['fivedays:deletesection'] = 'Delete course sections via FiveDays';
 $string['fivedays:deletesubsection'] = 'Delete subsections via FiveDays';
 $string['fivedays:deletebigbluebuttonbn'] = 'Delete BigBlueButton activities via FiveDays';
 $string['fivedays:deleteforum'] = 'Delete forum activities via FiveDays';
+$string['fivedays:addannouncement'] = 'Post course announcements via FiveDays';
 
 $string['fivedays:createurl'] = 'Create URL resources via FiveDays';
 $string['fivedays:updateurl'] = 'Update URL resources via FiveDays';

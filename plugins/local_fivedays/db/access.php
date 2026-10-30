@@ -289,6 +289,15 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
+    'local/fivedays:addannouncement' => array(
+        'riskbitmask' => RISK_SPAM | RISK_XSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => array(
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
     'local/fivedays:createurl' => array(
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',

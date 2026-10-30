@@ -18,7 +18,7 @@ Web service functions:
 - **Books** (6): create, update, delete, add/update chapters, get
 - **Rubrics** (7): create, get, update, delete, copy, fill (grade), get filling - **uses FiveDays grading form**
 - **BigBlueButton** (3): create, update, delete
-- **Forums** (2): create, delete
+- **Forums** (3): create, delete, add announcement
 - **Quizzes** (12): create, update, delete, get, add/remove/reorder questions, add/update/remove/delete sections, set structure
 - **Quiz Attempts** (5): get attempts, get attempt details, grade essay, add/get feedback
 - **Question Categories** (2): get/create, list
@@ -766,6 +766,24 @@ Parameters: `cmid` (course module ID)
 `local_fivedays_delete_forum`
 
 Parameters: `cmid` (course module ID)
+
+### Add Announcement
+
+`local_fivedays_add_announcement`
+
+Posts a discussion in the course's announcements (news) forum, creating that forum if the course has none. Requires `local/fivedays:addannouncement` on the course. The author must be enrolled in the course and have `mod/forum:addnews`.
+
+| Parameter     | Type   | Required | Description                                                                 |
+| ------------- | ------ | -------- | --------------------------------------------------------------------------- |
+| `courseid`    | int    | Yes      |                                                                             |
+| `subject`     | string | Yes      |                                                                             |
+| `message`     | string | Yes      | HTML                                                                        |
+| `draftitemid` | int    | No       | Draft area holding attachments (default 0 = none)                           |
+| `timecreated` | int    | No       | Posted time (Unix); sets created/modified on the post and discussion (0 = now) |
+| `userid`      | int    | No       | Author (default 0 = the calling user)                                       |
+| `notify`      | bool   | No       | Default true. False marks the post as already mailed, so no email or notification is sent |
+
+**Response:** `{ "discussionid": 12, "postid": 34 }`
 
 ---
 
