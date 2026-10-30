@@ -147,6 +147,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:updatebook',
     ),
+    'local_fivedays_save_book' => array(
+        'classname' => 'local_fivedays\external\book\save_book',
+        'methodname' => 'execute',
+        'description' => 'Save a book name and its full ordered chapter list in one transaction',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:updatebook',
+    ),
     'local_fivedays_delete_book' => array(
         'classname' => 'local_fivedays\external\book\delete_book',
         'methodname' => 'execute',
@@ -179,6 +187,22 @@ $functions = array(
         'type' => 'write',
         'ajax' => true,
         'capabilities' => 'local/fivedays:deletefile',
+    ),
+    'local_fivedays_create_folder' => array(
+        'classname' => 'local_fivedays\external\folder\create_folder',
+        'methodname' => 'execute',
+        'description' => 'Create a folder resource from draft files',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:createfolder',
+    ),
+    'local_fivedays_update_folder' => array(
+        'classname' => 'local_fivedays\external\folder\update_folder',
+        'methodname' => 'execute',
+        'description' => 'Rename a folder, remove files and add draft files',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:updatefolder',
     ),
 
     'local_fivedays_create_page' => array(

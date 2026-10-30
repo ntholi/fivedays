@@ -286,6 +286,22 @@ class helper {
         return $section ? (int)$section->id : null;
     }
 
+    /**
+     * The calling user's draft files (directories excluded) under $draftitemid.
+     *
+     * @return \stored_file[]
+     */
+    public static function get_draft_files(int $draftitemid): array {
+        global $USER;
+
+        $usercontext = \context_user::instance($USER->id);
+        return get_file_storage()->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filepath, filename', false);
+    }
+
+    public static function draft_area_has_files(int $draftitemid): bool {
+        return self::get_draft_files($draftitemid) !== [];
+    }
+
     public static function create_module(
         \stdClass $course,
         string $modulename,

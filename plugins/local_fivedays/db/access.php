@@ -160,6 +160,24 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
+    'local/fivedays:createfolder' => array(
+        'riskbitmask' => RISK_SPAM | RISK_XSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => array(
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
+    'local/fivedays:updatefolder' => array(
+        'riskbitmask' => RISK_SPAM | RISK_XSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => array(
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
     'local/fivedays:deletefile' => array(
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',

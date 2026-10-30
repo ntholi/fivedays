@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-30 (3)
+
+### Added
+- `local_fivedays` 2026103002: `create_folder(courseid, name, draftitemid, section, visible)` creates a folder (own page, expanded, download button) from the caller's draft files; an empty draft is refused. `update_folder(folderid, name, draftitemid, removefiles)` renames, deletes the listed `{filepath, filename}` files, copies in draft files (same name replaces) and bumps `revision`, in one transaction. `save_book(bookid, name, chapters)` saves the book name and its full ordered chapter list in one transaction: listed ids are updated, `id = 0` is added, unlisted chapters are deleted with their files; fires the core `chapter_created` / `chapter_updated` / `chapter_deleted` events and refuses an empty list, a leading sub-chapter or a chapter id from another book. New capabilities `local/fivedays:createfolder` and `local/fivedays:updatefolder` (editing teacher, manager). `get_book` already returns raw `@@PLUGINFILE@@` content, so it is unchanged. luct uses these for folder and book materials. No database change.
+
 ## 2026-10-30 (2)
 
 ### Changed

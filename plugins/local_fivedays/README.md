@@ -258,6 +258,26 @@ Parameters: `cmid` (course module ID)
 
 ---
 
+## Folders
+
+### Create Folder
+
+`local_fivedays_create_folder`
+
+Parameters: `courseid`, `name`, `draftitemid` (required, must hold at least one file), `section` (default 0), `visible` (default 1)
+
+Creates a folder shown on its own page, sub-folders expanded, with a "Download folder" button. The draft files are copied into the folder. Returns `{id, coursemoduleid}`.
+
+### Update Folder
+
+`local_fivedays_update_folder`
+
+Parameters: `folderid`, `name` (required), `draftitemid` (0 = no new files), `removefiles` (array of `{filepath, filename}`)
+
+In one transaction: renames the folder, deletes the listed files (missing ones are skipped), copies in the draft files (a file with the same path and name replaces the existing one), bumps `revision` and fires `folder_updated`. Returns `{id, coursemoduleid, success, message}`.
+
+---
+
 ## URLs
 
 ### Create URL
@@ -331,6 +351,16 @@ Parameters: `bookid` (required), `name`, `intro`, `numbering`, `navstyle`, `cust
 `local_fivedays_update_book_chapter`
 
 Parameters: `chapterid` (required), `title`, `content`, `subchapter`, `hidden`, `tags`
+
+### Save Book
+
+`local_fivedays_save_book`
+
+Parameters: `bookid`, `name`, `chapters` (array of `{id, title, content, subchapter}`, all required except `id` = 0 and `subchapter` = 0)
+
+Saves the whole book in one transaction. Array order is the book order (`pagenum` 1..N). Chapters with an `id` of this book are updated, `id` = 0 adds a chapter, chapters of the book not listed are deleted with their files and tags. Refuses an empty list, a first chapter that is a sub-chapter, and an `id` from another book or listed twice. Renames the book, bumps `revision`, fires `chapter_created` / `chapter_updated` / `chapter_deleted`. Returns `{id, coursemoduleid, chapters: [{id, pagenum, title, subchapter}], success, message}`.
+
+`get_book` returns chapter `content` raw (`@@PLUGINFILE@@` links not rewritten), so it can be edited and sent back as is.
 
 ### Delete Book
 
@@ -1684,6 +1714,8 @@ All capabilities granted to **editing teachers** and **managers** by default.
 | `local/fivedays:createfile`             | Create files                      |
 | `local/fivedays:updatefile`             | Update files                      |
 | `local/fivedays:deletefile`             | Delete files                      |
+| `local/fivedays:createfolder`           | Create folders                    |
+| `local/fivedays:updatefolder`           | Update folders                    |
 | `local/fivedays:createurl`              | Create URLs                       |
 | `local/fivedays:updateurl`              | Update URLs                       |
 | `local/fivedays:deleteurl`              | Delete URLs                       |
