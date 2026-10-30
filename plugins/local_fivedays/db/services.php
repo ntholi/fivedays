@@ -758,6 +758,22 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:viewgradingqueue',
     ),
+    'local_fivedays_get_activities_status' => array(
+        'classname' => 'local_fivedays\external\course\get_activities_status',
+        'methodname' => 'execute',
+        'description' => 'Whether each course module still exists, its course, module name and newest edit time',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:provision',
+    ),
+    'local_fivedays_copy_activities' => array(
+        'classname' => 'local_fivedays\external\course\copy_activities',
+        'methodname' => 'execute',
+        'description' => 'Copy activities (settings and files, no user data) to the end of a named section in another course',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:provision',
+    ),
 );
 
 // The service luct calls. Moodle's upgrade keeps its function list equal to this one.

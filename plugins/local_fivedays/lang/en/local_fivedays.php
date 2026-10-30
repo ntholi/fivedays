@@ -50,6 +50,9 @@ $string['fivedays:deleteurl'] = 'Delete URL resources via FiveDays';
 
 $string['invalidfilename'] = 'Invalid filename provided';
 $string['emptydraftarea'] = 'Upload at least one file';
+$string['activitynotfound'] = 'Activity {$a} was not found';
+$string['activitycopynotsupported'] = 'Activities of type {$a} cannot be copied';
+$string['activitycopyfailed'] = 'Copy failed: {$a}';
 $string['bookchaptersrequired'] = 'A book needs at least one chapter';
 $string['bookfirstchaptersubchapter'] = 'The first chapter of a book cannot be a sub-chapter';
 $string['bookchapternotinbook'] = 'Chapter {$a} is not in this book or is listed twice';

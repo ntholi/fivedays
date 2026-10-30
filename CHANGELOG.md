@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-30 (4)
+
+### Added
+- `local_fivedays` 2026103003: `get_activities_status(cmids)` returns, in input order, whether each course module exists (not being deleted), its course, module name and newest edit time (max of cm `added`, the instance `timemodified`, book chapter `timemodified` and file `timemodified` in the module context). `copy_activities(courseid, sectionname, sectionsummary, cmids)` finds or creates the named section in the target course and copies each activity there with a single-activity import backup and restore (no user data, files kept, name unchanged), appended in input order; each id succeeds or fails on its own and reports `{sourcecmid, cmid, error}`. Both need `local/fivedays:provision`. luct uses them to reuse material in later semesters. No database change.
+
 ## 2026-10-30 (3)
 
 ### Added

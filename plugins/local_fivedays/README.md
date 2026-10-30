@@ -278,6 +278,28 @@ In one transaction: renames the folder, deletes the listed files (missing ones a
 
 ---
 
+## Reusing Activities
+
+Both need `local/fivedays:provision` at system level (the `fivedays_ws` token).
+
+### Get Activities Status
+
+`local_fivedays_get_activities_status`
+
+Parameters: `cmids` (array of course module IDs)
+
+Returns `{activities: [{cmid, exists, courseid, modname, timemodified}]}`, one entry per requested id in input order. A missing activity, or one being deleted, has `exists = false`, `courseid = 0`, `modname = ''` and `timemodified = 0`. `timemodified` is the newest of the cm's `added`, the instance's `timemodified`, any book chapter's `timemodified` and any file's `timemodified` in the module context.
+
+### Copy Activities
+
+`local_fivedays_copy_activities`
+
+Parameters: `courseid` (target course), `sectionname`, `sectionsummary` (default `''`), `cmids` (source course module IDs, in order)
+
+Finds the first regular section in the target course named `sectionname`, or creates it at the end of the course with `sectionsummary`. Each activity is copied with Moodle's single-activity import backup and restore (settings and files, no user data, same name) and moved to the end of that section, in the given order. Each id is copied on its own: a failure is reported and the rest continue. Calling it twice makes two copies. Returns `{copies: [{sourcecmid, cmid, error}]}`, with `cmid = 0` and a short `error` on failure. An empty `cmids` returns no copies and creates no section.
+
+---
+
 ## URLs
 
 ### Create URL

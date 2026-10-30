@@ -151,6 +151,17 @@ return [
         'params' => fn($ctx) => ['module' => 'page', 'instance' => $ctx->pageid],
         'check' => fn($r, $ctx) => (int) ($r['cm']['id'] ?? 0) === $ctx->pagecmid ? null : 'wrong course module',
     ],
+    [
+        'fn' => 'local_fivedays_get_activities_status',
+        'params' => fn($ctx) => ['cmids' => [$ctx->pagecmid]],
+        'check' => fn($r, $ctx) => !empty($r['activities'][0]['exists']) && $r['activities'][0]['modname'] === 'page'
+            ? null : 'page not reported',
+    ],
+    [
+        'fn' => 'local_fivedays_copy_activities',
+        'params' => fn($ctx) => ['courseid' => $ctx->sparecourseid, 'sectionname' => 'Material', 'cmids' => [$ctx->pagecmid]],
+        'check' => fn($r) => !empty($r['copies'][0]['cmid']) ? null : 'not copied: ' . ($r['copies'][0]['error'] ?? ''),
+    ],
 
     [
         'fn' => 'local_fivedays_create_book',
