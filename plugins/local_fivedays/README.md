@@ -294,9 +294,11 @@ Returns `{activities: [{cmid, exists, courseid, modname, timemodified}]}`, one e
 
 `local_fivedays_copy_activities`
 
-Parameters: `courseid` (target course), `sectionname`, `sectionsummary` (default `''`), `cmids` (source course module IDs, in order)
+Parameters: `courseid` (target course), `sectionname`, `sectionsummary` (default `''`), `items` (array of `{cmid, reusekey}`, in order; `reusekey` is the caller's id for the material, 1 to 64 characters)
 
-Finds the first regular section in the target course named `sectionname`, or creates it at the end of the course with `sectionsummary`. Each activity is copied with Moodle's single-activity import backup and restore (settings and files, no user data, same name) and moved to the end of that section, in the given order. Each id is copied on its own: a failure is reported and the rest continue. Calling it twice makes two copies. Returns `{copies: [{sourcecmid, cmid, error}]}`, with `cmid = 0` and a short `error` on failure. An empty `cmids` returns no copies and creates no section.
+Safe to retry: the plugin remembers the copy it made for each `(courseid, reusekey)` in `local_fivedays_reuse_copies`. When that copy still exists in the course, the item is not copied again and returns its `cmid` with `existing = true`. When it was deleted, the record is dropped and the activity is copied again. Records go with their course when it is deleted.
+
+Otherwise the activity is copied with Moodle's single-activity import backup and restore (settings and files, no user data, same name) to the end of the first regular section named `sectionname`, which is created at the end of the course with `sectionsummary` when missing. Each item is handled on its own: a failure is reported and the rest continue. A copy that cannot be recorded is deleted again and reported as an error. Returns `{copies: [{sourcecmid, cmid, error, existing}]}`, with `cmid = 0` and a short `error` on failure. A section is only created when something is copied.
 
 ---
 

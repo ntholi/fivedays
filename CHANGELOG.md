@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-30 (5)
+
+### Changed
+- `local_fivedays` 2026103004: `copy_activities` is safe to retry. It takes `items: [{cmid, reusekey}]` instead of `cmids` and returns `existing` per copy. New table `local_fivedays_reuse_copies` (unique `courseid, reusekey`) records each copy; an item whose recorded copy still exists in the course is not copied again (`existing = true`), a record whose copy was deleted is dropped and the activity copied again, and a copy whose record cannot be written is deleted. A `course_deleted` observer removes the course's records. The section is only created when something is copied.
+
 ## 2026-10-30 (4)
 
 ### Added

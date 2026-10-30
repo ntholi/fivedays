@@ -159,8 +159,19 @@ return [
     ],
     [
         'fn' => 'local_fivedays_copy_activities',
-        'params' => fn($ctx) => ['courseid' => $ctx->sparecourseid, 'sectionname' => 'Material', 'cmids' => [$ctx->pagecmid]],
+        'params' => fn($ctx) => ['courseid' => $ctx->sparecourseid, 'sectionname' => 'Material',
+            'items' => [['cmid' => $ctx->pagecmid, 'reusekey' => 'contract']]],
         'check' => fn($r) => !empty($r['copies'][0]['cmid']) ? null : 'not copied: ' . ($r['copies'][0]['error'] ?? ''),
+        'save' => function($r, $ctx) {
+            $ctx->reusecopycmid = (int) $r['copies'][0]['cmid'];
+        },
+    ],
+    [
+        'fn' => 'local_fivedays_copy_activities',
+        'params' => fn($ctx) => ['courseid' => $ctx->sparecourseid, 'sectionname' => 'Material',
+            'items' => [['cmid' => $ctx->pagecmid, 'reusekey' => 'contract']]],
+        'check' => fn($r, $ctx) => !empty($r['copies'][0]['existing']) && (int) $r['copies'][0]['cmid'] === $ctx->reusecopycmid
+            ? null : 'retry copied again',
     ],
 
     [

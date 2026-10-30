@@ -16,13 +16,17 @@ class copy_activities extends external_api {
             'courseid' => new external_value(PARAM_INT, 'Target course ID'),
             'sectionname' => new external_value(PARAM_TEXT, 'Target section name; created at the end of the course when missing'),
             'sectionsummary' => new external_value(PARAM_RAW, 'Summary for a newly created section', VALUE_DEFAULT, ''),
-            'cmids' => new external_multiple_structure(
-                new external_value(PARAM_INT, 'Source course module ID, in the order to add them')
+            'items' => new external_multiple_structure(
+                new external_single_structure([
+                    'cmid' => new external_value(PARAM_INT, 'Source course module ID'),
+                    'reusekey' => new external_value(PARAM_TEXT, 'Caller id for this material (up to 64 characters); one copy per course and key'),
+                ]),
+                'Activities to copy, in the order to add them'
             ),
         ]);
     }
 
-    public static function execute(int $courseid, string $sectionname, string $sectionsummary, array $cmids): array {
+    public static function execute(int $courseid, string $sectionname, string $sectionsummary, array $items): array {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/course/lib.php');
@@ -31,7 +35,7 @@ class copy_activities extends external_api {
             'courseid' => $courseid,
             'sectionname' => $sectionname,
             'sectionsummary' => $sectionsummary,
-            'cmids' => $cmids,
+            'items' => $items,
         ]);
         provision_helper::require_system_capability();
 
@@ -40,30 +44,77 @@ class copy_activities extends external_api {
             throw new \invalid_parameter_exception('sectionname is required');
         }
         $course = $DB->get_record('course', ['id' => $params['courseid']], '*', MUST_EXIST);
-        if (!$params['cmids']) {
+        if (!$params['items']) {
             return ['copies' => []];
         }
 
-        $sectionid = self::ensure_section($course, $name, $params['sectionsummary']);
-
+        $sectionid = null;
         $copies = [];
-        foreach ($params['cmids'] as $sourcecmid) {
+        foreach ($params['items'] as $item) {
+            $sourcecmid = (int) $item['cmid'];
             try {
+                $reusekey = trim($item['reusekey']);
+                if ($reusekey === '' || \core_text::strlen($reusekey) > 64) {
+                    throw new \moodle_exception('invalidreusekey', 'local_fivedays');
+                }
+                $existing = self::existing_copy((int) $course->id, $reusekey);
+                if ($existing) {
+                    $copies[] = ['sourcecmid' => $sourcecmid, 'cmid' => $existing, 'error' => '', 'existing' => true];
+                    continue;
+                }
+                $sectionid ??= self::ensure_section($course, $name, $params['sectionsummary']);
                 $copies[] = [
-                    'sourcecmid' => (int) $sourcecmid,
-                    'cmid' => self::copy_activity($course, (int) $sourcecmid, $sectionid),
+                    'sourcecmid' => $sourcecmid,
+                    'cmid' => self::copy_and_record($course, $sourcecmid, $sectionid, $reusekey),
                     'error' => '',
+                    'existing' => false,
                 ];
             } catch (\Throwable $e) {
                 $copies[] = [
-                    'sourcecmid' => (int) $sourcecmid,
+                    'sourcecmid' => $sourcecmid,
                     'cmid' => 0,
                     'error' => \core_text::substr($e->getMessage(), 0, 255),
+                    'existing' => false,
                 ];
             }
         }
 
         return ['copies' => $copies];
+    }
+
+    /** The cm already copied for this key when it still exists in the course; drops a record whose cm is gone. */
+    private static function existing_copy(int $courseid, string $reusekey): int {
+        global $DB;
+
+        $record = $DB->get_record('local_fivedays_reuse_copies', ['courseid' => $courseid, 'reusekey' => $reusekey]);
+        if (!$record) {
+            return 0;
+        }
+        if ($DB->record_exists('course_modules',
+                ['id' => $record->cmid, 'course' => $courseid, 'deletioninprogress' => 0])) {
+            return (int) $record->cmid;
+        }
+        $DB->delete_records('local_fivedays_reuse_copies', ['id' => $record->id]);
+        return 0;
+    }
+
+    /** Copies the activity and records it under the key; a copy that cannot be recorded is deleted again. */
+    private static function copy_and_record(\stdClass $course, int $sourcecmid, int $sectionid, string $reusekey): int {
+        global $DB;
+
+        $newcmid = self::copy_activity($course, $sourcecmid, $sectionid);
+        try {
+            $DB->insert_record('local_fivedays_reuse_copies', (object) [
+                'courseid' => $course->id,
+                'reusekey' => $reusekey,
+                'cmid' => $newcmid,
+                'timecreated' => time(),
+            ]);
+        } catch (\Throwable $e) {
+            formatactions::cm($course->id)->delete($newcmid);
+            throw $e;
+        }
+        return $newcmid;
     }
 
     /** First regular (not delegated) section with this name, else a new one at the end of the course. */
@@ -165,6 +216,7 @@ class copy_activities extends external_api {
                     'sourcecmid' => new external_value(PARAM_INT, 'Source course module ID'),
                     'cmid' => new external_value(PARAM_INT, 'New course module ID, 0 on failure'),
                     'error' => new external_value(PARAM_TEXT, 'Empty on success, else why the copy failed'),
+                    'existing' => new external_value(PARAM_BOOL, 'True when the course already had a copy for this reusekey'),
                 ])
             ),
         ]);

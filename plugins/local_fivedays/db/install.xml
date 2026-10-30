@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/fivedays/db" VERSION="20261022" COMMENT="XMLDB file for Moodle local/fivedays"
+<XMLDB PATH="local/fivedays/db" VERSION="20261030" COMMENT="XMLDB file for Moodle local/fivedays"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -18,6 +18,22 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
         <KEY NAME="attemptid" TYPE="unique" FIELDS="attemptid"/>
       </KEYS>
+    </TABLE>
+    <TABLE NAME="local_fivedays_reuse_copies" COMMENT="Which activity copy_activities made in a course for each reuse key, so a retry does not copy again">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Target course id."/>
+        <FIELD NAME="reusekey" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false" COMMENT="The caller's id for the reused material."/>
+        <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course module made in the target course."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="courseid_reusekey" UNIQUE="true" FIELDS="courseid, reusekey"/>
+      </INDEXES>
     </TABLE>
   </TABLES>
 </XMLDB>

@@ -78,12 +78,16 @@ class reuse_activities_test extends advanced_testcase {
         $folder = $this->getDataGenerator()->create_module('folder', ['course' => $this->source->id, 'name' => 'Notes']);
         $this->add_folder_file($folder->cmid, 'a.txt', 'A', time());
 
-        $result = copy_activities::execute($this->target->id, 'Material', '<p>Reused</p>',
-            [(int) $folder->cmid, 999999, (int) $page->cmid]);
+        $result = copy_activities::execute($this->target->id, 'Material', '<p>Reused</p>', [
+            ['cmid' => (int) $folder->cmid, 'reusekey' => 'r1'],
+            ['cmid' => 999999, 'reusekey' => 'r2'],
+            ['cmid' => (int) $page->cmid, 'reusekey' => 'r3'],
+        ]);
         $result = \core_external\external_api::clean_returnvalue(copy_activities::execute_returns(), $result);
 
         [$foldercopy, $missing, $pagecopy] = $result['copies'];
         $this->assertSame('', $foldercopy['error']);
+        $this->assertFalse($foldercopy['existing']);
         $this->assertSame('', $pagecopy['error']);
         $this->assertSame(0, $missing['cmid']);
         $this->assertNotSame('', $missing['error']);
@@ -96,10 +100,42 @@ class reuse_activities_test extends advanced_testcase {
         $this->assertSame('Notes', $modinfo->get_cm($foldercopy['cmid'])->name);
         $this->assertSame('Intro page', $modinfo->get_cm($pagecopy['cmid'])->name);
         $this->assertSame(['a.txt' => 'A'], $this->module_files($foldercopy['cmid'], 'mod_folder', 'content'));
+        $this->assertSame(2, $DB->count_records('local_fivedays_reuse_copies', ['courseid' => $this->target->id]));
+    }
 
-        $again = copy_activities::execute($this->target->id, 'Material', '', [(int) $page->cmid]);
+    public function test_retry_with_same_reusekey_returns_existing_copy(): void {
+        global $DB;
+
+        $page = $this->getDataGenerator()->create_module('page', ['course' => $this->source->id]);
+        $items = [['cmid' => (int) $page->cmid, 'reusekey' => 'family-7']];
+
+        $first = copy_activities::execute($this->target->id, 'Material', '', $items)['copies'][0];
+        $cms = $DB->count_records('course_modules', ['course' => $this->target->id]);
+
+        $second = copy_activities::execute($this->target->id, 'Material', '', $items)['copies'][0];
+        $this->assertSame(['sourcecmid' => (int) $page->cmid, 'cmid' => $first['cmid'], 'error' => '', 'existing' => true],
+            $second);
+        $this->assertSame($cms, $DB->count_records('course_modules', ['course' => $this->target->id]));
         $this->assertSame(1, $DB->count_records('course_sections', ['course' => $this->target->id, 'name' => 'Material']));
-        $section = $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
-        $this->assertStringEndsWith(',' . $again['copies'][0]['cmid'], $section->sequence);
+
+        \core_courseformat\formatactions::cm($this->target->id)->delete($first['cmid']);
+        $third = copy_activities::execute($this->target->id, 'Material', '', $items)['copies'][0];
+        $this->assertFalse($third['existing']);
+        $this->assertNotSame($first['cmid'], $third['cmid']);
+        $this->assertSame($third['cmid'], (int) $DB->get_field('local_fivedays_reuse_copies', 'cmid',
+            ['courseid' => $this->target->id, 'reusekey' => 'family-7']));
+
+        delete_course($this->target->id, false);
+        $this->assertSame(0, $DB->count_records('local_fivedays_reuse_copies', ['courseid' => $this->target->id]));
+    }
+
+    public function test_copy_refuses_empty_reusekey(): void {
+        $page = $this->getDataGenerator()->create_module('page', ['course' => $this->source->id]);
+
+        $copy = copy_activities::execute($this->target->id, 'Material', '',
+            [['cmid' => (int) $page->cmid, 'reusekey' => ' ']])['copies'][0];
+
+        $this->assertSame(0, $copy['cmid']);
+        $this->assertNotSame('', $copy['error']);
     }
 }
