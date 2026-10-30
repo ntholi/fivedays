@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-30 (2)
+
+### Changed
+- `local_fivedays` 2026103001: `add_announcement` posts as another user (`userid` other than the caller) only with the new manager-only capability `local/fivedays:addannouncementasuser`, so a lecturer token can no longer post as a colleague; the `fivedays_ws` role (Manager archetype) keeps it. The author needs an active enrolment. Attachments are kept only when both the caller and the author have `mod/forum:createattachment`. `timecreated` must be 0 or from 2000-01-01 up to now. `notify` now defaults to false (silent). No database change.
+
 ## 2026-10-30
 
 ### Added

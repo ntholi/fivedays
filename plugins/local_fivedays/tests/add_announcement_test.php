@@ -48,14 +48,14 @@ class add_announcement_test extends advanced_testcase {
         $this->assertSame('Welcome', $post->subject);
     }
 
-    public function test_notify_leaves_post_pending_and_reuses_news_forum(): void {
+    public function test_notify_true_leaves_post_pending_and_reuses_news_forum(): void {
         global $DB;
 
         $course = $this->getDataGenerator()->create_course();
         $news = forum_get_course_forum($course->id, 'news');
 
         $result = add_announcement::execute(courseid: $course->id, subject: 'Now', message: 'Body',
-            userid: $this->getDataGenerator()->create_and_enrol($course, 'editingteacher')->id);
+            userid: $this->getDataGenerator()->create_and_enrol($course, 'editingteacher')->id, notify: true);
 
         $post = $DB->get_record('forum_posts', ['id' => $result['postid']], '*', MUST_EXIST);
         $this->assertSame(FORUM_MAILED_PENDING, (int) $post->mailed);
@@ -79,5 +79,73 @@ class add_announcement_test extends advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         add_announcement::execute(courseid: $course->id, subject: 'x', message: 'y', userid: $student->id);
+    }
+
+    public function test_silent_by_default(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $this->setUser($teacher);
+
+        $result = add_announcement::execute(courseid: $course->id, subject: 'x', message: 'y');
+
+        $post = $DB->get_record('forum_posts', ['id' => $result['postid']], '*', MUST_EXIST);
+        $this->assertSame((int) $teacher->id, (int) $post->userid);
+        $this->assertSame(FORUM_MAILED_SUCCESS, (int) $post->mailed);
+    }
+
+    public function test_teacher_cannot_post_as_another_user(): void {
+        $course = $this->getDataGenerator()->create_course();
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $other = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $this->setUser($teacher);
+
+        add_announcement::execute(courseid: $course->id, subject: 'mine', message: 'y', userid: $teacher->id);
+
+        $this->expectException(\required_capability_exception::class);
+        add_announcement::execute(courseid: $course->id, subject: 'x', message: 'y', userid: $other->id);
+    }
+
+    public function test_manager_may_post_as_another_user(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $manager = $this->getDataGenerator()->create_and_enrol($course, 'manager');
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $this->setUser($manager);
+
+        $result = add_announcement::execute(courseid: $course->id, subject: 'x', message: 'y', userid: $teacher->id);
+
+        $this->assertSame((int) $teacher->id,
+            (int) $DB->get_field('forum_posts', 'userid', ['id' => $result['postid']], MUST_EXIST));
+    }
+
+    public function test_suspended_author_is_refused(): void {
+        $course = $this->getDataGenerator()->create_course();
+        $teacher = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($teacher->id, $course->id, 'editingteacher', 'manual', 0, 0,
+            ENROL_USER_SUSPENDED);
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage('has no active enrolment in this course');
+        add_announcement::execute(courseid: $course->id, subject: 'x', message: 'y', userid: $teacher->id);
+    }
+
+    public static function bad_timecreated_provider(): array {
+        return [
+            'future' => [fn() => time() + 60],
+            'before 2000' => [fn() => 946684799],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('bad_timecreated_provider')]
+    public function test_timecreated_out_of_range_is_refused(\Closure $timecreated): void {
+        $course = $this->getDataGenerator()->create_course();
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+
+        $this->expectException(\invalid_parameter_exception::class);
+        add_announcement::execute(courseid: $course->id, subject: 'x', message: 'y',
+            timecreated: $timecreated(), userid: $teacher->id);
     }
 }

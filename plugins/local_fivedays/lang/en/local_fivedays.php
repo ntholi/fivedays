@@ -40,6 +40,7 @@ $string['fivedays:deletesubsection'] = 'Delete subsections via FiveDays';
 $string['fivedays:deletebigbluebuttonbn'] = 'Delete BigBlueButton activities via FiveDays';
 $string['fivedays:deleteforum'] = 'Delete forum activities via FiveDays';
 $string['fivedays:addannouncement'] = 'Post course announcements via FiveDays';
+$string['fivedays:addannouncementasuser'] = 'Post course announcements as another enrolled user via FiveDays';
 
 $string['fivedays:createurl'] = 'Create URL resources via FiveDays';
 $string['fivedays:updateurl'] = 'Update URL resources via FiveDays';
@@ -68,3 +69,4 @@ $string['fivedays:provision'] = 'Provision Moodle users, courses, and enrolments
 $string['googleissuermissing'] = 'Google OAuth issuer is not configured';
 $string['usernotfound'] = 'User with email {$a} was not found';
 $string['emailhasmoodlework'] = 'That email already has Moodle work.';
+$string['authornotenrolled'] = '{$a} has no active enrolment in this course.';

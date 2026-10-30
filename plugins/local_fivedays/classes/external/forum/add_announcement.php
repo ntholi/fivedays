@@ -8,15 +8,18 @@ use core_external\external_value;
 
 class add_announcement extends external_api {
 
+    // 2000-01-01 00:00:00 UTC.
+    private const EARLIEST_TIMECREATED = 946684800;
+
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'courseid' => new external_value(PARAM_INT, 'Course ID'),
             'subject' => new external_value(PARAM_TEXT, 'Announcement subject'),
             'message' => new external_value(PARAM_RAW, 'Announcement message (HTML)'),
             'draftitemid' => new external_value(PARAM_INT, 'Draft item ID holding attachments (0 = none)', VALUE_DEFAULT, 0),
-            'timecreated' => new external_value(PARAM_INT, 'Posted time as a Unix timestamp (0 = now)', VALUE_DEFAULT, 0),
-            'userid' => new external_value(PARAM_INT, 'Author user ID (0 = current user)', VALUE_DEFAULT, 0),
-            'notify' => new external_value(PARAM_BOOL, 'Email and notify subscribers', VALUE_DEFAULT, true),
+            'timecreated' => new external_value(PARAM_INT, 'Posted time as a Unix timestamp, from 2000-01-01 up to now (0 = now)', VALUE_DEFAULT, 0),
+            'userid' => new external_value(PARAM_INT, 'Author user ID (0 = current user; another user needs local/fivedays:addannouncementasuser)', VALUE_DEFAULT, 0),
+            'notify' => new external_value(PARAM_BOOL, 'Email and notify subscribers (default false: posted silently)', VALUE_DEFAULT, false),
         ]);
     }
 
@@ -27,7 +30,7 @@ class add_announcement extends external_api {
         int $draftitemid = 0,
         int $timecreated = 0,
         int $userid = 0,
-        bool $notify = true
+        bool $notify = false
     ): array {
         global $CFG, $DB, $USER;
 
@@ -50,13 +53,19 @@ class add_announcement extends external_api {
         self::validate_context($coursecontext);
         require_capability('local/fivedays:addannouncement', $coursecontext);
 
-        if ($params['timecreated'] < 0 || $params['timecreated'] > time() + HOURSECS) {
-            throw new \invalid_parameter_exception('timecreated must be 0 or a Unix time not in the future');
+        if ($params['timecreated'] !== 0
+                && ($params['timecreated'] < self::EARLIEST_TIMECREATED || $params['timecreated'] > time())) {
+            throw new \invalid_parameter_exception('timecreated must be 0 (now) or a Unix time from 2000-01-01 up to now');
         }
 
-        $author = $params['userid'] ? \core_user::get_user($params['userid'], '*', MUST_EXIST) : $USER;
-        if ($author->deleted || !is_enrolled($coursecontext, $author)) {
-            throw new \moodle_exception('notenrolled', 'moodle', '', fullname($author));
+        if ($params['userid'] && $params['userid'] != $USER->id) {
+            require_capability('local/fivedays:addannouncementasuser', $coursecontext);
+            $author = \core_user::get_user($params['userid'], '*', MUST_EXIST);
+        } else {
+            $author = $USER;
+        }
+        if ($author->deleted || !is_enrolled($coursecontext, $author, '', true)) {
+            throw new \moodle_exception('authornotenrolled', 'local_fivedays', '', fullname($author));
         }
 
         $forum = forum_get_course_forum($course->id, 'news');
@@ -70,7 +79,9 @@ class add_announcement extends external_api {
             throw new \required_capability_exception($modcontext, 'mod/forum:addnews', 'nopermissions', '');
         }
 
-        $attachmentsid = ($params['draftitemid'] && has_capability('mod/forum:createattachment', $modcontext, $author))
+        $attachmentsid = ($params['draftitemid']
+                && has_capability('mod/forum:createattachment', $modcontext)
+                && has_capability('mod/forum:createattachment', $modcontext, $author))
             ? $params['draftitemid'] : null;
 
         $discussion = new \stdClass();

@@ -771,7 +771,7 @@ Parameters: `cmid` (course module ID)
 
 `local_fivedays_add_announcement`
 
-Posts a discussion in the course's announcements (news) forum, creating that forum if the course has none. Requires `local/fivedays:addannouncement` on the course. The author must be enrolled in the course and have `mod/forum:addnews`.
+Posts a discussion in the course's announcements (news) forum, creating that forum if the course has none. Requires `local/fivedays:addannouncement` on the course; posting as another user also needs `local/fivedays:addannouncementasuser` (manager only). The author must have an active enrolment in the course and `mod/forum:addnews`. Attachments are kept only when both the caller and the author have `mod/forum:createattachment`.
 
 | Parameter     | Type   | Required | Description                                                                 |
 | ------------- | ------ | -------- | --------------------------------------------------------------------------- |
@@ -779,9 +779,9 @@ Posts a discussion in the course's announcements (news) forum, creating that for
 | `subject`     | string | Yes      |                                                                             |
 | `message`     | string | Yes      | HTML                                                                        |
 | `draftitemid` | int    | No       | Draft area holding attachments (default 0 = none)                           |
-| `timecreated` | int    | No       | Posted time (Unix); sets created/modified on the post and discussion (0 = now) |
+| `timecreated` | int    | No       | Posted time (Unix, 2000-01-01 up to now); sets created/modified on the post and discussion (0 = now) |
 | `userid`      | int    | No       | Author (default 0 = the calling user)                                       |
-| `notify`      | bool   | No       | Default true. False marks the post as already mailed, so no email or notification is sent |
+| `notify`      | bool   | No       | Default false: the post is marked as already mailed, so no email or notification is sent. True leaves it to the forum cron |
 
 **Response:** `{ "discussionid": 12, "postid": 34 }`
 
