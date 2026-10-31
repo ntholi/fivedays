@@ -23,8 +23,8 @@ class get_assignment_grades extends external_api {
 
         [$assignment, , , $context] = helper::get_assign($params['assignmentid']);
         self::validate_context($context);
-        require_capability('local/fivedays:gradeassignment', $context);
-        require_capability('mod/assign:grade', $context);
+        require_capability('local/fivedays:viewassignment', $context);
+        require_capability('mod/assign:viewgrades', $context);
 
         return [
             'grades' => helper::list_assignment_grades($assignment),

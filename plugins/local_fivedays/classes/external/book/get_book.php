@@ -39,7 +39,7 @@ class get_book extends external_api {
         require_capability('mod/book:read', $context);
 
         
-        $canedit = has_capability('mod/book:edit', $context);
+        $canviewhidden = has_capability('mod/book:viewhiddenchapters', $context);
 
         
         $course = $DB->get_record('course', ['id' => $cm->course], 'id, fullname, shortname', MUST_EXIST);
@@ -54,7 +54,7 @@ class get_book extends external_api {
         $sqlparams = [$book->id];
 
         
-        if (!$canedit) {
+        if (!$canviewhidden) {
             $sql .= " AND bc.hidden = 0";
         }
 

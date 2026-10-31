@@ -44,5 +44,10 @@ function xmldb_local_fivedays_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026103004, 'local', 'fivedays');
     }
 
+    if ($oldversion < 2026103005) {
+        \local_fivedays\overseer_role::sync();
+        upgrade_plugin_savepoint(true, 2026103005, 'local', 'fivedays');
+    }
+
     return true;
 }

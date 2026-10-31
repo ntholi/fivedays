@@ -57,8 +57,7 @@ class get_grading_queue extends external_api {
         global $DB;
 
         $context = $cm->context;
-        if (!has_capability('mod/assign:grade', $context)
-            || !has_capability('local/fivedays:gradeassignment', $context)) {
+        if (!has_capability('mod/assign:viewgrades', $context)) {
             return null;
         }
 
@@ -98,8 +97,7 @@ class get_grading_queue extends external_api {
         global $DB;
 
         $context = $cm->context;
-        if (!has_capability('mod/quiz:grade', $context)
-            || !has_capability('local/fivedays:gradequizattempts', $context)) {
+        if (!has_capability('mod/quiz:viewreports', $context)) {
             return null;
         }
 

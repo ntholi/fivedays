@@ -6,6 +6,7 @@ use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_fivedays\overseer_role;
 use local_fivedays\provision_helper;
 
 class unenrol_users extends external_api {
@@ -16,6 +17,12 @@ class unenrol_users extends external_api {
                 new external_single_structure([
                     'email' => new external_value(PARAM_EMAIL, 'User email'),
                     'courseid' => new external_value(PARAM_INT, 'Course id'),
+                    'roleshortname' => new external_value(
+                        PARAM_ALPHANUMEXT,
+                        'Only remove this role (fivedays_overseer); empty removes the whole enrolment',
+                        VALUE_DEFAULT,
+                        ''
+                    ),
                 ])
             ),
         ]);
@@ -29,10 +36,14 @@ class unenrol_users extends external_api {
 
         $unenrolled = 0;
         foreach ($params['enrolments'] as $enrolment) {
-            if (provision_helper::unenrol_user_by_email(
-                $enrolment['email'],
-                (int) $enrolment['courseid']
-            )) {
+            $role = $enrolment['roleshortname'];
+            if ($role !== '' && $role !== overseer_role::SHORTNAME) {
+                throw new \invalid_parameter_exception('roleshortname must be empty or ' . overseer_role::SHORTNAME);
+            }
+            $changed = $role === ''
+                ? provision_helper::unenrol_user_by_email($enrolment['email'], (int) $enrolment['courseid'])
+                : provision_helper::unassign_role_by_email($enrolment['email'], (int) $enrolment['courseid'], $role);
+            if ($changed) {
                 $unenrolled++;
             }
         }

@@ -465,6 +465,50 @@ class provision_helper {
         return true;
     }
 
+    /**
+     * Removes one manual role from a course and unenrols the user only when no role is left, so a user who
+     * also holds another role (an editing teacher who is also an overseer) keeps their enrolment.
+     */
+    public static function unassign_role_by_email(string $email, int $courseid, string $roleshortname): bool {
+        global $CFG, $DB;
+
+        require_once($CFG->libdir . '/enrollib.php');
+
+        $user = self::find_user_by_email($email);
+        if (!$user) {
+            return false;
+        }
+
+        $course = $DB->get_record('course', ['id' => $courseid]);
+        $roleid = $DB->get_field('role', 'id', ['shortname' => $roleshortname]);
+        if (!$course || !$roleid) {
+            return false;
+        }
+
+        $context = \context_course::instance($course->id);
+        $held = $DB->record_exists('role_assignments', [
+            'roleid' => $roleid,
+            'userid' => $user->id,
+            'contextid' => $context->id,
+            'component' => '',
+            'itemid' => 0,
+        ]);
+        if (!$held) {
+            return false;
+        }
+
+        role_unassign((int) $roleid, (int) $user->id, $context->id);
+        if ($DB->record_exists('role_assignments', ['userid' => $user->id, 'contextid' => $context->id])) {
+            return true;
+        }
+
+        $instance = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'manual']);
+        if ($instance && is_enrolled($context, $user)) {
+            enrol_get_plugin('manual')->unenrol_user($instance, (int) $user->id);
+        }
+        return true;
+    }
+
     public static function ensure_google_login(string $clientid, string $clientsecret): int {
         $auths = array_values(array_filter(explode(',', get_config('core', 'auth') ?: 'manual')));
         if (!in_array('manual', $auths, true)) {

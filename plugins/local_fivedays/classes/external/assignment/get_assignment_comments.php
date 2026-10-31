@@ -26,9 +26,12 @@ class get_assignment_comments extends external_api {
         [$assignment, , , $context] = helper::get_assign_for_comments($params['assignmentid']);
         self::validate_context($context);
         require_capability('local/fivedays:viewassignmentcomments', $context);
-        require_capability('mod/assign:grade', $context);
+        require_capability('mod/assign:viewgrades', $context);
 
-        helper::enable_assignment_comments($assignment);
+        // Turning the comments plugin on writes assignment settings, so only graders may trigger it.
+        if (has_capability('mod/assign:grade', $context)) {
+            helper::enable_assignment_comments($assignment);
+        }
 
         return [
             'comments' => helper::list_assignment_comments($assignment, $params['userid']),

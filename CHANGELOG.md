@@ -2,6 +2,14 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-30 (6)
+
+### Added
+- `local_fivedays` 2026103006: course role `fivedays_overseer` ("FiveDays Overseer") for principal lecturers overseeing a class (luct D10, D11). No archetype, course context only, allow rows only (no prohibits, so a lecturer who also teaches the class keeps editing teacher rights): view participants and hidden content, every activity, assignment grades and comments, rubric fillings, quiz reports and the grading queue, and join BigBlueButton. `overseer_role::sync()` creates the role and resets it to exactly that list; `db/install.php`, the upgrade step and `cli/setup.php` run it, and it lets `fivedays_ws` assign the role. `enrol_users` accepts `roleshortname = fivedays_overseer`. `unenrol_users` takes an optional `roleshortname = fivedays_overseer` that removes only that role and unenrols the user only when it was their last role in the course.
+
+### Changed
+- Read functions check read capabilities instead of grading or editing ones, so overseers can call them; every write function is unchanged. `get_assignment_grades` needs `local/fivedays:viewassignment` + `mod/assign:viewgrades` (was `gradeassignment` + `mod/assign:grade`), `get_assignment_comments` needs `mod/assign:viewgrades` (was `mod/assign:grade`) and turns the comments plugin on only for callers with `mod/assign:grade`, `get_rubric` needs `local/fivedays:viewrubricfilling` (was `managerubric`), `get_grading_queue` counts assignments with `mod/assign:viewgrades` and quizzes with `mod/quiz:viewreports` (was the grading capabilities), and `get_book` returns hidden chapters with `mod/book:viewhiddenchapters` (was `mod/book:edit`). `db/services.php` declares the same read capabilities for `get_assignment_grades` and `get_rubric`. Teachers, editing teachers, managers and `fivedays_ws` already hold all of these. No new capabilities, no table change.
+
 ## 2026-10-30 (5)
 
 ### Changed

@@ -28,7 +28,7 @@ class get_rubric extends external_api {
         $context = \context_module::instance($cm->id);
 
         self::validate_context($context);
-        require_capability('local/fivedays:managerubric', $context);
+        require_capability('local/fivedays:viewrubricfilling', $context);
 
         $gradingmanager = get_grading_manager($context, 'mod_assign', 'submissions');
         $activemethod = $gradingmanager->get_active_method();
