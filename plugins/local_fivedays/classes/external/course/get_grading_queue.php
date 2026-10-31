@@ -33,18 +33,30 @@ class get_grading_queue extends external_api {
         require_capability('local/fivedays:viewgradingqueue', $context);
 
         $modinfo = get_fast_modinfo($course);
-        $items = [];
-
+        $assigns = [];
         foreach ($modinfo->get_instances_of('assign') as $cm) {
-            $item = self::assignment_item($course, $cm);
-            if ($item) {
-                $items[] = $item;
+            if (has_capability('mod/assign:viewgrades', $cm->context)) {
+                $assigns[(int)$cm->id] = new \assign($cm->context, $cm->get_course_module_record(), $course);
             }
         }
-        foreach ($modinfo->get_instances_of('quiz') as $cm) {
-            $item = self::quiz_item($cm);
-            if ($item) {
-                $items[] = $item;
+        $quizzes = array_filter(
+            $modinfo->get_instances_of('quiz'),
+            fn(\cm_info $cm) => has_capability('mod/quiz:viewreports', $cm->context)
+        );
+
+        $items = [];
+        $assignqueue = grading_queue::assignments($assigns);
+        foreach ($assigns as $cmid => $assign) {
+            $queue = $assignqueue[(int)$assign->get_instance()->id];
+            if ($queue['waiting']) {
+                $items[] = self::item('assign', $modinfo->get_cm($cmid), $queue);
+            }
+        }
+        $quizqueue = grading_queue::quizzes($quizzes);
+        foreach ($quizzes as $cm) {
+            $queue = $quizqueue[(int)$cm->id];
+            if ($queue['waiting']) {
+                $items[] = self::item('quiz', $cm, $queue);
             }
         }
 
@@ -52,25 +64,6 @@ class get_grading_queue extends external_api {
             'success' => true,
             'items' => $items,
         ];
-    }
-
-    private static function assignment_item(\stdClass $course, \cm_info $cm): ?array {
-        if (!has_capability('mod/assign:viewgrades', $cm->context)) {
-            return null;
-        }
-
-        $assign = new \assign($cm->context, $cm->get_course_module_record(), $course);
-        $queue = grading_queue::assignment($assign);
-        return $queue['waiting'] ? self::item('assign', $cm, $queue) : null;
-    }
-
-    private static function quiz_item(\cm_info $cm): ?array {
-        if (!has_capability('mod/quiz:viewreports', $cm->context)) {
-            return null;
-        }
-
-        $queue = grading_queue::quiz($cm);
-        return $queue['waiting'] ? self::item('quiz', $cm, $queue) : null;
     }
 
     private static function item(string $type, \cm_info $cm, array $queue): array {

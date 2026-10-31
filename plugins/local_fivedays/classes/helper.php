@@ -820,4 +820,30 @@ class helper {
         }
         return $result;
     }
+
+    /**
+     * Runs one SELECT per item as UNION ALL queries of $perquery branches each, so a batch read costs a few
+     * queries instead of one per item. Every branch selects the same columns and uses its own param names.
+     *
+     * @param array<array{0: string, 1: array}> $branches [sql, params] pairs
+     * @return \stdClass[] all rows, each query's rows in $orderby order when given
+     */
+    public static function union_all(array $branches, string $orderby = '', int $perquery = 50): array {
+        global $DB;
+
+        $rows = [];
+        foreach (array_chunk($branches, $perquery) as $chunk) {
+            $sql = implode("\n UNION ALL \n", array_map(fn(array $branch) => '(' . $branch[0] . ')', $chunk));
+            $params = array_merge(...array_map(fn(array $branch) => $branch[1], $chunk));
+            if ($orderby !== '') {
+                $sql = "SELECT * FROM ($sql) unioned ORDER BY $orderby";
+            }
+            $rs = $DB->get_recordset_sql($sql, $params);
+            foreach ($rs as $row) {
+                $rows[] = $row;
+            }
+            $rs->close();
+        }
+        return $rows;
+    }
 }

@@ -2,6 +2,14 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-31 (2)
+
+### Added
+- `local_fivedays` 2026103101: `get_courses_health(courseids)` returns `{courses: [{courseid, ...get_course_health}]}` for up to 100 distinct courses in one call. Repeated ids come back once; ids that are not a course, the site course and hidden courses the caller cannot see are left out; more than 100 fails with `toomanycourses`. New system capability `local/fivedays:viewcoursehealth` (Manager archetype, so `fivedays_ws` gets it on upgrade). No database change.
+
+### Changed
+- `get_course_health` and the new batch both read through `local_fivedays\course_health`, which loads course-level data for the whole batch in one query each and runs per-activity counts as UNION ALL queries (`helper::union_all`). `grading_queue` now takes lists (`assignments`, `quizzes`) and `get_grading_queue` uses them. Results are unchanged: the old and new code return identical output for 50 local courses.
+
 ## 2026-10-31
 
 ### Added

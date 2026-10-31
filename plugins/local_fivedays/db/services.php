@@ -766,6 +766,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:viewgradingqueue',
     ),
+    'local_fivedays_get_courses_health' => array(
+        'classname' => 'local_fivedays\external\course\get_courses_health',
+        'methodname' => 'execute',
+        'description' => 'get_course_health for up to 100 courses in one call; ids that are not a readable course are left out',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:viewcoursehealth',
+    ),
     'local_fivedays_get_activities_status' => array(
         'classname' => 'local_fivedays\external\course\get_activities_status',
         'methodname' => 'execute',

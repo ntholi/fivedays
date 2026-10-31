@@ -467,6 +467,14 @@ $capabilities = array(
             'manager' => CAP_ALLOW
         )
     ),
+    'local/fivedays:viewcoursehealth' => array(
+        'riskbitmask' => RISK_PERSONAL,
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => array(
+            'manager' => CAP_ALLOW
+        )
+    ),
     'local/fivedays:provision' => array(
         'riskbitmask' => RISK_SPAM | RISK_PERSONAL | RISK_CONFIG,
         'captype' => 'write',

@@ -322,6 +322,16 @@ Returns:
 - `virtualclasses: {held}`: BigBlueButton sessions held, counted as distinct (meeting, UTC day) pairs with a join log (Moodle does not log meeting creation). 0 when BigBlueButton is not installed.
 - `lecturers: [{userid, lastaccess}]` and `students: [{userid, username, lastaccess}]`, by username, with `user_lastaccess` for the course.
 
+### Get Courses Health
+
+`local_fivedays_get_courses_health`
+
+Parameters: `courseids` (array of course IDs)
+
+`get_course_health` for many courses in one call, for luct's hourly checklist refresh. Needs the system capability `local/fivedays:viewcoursehealth` (managers and `fivedays_ws` through the Manager archetype); the per-course `local/fivedays:viewgradingqueue` check of `get_course_health` is not used, but each activity still needs `mod/assign:viewgrades` or `mod/quiz:viewreports`.
+
+Returns `{courses: [{courseid, activities, materials, outline, announcements, virtualclasses, lecturers, students}]}`, each entry exactly what `get_course_health` returns for that course (both read through `local_fivedays\course_health`). Repeated ids count once and come back once, in first-seen order. Ids that are not a course, the site front page, and hidden courses the caller cannot see (`moodle/course:viewhiddencourses`) are left out rather than failing the call, so compare the returned `courseid`s with the request. More than 100 distinct ids fails with `toomanycourses`. Course-level data (announcements, BigBlueButton sessions, people, hidden grade items, marking workflow release) is one query for the whole batch; submission counts and grading queues are UNION ALL queries of 50 activities each; Moodle's own need-grading count and capability lookups stay per activity.
+
 ---
 
 ## URLs

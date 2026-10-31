@@ -153,6 +153,17 @@ return [
         'params' => fn($ctx) => ['courseid' => $ctx->courseid],
     ],
     [
+        'fn' => 'local_fivedays_get_course_health',
+        'params' => fn($ctx) => ['courseid' => $ctx->courseid],
+        'check' => fn($r) => !empty($r['activities']) ? null : 'no activities',
+    ],
+    [
+        'fn' => 'local_fivedays_get_courses_health',
+        'params' => fn($ctx) => ['courseids' => [$ctx->courseid, 0]],
+        'check' => fn($r, $ctx) => array_column($r['courses'] ?? [], 'courseid') === [$ctx->courseid]
+            ? null : 'expected only the contract course',
+    ],
+    [
         'fn' => 'local_fivedays_create_assignment',
         'params' => fn($ctx) => ['courseid' => $ctx->courseid, 'name' => 'Contract assignment B', 'section' => $ctx->sectionnum],
         'save' => function ($r, $ctx) {
