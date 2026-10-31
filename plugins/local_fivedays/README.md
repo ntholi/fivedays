@@ -303,6 +303,27 @@ Otherwise the activity is copied with Moodle's single-activity import backup and
 
 ---
 
+## Course Health
+
+### Get Course Health
+
+`local_fivedays_get_course_health`
+
+Parameters: `courseid`
+
+Needs `local/fivedays:viewgradingqueue` in the course (editing teachers, managers, `fivedays_overseer`, `fivedays_ws`). One read for luct's principal lecturer class checklist; all times are Unix seconds, 0 = never or none. "Students" are users with the `student` role in the course context and an active enrolment; "lecturers" the same with `editingteacher`.
+
+Returns:
+
+- `activities: [{type, instanceid, cmid, name, idnumber, duedate, expected, submitted, waiting, oldest, released}]`: visible assignments and quizzes in course order that the caller can see grades (`mod/assign:viewgrades`) or reports (`mod/quiz:viewreports`) for. `idnumber` is the course module ID number (`''` when unset). `duedate` is the assignment due date or quiz close time. `expected` counts students who can submit or attempt; `submitted` those of them with a submitted latest submission (in a team assignment, or a submitted team submission of one of their groups in the assignment's grouping) or a finished non-preview quiz attempt. `waiting` and `oldest` are the same numbers as `get_grading_queue` (shared `grading_queue` class). `released` is false when the grade item is hidden in the gradebook; otherwise an assignment is released without marking workflow or when every graded student's workflow state is `released`, and a quiz when its "Marks" review option shows marks now ("After the quiz is closed" once `timeclose` has passed, else "Later, while the quiz is still open").
+- `materials: {count, lastadded}`: visible resources, folders, pages, URLs and books, and the newest one's `added` time. Labels do not count.
+- `outline: {topics, covered}`: visible top-level sections other than section 0, and how many of them hold a visible non-label module (inside their subsections too).
+- `announcements: {count, lastposted}`: discussions in the news forum and the newest one's posted time.
+- `virtualclasses: {held}`: BigBlueButton sessions held, counted as distinct (meeting, UTC day) pairs with a join log (Moodle does not log meeting creation). 0 when BigBlueButton is not installed.
+- `lecturers: [{userid, lastaccess}]` and `students: [{userid, username, lastaccess}]`, by username, with `user_lastaccess` for the course.
+
+---
+
 ## URLs
 
 ### Create URL

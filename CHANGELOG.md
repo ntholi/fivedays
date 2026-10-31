@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-10-31
+
+### Added
+- `local_fivedays` 2026103100: `get_course_health(courseid)` returns in one call what luct's principal lecturer class checklist needs: each visible assignment and quiz with its course module ID number, due date, students expected and submitted, waiting and oldest (the `get_grading_queue` numbers) and whether grades are released; visible material count and newest `added` time; visible topics and how many have content; announcement count and newest post time; BigBlueButton sessions held (distinct meeting and UTC day with a join, 0 without the module); editing teachers and students with their course last access. Needs `local/fivedays:viewgradingqueue`, so `fivedays_overseer` can call it. The waiting and oldest queries moved to `local_fivedays\grading_queue`, which `get_grading_queue` now uses too (same results). No database change.
+
 ## 2026-10-30 (6)
 
 ### Added

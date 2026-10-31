@@ -758,6 +758,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:viewgradingqueue',
     ),
+    'local_fivedays_get_course_health' => array(
+        'classname' => 'local_fivedays\external\course\get_course_health',
+        'methodname' => 'execute',
+        'description' => 'One read of a course for the class checklist: activities with submission, grading and release counts, materials, outline coverage, announcements, virtual classes held, and lecturer and student last access',
+        'type' => 'read',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:viewgradingqueue',
+    ),
     'local_fivedays_get_activities_status' => array(
         'classname' => 'local_fivedays\external\course\get_activities_status',
         'methodname' => 'execute',

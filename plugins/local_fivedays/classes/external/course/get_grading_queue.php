@@ -6,6 +6,7 @@ use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_fivedays\grading_queue;
 
 class get_grading_queue extends external_api {
 
@@ -54,86 +55,32 @@ class get_grading_queue extends external_api {
     }
 
     private static function assignment_item(\stdClass $course, \cm_info $cm): ?array {
-        global $DB;
-
-        $context = $cm->context;
-        if (!has_capability('mod/assign:viewgrades', $context)) {
+        if (!has_capability('mod/assign:viewgrades', $cm->context)) {
             return null;
         }
 
-        $assign = new \assign($context, $cm->get_course_module_record(), $course);
-        $waiting = (int)$assign->count_submissions_need_grading();
-        if ($waiting === 0) {
-            return null;
-        }
-
-        [$esql, $eparams] = get_enrolled_sql($context, 'mod/assign:submit', 0, true);
-        $oldest = $DB->get_field_sql(
-            "SELECT MIN(s.timemodified)
-               FROM {assign_submission} s
-          LEFT JOIN {assign_grades} g
-                 ON g.assignment = s.assignment
-                AND g.userid = s.userid
-                AND g.attemptnumber = s.attemptnumber
-              WHERE s.assignment = :assignment
-                AND s.latest = 1
-                AND s.status = :status
-                AND s.userid IN ($esql)
-                AND (g.timemodified IS NULL OR g.timemodified < s.timemodified OR g.grade IS NULL OR g.grade < 0)",
-            $eparams + ['assignment' => $cm->instance, 'status' => ASSIGN_SUBMISSION_STATUS_SUBMITTED]
-        );
-
-        return [
-            'type' => 'assign',
-            'instanceid' => (int)$cm->instance,
-            'cmid' => (int)$cm->id,
-            'name' => $cm->name,
-            'waiting' => $waiting,
-            'oldest' => (int)$oldest,
-        ];
+        $assign = new \assign($cm->context, $cm->get_course_module_record(), $course);
+        $queue = grading_queue::assignment($assign);
+        return $queue['waiting'] ? self::item('assign', $cm, $queue) : null;
     }
 
     private static function quiz_item(\cm_info $cm): ?array {
-        global $DB;
-
-        $context = $cm->context;
-        if (!has_capability('mod/quiz:viewreports', $context)) {
+        if (!has_capability('mod/quiz:viewreports', $cm->context)) {
             return null;
         }
 
-        [$esql, $eparams] = get_enrolled_sql($context, 'mod/quiz:attempt', 0, true);
-        $row = $DB->get_record_sql(
-            "SELECT COUNT(DISTINCT quiza.id) AS waiting, MIN(quiza.timefinish) AS oldest
-               FROM {quiz_attempts} quiza
-               JOIN {question_attempts} qa ON qa.questionusageid = quiza.uniqueid
-               JOIN {question_attempt_steps} qas ON qas.questionattemptid = qa.id
-              WHERE quiza.quiz = :quiz
-                AND quiza.state = :finished
-                AND quiza.preview = 0
-                AND quiza.userid IN ($esql)
-                AND qas.state = :needsgrading
-                AND qas.sequencenumber = (
-                    SELECT MAX(latest.sequencenumber)
-                      FROM {question_attempt_steps} latest
-                     WHERE latest.questionattemptid = qa.id
-                )",
-            $eparams + [
-                'quiz' => $cm->instance,
-                'finished' => \mod_quiz\quiz_attempt::FINISHED,
-                'needsgrading' => 'needsgrading',
-            ]
-        );
-        if (!$row || (int)$row->waiting === 0) {
-            return null;
-        }
+        $queue = grading_queue::quiz($cm);
+        return $queue['waiting'] ? self::item('quiz', $cm, $queue) : null;
+    }
 
+    private static function item(string $type, \cm_info $cm, array $queue): array {
         return [
-            'type' => 'quiz',
+            'type' => $type,
             'instanceid' => (int)$cm->instance,
             'cmid' => (int)$cm->id,
             'name' => $cm->name,
-            'waiting' => (int)$row->waiting,
-            'oldest' => (int)$row->oldest,
+            'waiting' => $queue['waiting'],
+            'oldest' => $queue['oldest'],
         ];
     }
 
