@@ -17,6 +17,11 @@ class observer {
         activity_approval::enforce((int) $event->objectid);
     }
 
+    /** Showing a hidden section must not show an unapproved activity in it. */
+    public static function course_section_updated(\core\event\course_section_updated $event): void {
+        activity_approval::enforce_section((int) $event->objectid);
+    }
+
     public static function course_module_deleted(\core\event\course_module_deleted $event): void {
         activity_approval::forget((int) $event->objectid);
     }

@@ -85,4 +85,56 @@ class activity_approval_test extends advanced_testcase {
 
         $this->assertFalse($DB->record_exists('local_fivedays_activity_approval', ['cmid' => $assign->cmid]));
     }
+
+    public function test_showing_a_hidden_section_keeps_an_unapproved_module_hidden(): void {
+        global $DB;
+        $assign = $this->assignment(1);
+        $cm = get_coursemodule_from_id('assign', $assign->cmid);
+        $section = get_fast_modinfo($this->course->id)->get_section_info_by_id((int) $cm->section);
+        $actions = \core_courseformat\formatactions::section((int) $this->course->id);
+        $actions->set_visibility($section, false);
+        $this->assertSame(1, (int) $DB->get_field('course_modules', 'visibleold', ['id' => $assign->cmid]));
+
+        set_activity_approval::execute([$assign->cmid], false);
+        $section = get_fast_modinfo($this->course->id)->get_section_info_by_id((int) $cm->section);
+        $actions->set_visibility($section, true);
+
+        $this->assertSame(0, $this->visible($assign->cmid));
+        $this->assertTrue(activity_approval::is_blocked((int) $assign->cmid));
+    }
+
+    public function test_showing_a_section_leaves_approved_modules_alone(): void {
+        $assign = $this->assignment(1);
+        $cm = get_coursemodule_from_id('assign', $assign->cmid);
+        $actions = \core_courseformat\formatactions::section((int) $this->course->id);
+        $actions->set_visibility(get_fast_modinfo($this->course->id)->get_section_info_by_id((int) $cm->section), false);
+        set_activity_approval::execute([$assign->cmid], true);
+
+        $actions->set_visibility(get_fast_modinfo($this->course->id)->get_section_info_by_id((int) $cm->section), true);
+
+        $this->assertSame(1, $this->visible($assign->cmid));
+    }
+
+    public function test_a_duplicate_of_an_unapproved_module_stays_blocked_and_hidden(): void {
+        $assign = $this->assignment(0);
+        set_activity_approval::execute([$assign->cmid], false);
+
+        $copy = \core_courseformat\formatactions::cm((int) $this->course->id)->duplicate((int) $assign->cmid);
+
+        $this->assertNotNull($copy);
+        $this->assertTrue(activity_approval::is_blocked((int) $copy->id));
+        $this->assertSame(0, $this->visible((int) $copy->id));
+        $this->expectException(\moodle_exception::class);
+        update_assignment::execute((int) $copy->instance, visible: 1);
+    }
+
+    public function test_a_duplicate_of_an_approved_module_is_not_managed(): void {
+        $assign = $this->assignment(1);
+        set_activity_approval::execute([$assign->cmid], true);
+
+        $copy = \core_courseformat\formatactions::cm((int) $this->course->id)->duplicate((int) $assign->cmid);
+
+        $this->assertFalse(activity_approval::is_blocked((int) $copy->id));
+        $this->assertSame(1, $this->visible((int) $copy->id));
+    }
 }

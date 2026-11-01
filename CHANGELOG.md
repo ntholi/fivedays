@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-11-01 (2)
+
+### Fixed
+- `local_fivedays` 2026110101: an unapproved activity could be shown without the observer noticing. Showing a hidden section restored its `visibleold`; a new `course_section_updated` observer, and blocking a hidden module, now clear `visibleold` of `approved = 0` modules. A duplicate, restore or import of an `approved = 0` activity got a new course module with no row; the activity backup now carries the flag and the copy is blocked and hidden. No database change.
+
 ## 2026-11-01
 
 ### Added

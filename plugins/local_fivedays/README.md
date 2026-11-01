@@ -316,7 +316,9 @@ Parameters: `cmids` (array of course module IDs), `approved` (bool)
 Records `approved` for each existing course module in `local_fivedays_activity_approval` (one row per `cmid`). With `approved = false` a visible one is hidden at once. Returns `{success, updated, missing}`: the recorded ids and the requested ids that do not exist.
 
 Enforcement:
-- A `course_module_updated` observer hides again any course module with `approved = 0` that was made visible in Moodle (eye icon, section visibility, edit settings).
+- A `course_module_updated` observer hides again any course module with `approved = 0` that was made visible in Moodle (eye icon, edit settings).
+- Showing a hidden section restores each module's `visibleold` without a module event. A `course_section_updated` observer (Moodle triggers it before the modules are restored) clears `visibleold` of the section's `approved = 0` modules, and blocking a hidden module clears it too, so they stay hidden.
+- Duplicating, backing up and restoring or importing an `approved = 0` activity copies the block: the backup carries the flag (`backup_local_fivedays_plugin`) and the copy gets its own `approved = 0` row and is hidden. luct does not know the copy, so it stays hidden until deleted. Approved and unmanaged activities copy without a row.
 - `update_assignment` and `update_quiz` refuse `visible = 1` for such a module with `activitynotapproved`.
 - Course modules without a row are never touched, so activities from before approvals keep working.
 - Rows go with their course module when it is deleted.
