@@ -790,6 +790,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:provision',
     ),
+    'local_fivedays_set_activity_approval' => array(
+        'classname' => 'local_fivedays\external\course\set_activity_approval',
+        'methodname' => 'execute',
+        'description' => 'Record whether luct approved weighted activities; unapproved ones are hidden and kept hidden',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:provision',
+    ),
 );
 
 // The service luct calls. Moodle's upgrade keeps its function list equal to this one.

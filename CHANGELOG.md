@@ -2,6 +2,14 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-11-01
+
+### Added
+- `local_fivedays` 2026110100: activity approval for luct's weighted activities (luct D20, D27). New table `local_fivedays_activity_approval` (`cmid` unique, `approved`, `timemodified`). `set_activity_approval(cmids, approved)` records the flag for existing course modules and hides visible ones when `approved = false`; returns `{success, updated, missing}`. Needs `local/fivedays:provision`. A `course_module_updated` observer hides again a module with `approved = 0` that someone made visible in Moodle, and a `course_module_deleted` observer drops its row. Modules without a row are left alone.
+
+### Changed
+- `update_assignment` and `update_quiz` refuse `visible = 1` with `activitynotapproved` for a module whose row has `approved = 0`.
+
 ## 2026-10-31 (2)
 
 ### Added

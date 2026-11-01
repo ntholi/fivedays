@@ -73,6 +73,10 @@ class update_assignment extends external_api {
         require_capability('local/fivedays:updateassignment', $context);
         require_capability('mod/assign:addinstance', $context);
 
+        if ((int) $params['visible'] === 1) {
+            \local_fivedays\activity_approval::require_showable((int) $cm->id);
+        }
+
         
         $updated = false;
 

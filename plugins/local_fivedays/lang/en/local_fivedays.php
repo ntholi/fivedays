@@ -82,3 +82,4 @@ $string['googleissuermissing'] = 'Google OAuth issuer is not configured';
 $string['usernotfound'] = 'User with email {$a} was not found';
 $string['emailhasmoodlework'] = 'That email already has Moodle work.';
 $string['authornotenrolled'] = '{$a} has no active enrolment in this course.';
+$string['activitynotapproved'] = 'This activity is waiting for approval in luct and cannot be shown yet.';

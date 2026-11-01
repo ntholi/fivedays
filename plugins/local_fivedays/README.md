@@ -303,6 +303,26 @@ Otherwise the activity is copied with Moodle's single-activity import backup and
 
 ---
 
+## Activity Approval
+
+luct holds weighted activities back until a principal lecturer or faculty manager approves them. Needs `local/fivedays:provision` at system level (the `fivedays_ws` token).
+
+### Set Activity Approval
+
+`local_fivedays_set_activity_approval`
+
+Parameters: `cmids` (array of course module IDs), `approved` (bool)
+
+Records `approved` for each existing course module in `local_fivedays_activity_approval` (one row per `cmid`). With `approved = false` a visible one is hidden at once. Returns `{success, updated, missing}`: the recorded ids and the requested ids that do not exist.
+
+Enforcement:
+- A `course_module_updated` observer hides again any course module with `approved = 0` that was made visible in Moodle (eye icon, section visibility, edit settings).
+- `update_assignment` and `update_quiz` refuse `visible = 1` for such a module with `activitynotapproved`.
+- Course modules without a row are never touched, so activities from before approvals keep working.
+- Rows go with their course module when it is deleted.
+
+---
+
 ## Course Health
 
 ### Get Course Health

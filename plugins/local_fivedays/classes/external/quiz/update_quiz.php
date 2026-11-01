@@ -176,6 +176,10 @@ class update_quiz extends external_api {
         require_capability('local/fivedays:updatequiz', $context);
         require_capability('mod/quiz:manage', $context);
 
+        if ((int) $params['visible'] === 1) {
+            \local_fivedays\activity_approval::require_showable((int) $cm->id);
+        }
+
         $updated = false;
         $oldquiz = clone $quiz;
 

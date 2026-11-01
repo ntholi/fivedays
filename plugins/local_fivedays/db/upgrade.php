@@ -49,5 +49,20 @@ function xmldb_local_fivedays_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026103005, 'local', 'fivedays');
     }
 
+    if ($oldversion < 2026110100) {
+        $dbman = $DB->get_manager();
+        $table = new xmldb_table('local_fivedays_activity_approval');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('cmid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('approved', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('cmid', XMLDB_KEY_FOREIGN_UNIQUE, ['cmid'], 'course_modules', ['id']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+        upgrade_plugin_savepoint(true, 2026110100, 'local', 'fivedays');
+    }
+
     return true;
 }
