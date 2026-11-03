@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-11-03
+
+### Changed
+- `local_fivedays` 2026110300: `get_assignment` also returns `visible` (course module visibility) and `duedate` (0 when none), so luct can email students when an assignment first becomes visible and when its due date moves. No database change.
+
 ## 2026-11-01 (2)
 
 ### Fixed

@@ -24,7 +24,7 @@ class get_assignment extends external_api {
             'assignmentid' => $assignmentid,
         ]);
 
-        [$assign, $cm] = helper::require_activity('assign', $params['assignmentid'], 'id, course, name');
+        [$assign, $cm] = helper::require_activity('assign', $params['assignmentid'], 'id, course, name, duedate');
 
         $context = \context_module::instance($cm->id);
         self::validate_context($context);
@@ -36,6 +36,8 @@ class get_assignment extends external_api {
             'coursemoduleid' => (int)$cm->id,
             'courseid' => (int)$cm->course,
             'name' => $assign->name,
+            'visible' => (int)$cm->visible,
+            'duedate' => (int)$assign->duedate,
         ];
     }
 
@@ -45,6 +47,8 @@ class get_assignment extends external_api {
             'coursemoduleid' => new external_value(PARAM_INT, 'Course module ID'),
             'courseid' => new external_value(PARAM_INT, 'Course ID'),
             'name' => new external_value(PARAM_TEXT, 'Assignment name'),
+            'visible' => new external_value(PARAM_INT, 'Course module visibility'),
+            'duedate' => new external_value(PARAM_INT, 'Due date (0 when none)'),
         ]);
     }
 }
