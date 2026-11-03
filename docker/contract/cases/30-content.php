@@ -203,9 +203,49 @@ return [
         'params' => fn($ctx) => ['chapterid' => $ctx->chapterid, 'title' => 'Chapter two updated'],
     ],
     [
+        'fn' => 'local_fivedays_save_book',
+        'params' => fn($ctx) => [
+            'bookid' => $ctx->bookid,
+            'name' => 'Contract book saved',
+            'chapters' => [
+                ['id' => $ctx->chapterid, 'title' => 'Chapter two first', 'content' => '<p>Two</p>'],
+                ['title' => 'Chapter three', 'content' => '<p>Three</p>', 'subchapter' => 1],
+            ],
+        ],
+        'check' => fn($r) => count($r['chapters'] ?? []) === 2 ? null : 'expected 2 saved chapters',
+    ],
+    [
         'fn' => 'local_fivedays_get_book',
         'params' => fn($ctx) => ['bookid' => $ctx->bookid],
         'check' => fn($r) => count($r['chapters'] ?? []) === 2 ? null : 'expected 2 chapters',
+    ],
+
+    [
+        'fn' => 'local_fivedays_create_draft_files',
+        'params' => fn($ctx) => ['files' => [['filename' => 'notes.txt', 'content' => base64_encode('Contract notes')]]],
+        'save' => function ($r, $ctx) {
+            $ctx->folderdraftitemid = (int) $r['draftitemid'];
+        },
+    ],
+    [
+        'fn' => 'local_fivedays_create_folder',
+        'params' => fn($ctx) => [
+            'courseid' => $ctx->courseid,
+            'name' => 'Contract folder',
+            'draftitemid' => $ctx->folderdraftitemid,
+            'section' => $ctx->newsectionnum,
+        ],
+        'save' => function ($r, $ctx) {
+            $ctx->folderid = (int) $r['id'];
+        },
+    ],
+    [
+        'fn' => 'local_fivedays_update_folder',
+        'params' => fn($ctx) => [
+            'folderid' => $ctx->folderid,
+            'name' => 'Contract folder updated',
+            'removefiles' => [['filepath' => '/', 'filename' => 'notes.txt']],
+        ],
     ],
 
     [
@@ -307,6 +347,16 @@ return [
         'fn' => 'mod_forum_get_discussion_posts_by_userid',
         'params' => fn($ctx) => ['userid' => $ctx->postauthorid, 'cmid' => $ctx->forumcmid],
         'check' => fn($r) => !empty($r['discussions']) ? null : 'no discussions for author',
+    ],
+    [
+        'fn' => 'local_fivedays_add_announcement',
+        'params' => fn($ctx) => [
+            'courseid' => $ctx->courseid,
+            'subject' => 'Contract announcement',
+            'message' => '<p>Contract announcement</p>',
+            'userid' => $ctx->lecturerid,
+        ],
+        'check' => fn($r) => ($r['discussionid'] ?? 0) > 0 ? null : 'no discussion created',
     ],
     [
         'fn' => 'mod_forum_delete_post',

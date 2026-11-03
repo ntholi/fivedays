@@ -183,6 +183,20 @@ return [
         'params' => fn($ctx) => ['assignmentid' => $ctx->assignbid],
     ],
     [
+        'fn' => 'local_fivedays_search_rubrics',
+        'params' => fn($ctx) => ['targetcmid' => $ctx->assignbcmid, 'query' => 'Contract'],
+    ],
+    [
+        'fn' => 'local_fivedays_preview_rubric',
+        'params' => fn($ctx) => ['sourcecmid' => $ctx->assigncmid, 'targetcmid' => $ctx->assignbcmid],
+        'check' => fn($r) => !empty($r['criteria']) ? null : 'rubric criteria missing',
+    ],
+    [
+        'fn' => 'local_fivedays_set_activity_approval',
+        'params' => fn($ctx) => ['cmids' => [$ctx->assignbcmid, 0], 'approved' => true],
+        'check' => fn($r, $ctx) => ($r['updated'] ?? []) === [$ctx->assignbcmid] ? null : 'approval not recorded',
+    ],
+    [
         'fn' => 'local_fivedays_copy_rubric',
         'params' => fn($ctx) => ['sourcecmid' => $ctx->assigncmid, 'targetcmid' => $ctx->assignbcmid],
     ],
