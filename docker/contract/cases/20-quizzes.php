@@ -11,6 +11,7 @@ $question = fn(string $type, array $extra) => fn($ctx) => [
 $savequestion = fn(string $type) => function ($r, $ctx) use ($type) {
     $ctx->qbe[$type] = (int) $r['questionbankentryid'];
 };
+$png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 $slotid = fn($ctx, string $type) => $ctx->slotids[$type];
 
 return [
@@ -255,6 +256,63 @@ return [
         'fn' => 'local_fivedays_get_attempt_feedback',
         'params' => fn($ctx) => ['attemptid' => $ctx->attemptid],
         'check' => fn($r) => ($r['feedback'] ?? '') === '<p>Well done</p>' ? null : 'feedback not returned',
+    ],
+    [
+        'fn' => 'local_fivedays_create_essay_question',
+        'params' => fn($ctx) => [
+            'categoryid' => $ctx->qcategoryid,
+            'name' => 'Contract question files',
+            'questiontext' => '<p>Look at the picture</p>',
+            'questionfiles' => json_encode([
+                ['filename' => 'pixel.png', 'content' => $png],
+                ['filename' => 'notes.txt', 'content' => base64_encode('notes')],
+            ]),
+        ],
+        'check' => fn($r) => ($r['success'] ?? false) === true && array_column($r['files'], 'filename') === ['pixel.png', 'notes.txt']
+            && array_column($r['files'], 'isimage') === [1, 0] ? null : 'expected the two files back: ' . json_encode($r['files'] ?? null),
+        'save' => function ($r, $ctx) {
+            $ctx->qfiles = $r;
+        },
+    ],
+    [
+        // Question files are served by the web service pluginfile URL of the question category.
+        'fn' => 'local_fivedays_get_questions',
+        'params' => fn($ctx) => ['categoryid' => $ctx->qcategoryid, 'qtype' => 'essay'],
+        'check' => function ($r, $ctx) use ($base, $host, $token, $png) {
+            $row = current(array_filter($r['questions'], fn($q) => $q['questionid'] === $ctx->qfiles['questionid']));
+            if (!$row || $row['questiontext'] !== '<p>Look at the picture</p>' || count($row['files']) !== 2) {
+                return 'questiontext not stripped or files missing: ' . json_encode($row);
+            }
+            $curl = curl_init($base . parse_url($row['files'][0]['fileurl'], PHP_URL_PATH) . '?token=' . $token);
+            curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => ["Host: {$host}"]]);
+            $body = curl_exec($curl);
+            $type = curl_getinfo($curl, CURLINFO_CONTENT_TYPE);
+            curl_close($curl);
+            return $type === 'image/png' && $body === base64_decode($png) ? null : "file not served: {$type}";
+        },
+    ],
+    [
+        'fn' => 'local_fivedays_create_essay_question',
+        'params' => fn($ctx) => [
+            'categoryid' => $ctx->qcategoryid,
+            'name' => 'Contract question files',
+            'questiontext' => '<p>Second version</p>',
+            'questionbankentryid' => $ctx->qfiles['questionbankentryid'],
+            'questionfiles' => json_encode([['filename' => 'pixel.png', 'fromquestionid' => $ctx->qfiles['questionid']]]),
+        ],
+        'check' => fn($r) => ($r['success'] ?? false) === true && array_column($r['files'], 'filename') === ['pixel.png']
+            ? null : 'expected the copied file only: ' . json_encode($r['files'] ?? null),
+    ],
+    [
+        'fn' => 'local_fivedays_create_truefalse_question',
+        'params' => fn($ctx) => [
+            'categoryid' => $ctx->qcategoryid,
+            'name' => 'Contract too many files',
+            'questiontext' => '<p>x</p>',
+            'correctanswer' => 1,
+            'questionfiles' => json_encode(array_map(fn($n) => ['filename' => "f{$n}.txt", 'content' => base64_encode('x')], range(1, 6))),
+        ],
+        'allow' => ['toomanyattachments'],
     ],
     [
         'fn' => 'local_fivedays_delete_question',

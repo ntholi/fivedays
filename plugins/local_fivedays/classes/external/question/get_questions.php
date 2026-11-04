@@ -6,6 +6,7 @@ use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_multiple_structure;
 use core_external\external_value;
+use local_fivedays\question_files;
 
 
 class get_questions extends external_api {
@@ -112,13 +113,15 @@ class get_questions extends external_api {
 
         $totalcount = $DB->count_records_sql($countsql, $inparams);
 
+        $files = question_files::list_for_questions(array_column($questions, 'questiontext', 'questionid'));
+
         $result = [];
         foreach ($questions as $q) {
             $result[] = [
                 'questionid' => (int)$q->questionid,
                 'questionbankentryid' => (int)$q->questionbankentryid,
                 'name' => $q->name,
-                'questiontext' => $q->questiontext,
+                'questiontext' => question_files::strip($q->questiontext),
                 'qtype' => $q->qtype,
                 'defaultmark' => (float)$q->defaultmark,
                 'categoryid' => (int)$q->questioncategoryid,
@@ -127,6 +130,7 @@ class get_questions extends external_api {
                 'status' => $q->status,
                 'timecreated' => (int)$q->timecreated,
                 'timemodified' => (int)$q->timemodified,
+                'files' => $files[(int)$q->questionid],
             ];
         }
 
@@ -168,6 +172,7 @@ class get_questions extends external_api {
                     'status' => new external_value(PARAM_ALPHA, 'Question status'),
                     'timecreated' => new external_value(PARAM_INT, 'Time created'),
                     'timemodified' => new external_value(PARAM_INT, 'Time modified'),
+                    'files' => question_files::files_structure(),
                 ])
             ),
             'totalcount' => new external_value(PARAM_INT, 'Total number of questions matching criteria'),

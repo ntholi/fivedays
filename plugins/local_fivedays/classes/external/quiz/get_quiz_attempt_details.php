@@ -6,6 +6,7 @@ use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_fivedays\question_files;
 
 class get_quiz_attempt_details extends external_api {
 
@@ -39,6 +40,13 @@ class get_quiz_attempt_details extends external_api {
             $grade = ($attempt->sumgrades / $quiz->sumgrades) * 100;
         }
 
+        $texts = [];
+        foreach ($quba->get_slots() as $slot) {
+            $question = $quba->get_question_attempt($slot)->get_question();
+            $texts[$question->id] = $question->questiontext;
+        }
+        $files = question_files::list_for_questions($texts);
+
         $questionsarray = [];
         foreach ($quba->get_slots() as $slot) {
             $qa = $quba->get_question_attempt($slot);
@@ -61,11 +69,12 @@ class get_quiz_attempt_details extends external_api {
                 'slot' => (int)$slot,
                 'type' => $question->qtype->name(),
                 'name' => $question->name,
-                'questiontext' => $question->questiontext,
+                'questiontext' => question_files::strip($question->questiontext),
                 'maxmark' => (float)$maxmark,
                 'response' => $response ?? '',
                 'rightanswer' => $rightanswer ?? '',
                 'state' => $statename,
+                'files' => $files[$question->id],
             ];
             if ($mark !== null) {
                 $questiondata['mark'] = (float)$mark;
@@ -147,6 +156,7 @@ class get_quiz_attempt_details extends external_api {
                         'response' => new external_value(PARAM_RAW, 'Student response'),
                         'rightanswer' => new external_value(PARAM_RAW, 'Right answer'),
                         'state' => new external_value(PARAM_TEXT, 'Question state'),
+                        'files' => question_files::files_structure(),
                         'feedback' => new external_value(PARAM_RAW, 'General feedback', VALUE_OPTIONAL),
                         'comment' => new external_value(PARAM_RAW, 'Teacher comment', VALUE_OPTIONAL),
                     ])

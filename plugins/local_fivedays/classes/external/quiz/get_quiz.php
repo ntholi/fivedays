@@ -6,6 +6,7 @@ use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_fivedays\question_files;
 
 class get_quiz extends external_api {
 
@@ -71,6 +72,8 @@ class get_quiz extends external_api {
               ORDER BY qs.slot ASC";
 
         $slots = $DB->get_records_sql($sql, [$quiz->id]);
+
+        $files = question_files::list_for_questions(array_column($slots, 'questiontext', 'questionid'));
 
         $questionsarray = [];
         foreach ($slots as $slot) {
@@ -159,7 +162,7 @@ class get_quiz extends external_api {
                 'questionidnumber' => $slot->questionidnumber ?? '',
                 'questionname' => $slot->questionname,
                 'qtype' => $slot->qtype,
-                'questiontext' => $slot->questiontext ?? '',
+                'questiontext' => question_files::strip($slot->questiontext ?? ''),
                 'questiontextformat' => (int)$slot->questiontextformat,
                 'defaultmark' => (float)$slot->defaultmark,
                 'generalfeedback' => $slot->generalfeedback ?? '',
@@ -167,6 +170,7 @@ class get_quiz extends external_api {
                 'version' => (int)$slot->version,
                 'status' => $slot->status,
                 'answers' => $answersarray,
+                'files' => $files[$questionid],
             ];
 
             if ($options !== null) {
@@ -366,6 +370,7 @@ class get_quiz extends external_api {
                     'generalfeedbackformat' => new external_value(PARAM_INT, 'General feedback format'),
                     'version' => new external_value(PARAM_INT, 'Question version'),
                     'status' => new external_value(PARAM_TEXT, 'Question status'),
+                    'files' => question_files::files_structure(),
                     'answers' => new external_multiple_structure(
                         new external_single_structure([
                             'id' => new external_value(PARAM_INT, 'Answer ID'),

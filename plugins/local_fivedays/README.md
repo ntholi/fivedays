@@ -997,7 +997,7 @@ Updates an existing quiz. All parameters except `quizid` are optional - only pro
 
 `local_fivedays_get_quiz`
 
-Retrieves complete quiz details including all questions, sections, settings, answers, and question-type-specific options.
+Retrieves complete quiz details including all questions, sections, settings, answers, and question-type-specific options. Each question's `questiontext` has the question files block removed and `files` lists its files (see Question Files).
 
 | Parameter | Type | Required |
 | --------- | ---- | -------- |
@@ -1226,7 +1226,7 @@ Gets all quiz attempts for a quiz with student info.
 
 `local_fivedays_get_quiz_attempt_details`
 
-Gets detailed attempt with question responses.
+Gets detailed attempt with question responses. Each question's `questiontext` has the question files block removed and `files` lists its files (see Question Files).
 
 | Parameter   | Type | Required | Description   |
 | ----------- | ---- | -------- | ------------- |
@@ -1404,6 +1404,34 @@ Gets an existing category or creates a new one if it doesn't exist.
 ### Editing a Question
 
 Every `create_*_question` call below also accepts an optional `questionbankentryid` (int, default 0). When it is set, the question is saved as a new version of that question bank entry instead of a new question. Quiz slots that use the latest version show the new version, and attempts already started keep the version they were taken on. The caller needs `moodle/question:editall`, or `moodle/question:editmine` for their own questions, in the entry's category context.
+
+### Question Files
+
+Every `create_*_question` call below except `create_description_question` also accepts an optional `questionfiles` (JSON string, default `'[]'`): up to 5 files shown with the question text, images inline and other files as links. Send the full list on every save: files belong to one saved question, so a new version only has the files you list, and the previous version keeps its own.
+
+```json
+[
+  {"filename": "map.png", "draftitemid": 123},
+  {"filename": "table.pdf", "content": "<base64>"},
+  {"filename": "old.png", "fromquestionid": 456}
+]
+```
+
+Each entry has a `filename` and exactly one source:
+
+- `draftitemid`: the file with that name in the calling user's draft area (upload with `webservice/upload.php`).
+- `content`: the bytes, base64 encoded.
+- `fromquestionid`: copy the file of that name from another question (for example the previous version). The caller needs `local/fivedays:createquestion` or `local/fivedays:viewquestions` in that question's category.
+
+Filenames are cleaned with `PARAM_FILE`, must not be empty and must be unique ignoring case. Each file is at most 20 MB. Everything is checked before the question is saved, so a bad entry leaves nothing behind. Errors: `toomanyattachments` (more than 5), `attachmentinvalid` (bad JSON, name, base64 or source), `attachmentmissing` (source file not found), `attachmenttoolarge`.
+
+The files are stored in the question's own `question/questiontext` area, and a marker block is appended to the stored question text:
+
+```html
+<div class="fivedays-qfiles" data-fivedays-qfiles="1"><p><img src="@@PLUGINFILE@@/map.png" alt="map.png" class="img-fluid"></p><p><a href="@@PLUGINFILE@@/table.pdf">table.pdf</a></p></div>
+```
+
+Moodle shows the block to students. The create calls, `get_questions`, `get_quiz` and `get_quiz_attempt_details` return the question text without the block plus `files`, a list of `{filename, filesize, mimetype, isimage, fileurl, questionid}` in display order (empty when none). `fileurl` is `<wwwroot>/webservice/pluginfile.php/<contextid>/local_fivedays/qfiles/<questionid>/<filename>`; append `?token=<token>`. It needs `local/fivedays:createquestion` or `local/fivedays:viewquestions` in the question category, and anything else is "file not found". The code is in `classes/question_files.php` and `lib.php`.
 
 ### Create Multiple Choice Question
 
@@ -1623,7 +1651,7 @@ All four return `questionid`, `questionbankentryid`, `name`, `success` and `mess
 
 `local_fivedays_get_questions`
 
-Get questions in a category for browsing and selection.
+Get questions in a category for browsing and selection. `questiontext` has the question files block removed; the files are in `files` (see Question Files).
 
 | Parameter              | Type   | Required | Default | Description                                   |
 | ---------------------- | ------ | -------- | ------- | --------------------------------------------- |
@@ -1650,7 +1678,8 @@ Get questions in a category for browsing and selection.
       "version": 1,
       "status": "ready",
       "timecreated": 1701234567,
-      "timemodified": 1701234567
+      "timemodified": 1701234567,
+      "files": []
     }
   ],
   "totalcount": 1,

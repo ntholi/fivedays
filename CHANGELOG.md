@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-11-04
+
+### Added
+- `local_fivedays` 2026110400 (1.12.0): quiz questions can carry up to 5 files (20 MB each). Every `create_*_question` function except `create_description_question` takes an optional `questionfiles` JSON list (`draftitemid`, `content` or `fromquestionid` per file) and returns `files`. The files are stored per question version in the question's own file area and referenced from a marker block at the end of the question text, so students see them natively. `get_questions`, `get_quiz` and `get_quiz_attempt_details` return `questiontext` without the block plus `files`, and `local_fivedays_pluginfile` serves them at `/webservice/pluginfile.php/<ctx>/local_fivedays/qfiles/<questionid>/<filename>`. No database change.
+
 ## 2026-11-03
 
 ### Changed

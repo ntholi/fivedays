@@ -6,6 +6,7 @@ use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_multiple_structure;
 use core_external\external_value;
+use local_fivedays\question_files;
 
 
 class create_shortanswer_question extends external_api {
@@ -22,6 +23,7 @@ class create_shortanswer_question extends external_api {
             'idnumber' => new external_value(PARAM_RAW, 'ID number for the question', VALUE_DEFAULT, ''),
             'tags' => new external_value(PARAM_RAW, 'JSON array of tag names: ["tag1","tag2"]', VALUE_DEFAULT, '[]'),
             'questionbankentryid' => new external_value(PARAM_INT, 'Existing question bank entry ID; when set, saves a new version of that question', VALUE_DEFAULT, 0),
+            'questionfiles' => question_files::parameter(),
         ]);
     }
 
@@ -35,7 +37,8 @@ class create_shortanswer_question extends external_api {
         string $generalfeedback = '',
         string $idnumber = '',
         string $tags = '[]',
-        int $questionbankentryid = 0
+        int $questionbankentryid = 0,
+        string $questionfiles = '[]'
     ): array {
         global $CFG, $DB, $USER;
 
@@ -53,6 +56,7 @@ class create_shortanswer_question extends external_api {
             'idnumber' => $idnumber,
             'tags' => $tags,
             'questionbankentryid' => $questionbankentryid,
+            'questionfiles' => $questionfiles,
         ]);
 
         
@@ -63,6 +67,7 @@ class create_shortanswer_question extends external_api {
                 'questionbankentryid' => 0,
                 'name' => '',
                 'success' => false,
+                'files' => [],
                 'message' => 'Invalid answers format. Expected JSON array.',
             ];
         }
@@ -88,11 +93,14 @@ class create_shortanswer_question extends external_api {
                 'questionbankentryid' => 0,
                 'name' => '',
                 'success' => false,
+                'files' => [],
                 'message' => 'Short answer questions require at least 1 answer',
             ];
         }
 
         
+        $entries = question_files::parse($params['questionfiles']);
+
         $question = new \stdClass();
         $question->category = $params['categoryid'];
         $question->parent = 0;
@@ -146,12 +154,15 @@ class create_shortanswer_question extends external_api {
             \core_tag_tag::set_item_tags('core_question', 'question', $questionid, $context, $tagsarray);
         }
 
+        $files = question_files::save($entries, $context->id, $questionid, $params['questiontext']);
+
         return [
             'questionid' => (int)$questionid,
             'questionbankentryid' => (int)$qbeid,
             'name' => $params['name'],
             'success' => true,
             'message' => 'Short answer question created successfully',
+            'files' => $files,
         ];
     }
 
@@ -162,6 +173,7 @@ class create_shortanswer_question extends external_api {
             'name' => new external_value(PARAM_TEXT, 'Question name'),
             'success' => new external_value(PARAM_BOOL, 'Success status'),
             'message' => new external_value(PARAM_TEXT, 'Response message'),
+            'files' => question_files::files_structure(),
         ]);
     }
 }
