@@ -69,5 +69,11 @@ function xmldb_local_fivedays_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026110401, 'local', 'fivedays');
     }
 
+    if ($oldversion < 2026110402) {
+        // Drops moodle/user:viewdetails and moodle/site:viewuseridentity from the auditor role.
+        \local_fivedays\auditor_role::sync();
+        upgrade_plugin_savepoint(true, 2026110402, 'local', 'fivedays');
+    }
+
     return true;
 }

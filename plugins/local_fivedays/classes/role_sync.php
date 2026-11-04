@@ -8,8 +8,6 @@ defined('MOODLE_INTERNAL') || die();
  */
 class role_sync {
 
-    private const LEVEL_NAMES = [CONTEXT_SYSTEM => 'system', CONTEXT_COURSE => 'course'];
-
     /**
      * Creates or repairs the role: name, description, no archetype, assignable at $contextlevel only,
      * exactly the installed $capabilities allowed in the system context, and assignable by the fivedays_ws
@@ -46,7 +44,7 @@ class role_sync {
         $levels = array_map('intval', array_values(get_role_contextlevels($roleid)));
         if ($levels !== [$contextlevel]) {
             set_role_contextlevels($roleid, [$contextlevel]);
-            $changes[] = 'context levels set to ' . self::LEVEL_NAMES[$contextlevel];
+            $changes[] = 'context levels set to ' . strtolower(\context_helper::get_level_name($contextlevel));
         }
 
         $systemcontext = \context_system::instance();

@@ -22,6 +22,10 @@ class set_site_auditors extends external_api {
         ]);
     }
 
+    /**
+     * auditor = true needs exactly one user with the email; auditor = false removes the role from every user
+     * with it, so a duplicate account can never keep site-wide read access.
+     */
     public static function execute(array $users): array {
         global $DB;
 
@@ -31,20 +35,26 @@ class set_site_auditors extends external_api {
 
         $changed = 0;
         foreach ($params['users'] as $entry) {
-            $user = provision_helper::find_user_by_email($entry['email']);
-            if (!$user) {
-                if ($entry['auditor']) {
-                    throw new \invalid_parameter_exception('No Moodle user with email ' . $entry['email']);
-                }
-                continue;
+            $matches = provision_helper::find_users_by_email($entry['email']);
+            if ($entry['auditor'] && count($matches) !== 1) {
+                throw new \invalid_parameter_exception(($matches ? 'More than one Moodle user has email '
+                    : 'No Moodle user with email ') . $entry['email']);
             }
-            $held = user_has_role_assignment((int) $user->id, $roleid, $context->id);
-            if ($entry['auditor'] && !$held) {
-                role_assign($roleid, (int) $user->id, $context->id);
-                $changed++;
-            } else if (!$entry['auditor'] && $held) {
-                role_unassign($roleid, (int) $user->id, $context->id);
-                $changed++;
+            foreach ($matches as $user) {
+                $held = $DB->record_exists('role_assignments', [
+                    'roleid' => $roleid,
+                    'userid' => $user->id,
+                    'contextid' => $context->id,
+                    'component' => '',
+                    'itemid' => 0,
+                ]);
+                if ($entry['auditor'] && !$held) {
+                    role_assign($roleid, (int) $user->id, $context->id);
+                    $changed++;
+                } else if (!$entry['auditor'] && $held) {
+                    role_unassign($roleid, (int) $user->id, $context->id);
+                    $changed++;
+                }
             }
         }
 

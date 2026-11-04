@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-11-04 (2)
+
+### Changed
+- `local_fivedays` 2026110402: `fivedays_auditor` no longer allows `moodle/user:viewdetails` or `moodle/site:viewuseridentity` (held site-wide they expose every user's profile and email); an upgrade step re-syncs the role to drop them. `fivedays_overseer` is unchanged. `set_site_auditors` with `auditor = true` fails with `invalidparameter` when more than one Moodle user has the email; `auditor = false` removes the role from every user with it. Only manual (`component = ''`) assignments are counted and changed. No database change.
+
 ## 2026-11-04
 
 ### Added

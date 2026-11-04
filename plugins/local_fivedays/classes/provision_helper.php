@@ -296,6 +296,16 @@ class provision_helper {
         return $user ?: null;
     }
 
+    /** @return \stdClass[] every non-deleted user with this email, case-insensitive */
+    public static function find_users_by_email(string $email): array {
+        global $DB;
+
+        return array_values($DB->get_records_sql(
+            'SELECT * FROM {user} WHERE LOWER(email) = ? AND deleted = 0',
+            [strtolower(trim($email))]
+        ));
+    }
+
     public static function has_enrolments(int $userid): bool {
         global $DB;
 
