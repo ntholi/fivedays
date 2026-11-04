@@ -2,10 +2,10 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_fivedays';
-$plugin->version = 2026110400;
+$plugin->version = 2026110401;
 $plugin->requires = 2024100700;
 $plugin->maturity = MATURITY_STABLE;
-$plugin->release = '1.12.0';
+$plugin->release = '1.13.0';
 $plugin->dependencies = [
     'gradingform_fivedays' => 2026101200,
 ];

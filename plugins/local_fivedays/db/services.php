@@ -720,6 +720,14 @@ $functions = array(
         'ajax' => true,
         'capabilities' => 'local/fivedays:provision',
     ),
+    'local_fivedays_set_site_auditors' => array(
+        'classname' => 'local_fivedays\external\provision\set_site_auditors',
+        'methodname' => 'execute',
+        'description' => 'Give or remove the site-wide fivedays_auditor role (view any course read-only) by email',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'local/fivedays:provision',
+    ),
     'local_fivedays_delete_course' => array(
         'classname' => 'local_fivedays\external\provision\delete_course',
         'methodname' => 'execute',

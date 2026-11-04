@@ -70,10 +70,12 @@ if ($allowed) {
     $report('changed', 'fivedays_ws role', "added {$allowed} Manager allow-assign/override/switch/view rows");
 }
 
-// Overseer role (D10): install.php and upgrade.php create it, but a fresh install has no fivedays_ws role
-// yet, so letting fivedays_ws assign it happens here.
+// Overseer (D10) and auditor roles: install.php and upgrade.php create them, but a fresh install has no fivedays_ws role
+// yet, so letting fivedays_ws assign them happens here.
 $overseerchanges = \local_fivedays\overseer_role::sync();
 $report($overseerchanges ? 'changed' : 'ok', 'fivedays_overseer role', implode(', ', $overseerchanges));
+$auditorchanges = \local_fivedays\auditor_role::sync();
+$report($auditorchanges ? 'changed' : 'ok', 'fivedays_auditor role', implode(', ', $auditorchanges));
 
 $wsuser = $DB->get_record('user', ['username' => 'fivedays_ws', 'mnethostid' => $CFG->mnet_localhost_id, 'deleted' => 0]);
 if (!$wsuser) {

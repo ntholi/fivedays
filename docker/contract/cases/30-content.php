@@ -409,6 +409,19 @@ return [
         'params' => fn($ctx) => ['enrolments' => [['userid' => $ctx->extraids[1], 'courseid' => $ctx->courseid]]],
     ],
     [
+        'fn' => 'local_fivedays_set_site_auditors',
+        'params' => fn($ctx) => ['users' => [['email' => $ctx->extraemails[1], 'auditor' => true]]],
+        'check' => fn($r) => (int) $r['changed'] === 1 ? null : 'expected 1 assignment added',
+    ],
+    [
+        'fn' => 'local_fivedays_set_site_auditors',
+        'params' => fn($ctx) => ['users' => [
+            ['email' => $ctx->extraemails[1], 'auditor' => false],
+            ['email' => "ct.nobody.{$suffix}@example.com", 'auditor' => false],
+        ]],
+        'check' => fn($r) => (int) $r['changed'] === 1 ? null : 'expected 1 assignment removed',
+    ],
+    [
         'fn' => 'local_fivedays_rebind_user_email',
         'params' => fn($ctx) => ['fromemail' => $ctx->extraemails[0], 'toemail' => "ct.rebound.{$suffix}@example.com"],
         'check' => fn($r, $ctx) => (int) $r['moodleUserId'] === $ctx->extraids[0] ? null : 'rebound a different user',

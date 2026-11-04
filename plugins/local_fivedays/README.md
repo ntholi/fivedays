@@ -35,7 +35,7 @@ The Docker stack in this repo installs the plugin and runs `cli/setup.php` after
 - `db/services.php` declares the **FiveDays** web service (shortname `fivedays`) with every `local_fivedays_*` function plus the core functions the prod service already had. Moodle's upgrade keeps the service's function list equal to it. Version 2026102404 hands the older, runtime-created service row over to the plugin, keeping all its per-user tokens.
 - `cli/setup.php` (idempotent, prints `ok` / `changed` / `FAIL` per item, exits 1 on any `FAIL`):
   - creates the `fivedays_ws` user with a system role copied from the Manager archetype plus `webservice/rest:use`, and prints its token once (luct's `MOODLE_TOKEN`);
-  - repairs the `fivedays_overseer` role and lets `fivedays_ws` assign it (see **Overseer role**);
+  - repairs the `fivedays_overseer` and `fivedays_auditor` roles and lets `fivedays_ws` assign them (see **Overseer role**, **Auditor role**);
   - creates or updates the Google OAuth issuer from `MOODLE_GOOGLE_CLIENT_ID` / `MOODLE_GOOGLE_CLIENT_SECRET`;
   - adds the Redis store `fivedays_redis` and maps the application cache to it;
   - turns on phone push (`airnotifier`) and adds it to every notification type's default outputs, never touching locked defaults or users' own preferences;
@@ -1853,6 +1853,12 @@ All capabilities granted to **editing teachers** and **managers** by default.
 ### Overseer role
 
 `fivedays_overseer` ("FiveDays Overseer") is the view-only course role luct enrols principal lecturers with on the classes they oversee (`enrol_users` with `roleshortname = fivedays_overseer`). It has no archetype, is assignable at course level only and allows exactly `overseer_role::CAPABILITIES`: viewing participants, hidden content, every activity, assignment grades and comments, rubric fillings, quiz reports and the grading queue, and joining BigBlueButton sessions. It holds no prohibits, so a principal lecturer who also teaches the class keeps the editing teacher's rights. `db/install.php`, `db/upgrade.php` and `cli/setup.php` all run `overseer_role::sync()`, which resets the role to that list.
+
+### Auditor role
+
+`fivedays_auditor` ("FiveDays Auditor") is the view-only site role luct gives registry, quality assurance and admin staff so they can open any course without being enrolled. It has no archetype, is assignable in the system context only and allows exactly `overseer_role::CAPABILITIES` plus `moodle/course:view`, so every check above passes in every course. It holds no prohibits. `auditor_role::sync()` runs wherever `overseer_role::sync()` does.
+
+`local_fivedays_set_site_auditors` — `users[{ email, auditor }]`. Needs `local/fivedays:provision` at system level (the `fivedays_ws` token). `auditor = true` assigns the role in the system context (nothing when already held; an unknown email fails with `invalidparameter`); `auditor = false` removes it (nothing when not held or the email is unknown). Returns `{changed}`, the number of assignments added or removed.
 
 Read functions check read capabilities: `get_assignment_grades` (`local/fivedays:viewassignment` + `mod/assign:viewgrades`), `get_assignment_comments` (`local/fivedays:viewassignmentcomments` + `mod/assign:viewgrades`), `get_rubric` (`local/fivedays:viewrubricfilling`), `get_grading_queue` counts with `mod/assign:viewgrades` / `mod/quiz:viewreports`, and `get_book` returns hidden chapters with `mod/book:viewhiddenchapters`.
 

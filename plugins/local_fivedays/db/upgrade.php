@@ -64,5 +64,10 @@ function xmldb_local_fivedays_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026110100, 'local', 'fivedays');
     }
 
+    if ($oldversion < 2026110401) {
+        \local_fivedays\auditor_role::sync();
+        upgrade_plugin_savepoint(true, 2026110401, 'local', 'fivedays');
+    }
+
     return true;
 }

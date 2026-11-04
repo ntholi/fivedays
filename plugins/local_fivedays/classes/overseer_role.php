@@ -62,56 +62,6 @@ class overseer_role {
      * @return string[] what changed, empty when the role was already right
      */
     public static function sync(): array {
-        global $DB;
-
-        $changes = [];
-        $role = $DB->get_record('role', ['shortname' => self::SHORTNAME]);
-        if (!$role) {
-            $roleid = create_role(self::NAME, self::SHORTNAME, self::DESCRIPTION);
-            $role = $DB->get_record('role', ['id' => $roleid], '*', MUST_EXIST);
-            $changes[] = 'created';
-        }
-        $roleid = (int) $role->id;
-
-        foreach (['name' => self::NAME, 'description' => self::DESCRIPTION, 'archetype' => ''] as $field => $value) {
-            if ((string) $role->$field !== $value) {
-                $DB->set_field('role', $field, $value, ['id' => $roleid]);
-                $changes[] = "{$field} updated";
-            }
-        }
-
-        $levels = array_map('intval', array_values(get_role_contextlevels($roleid)));
-        if ($levels !== [CONTEXT_COURSE]) {
-            set_role_contextlevels($roleid, [CONTEXT_COURSE]);
-            $changes[] = 'context levels set to course';
-        }
-
-        $systemcontext = \context_system::instance();
-        $current = $DB->get_records_menu('role_capabilities',
-            ['roleid' => $roleid, 'contextid' => $systemcontext->id], '', 'capability, permission');
-        foreach ($current as $capability => $permission) {
-            if (!in_array($capability, self::CAPABILITIES, true)) {
-                unassign_capability($capability, $roleid, $systemcontext->id);
-                $changes[] = "removed {$capability}";
-            }
-        }
-        foreach (self::CAPABILITIES as $capability) {
-            // On a fresh site the quiz report subplugins install after this plugin; setup.php adds theirs.
-            if (!get_capability_info($capability)) {
-                continue;
-            }
-            if ((int) ($current[$capability] ?? 0) !== CAP_ALLOW) {
-                assign_capability($capability, CAP_ALLOW, $roleid, $systemcontext->id, true);
-                $changes[] = "allowed {$capability}";
-            }
-        }
-
-        $wsroleid = $DB->get_field('role', 'id', ['shortname' => 'fivedays_ws']);
-        if ($wsroleid && !$DB->record_exists('role_allow_assign', ['roleid' => $wsroleid, 'allowassign' => $roleid])) {
-            core_role_set_assign_allowed($wsroleid, $roleid);
-            $changes[] = 'assignable by fivedays_ws';
-        }
-
-        return $changes;
+        return role_sync::sync(self::SHORTNAME, self::NAME, self::DESCRIPTION, CONTEXT_COURSE, self::CAPABILITIES);
     }
 }
