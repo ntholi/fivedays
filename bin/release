@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # just release [--patch] (D25): builds, tests and pushes immutable images to the public GHCR repo.
-#   just release           sha-<short> (+ -web, -transfer) of the pushed HEAD
+#   just release           sha-<short> (+ -web) of the pushed HEAD
 #   just release --patch   sha-<short>-<yyyymmdd>: the same commit rebuilt with --pull for OS patches
 # Refuses a dirty tree, an unpushed HEAD or a tag that already exists. Tags are never overwritten.
 # <short> is `git rev-parse --short HEAD`, the same value registry-web's deploy-prod.ts looks for.
@@ -57,7 +57,7 @@ if ! docker login ghcr.io </dev/null >/dev/null 2>&1; then
 fi
 ok "logged in to ghcr.io"
 
-for suffix in "" -web -transfer; do
+for suffix in "" -web; do
   if docker manifest inspect "$image:$tag$suffix" >/dev/null 2>&1; then
     die "$image:$tag$suffix already exists; tags are never overwritten" \
       "Deploy it as it is, or make a new commit (or just release --patch on another day)."
@@ -71,7 +71,7 @@ log "testing $image:$tag"
 "$FIVEDAYS_ROOT/bin/test" "$tag"
 "$FIVEDAYS_ROOT/bin/phpunit" "$tag"
 
-for suffix in "" -web -transfer; do
+for suffix in "" -web; do
   docker push "$image:$tag$suffix" >/dev/null || die "Pushing $image:$tag$suffix failed" "Rerun just release (tags not pushed yet are pushed then)."
   ok "pushed $image:$tag$suffix"
 done

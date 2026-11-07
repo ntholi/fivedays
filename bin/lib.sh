@@ -64,8 +64,7 @@ compose_local() {
 }
 
 # ---- Remote hosts (used only by the host commands in bin/; agents never ssh themselves) ----
-# A host spec is "<host>" or "<host>:<port>"; the port form targets the local stand-in hosts in
-# test/hosts/. SSH_KEY, REMOTE_USER and SSH_OPTS can be overridden for those stand-ins.
+# A host spec is "<host>" or "<host>:<port>". SSH_KEY, REMOTE_USER and SSH_OPTS can be overridden.
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/LightsailDefaultKey-eu-central-1.pem}"
 REMOTE_USER="${REMOTE_USER:-ubuntu}"
 SSH_OPTS="${SSH_OPTS:--o StrictHostKeyChecking=accept-new}"
@@ -76,20 +75,13 @@ HOST_COMPOSE="cd $HOST_DIR && docker compose --env-file versions.env --env-file 
 host_name() { printf '%s' "${1%%:*}"; }
 host_port() { [[ "$1" == *:* ]] && printf '%s' "${1##*:}" || printf '22'; }
 
-# SSH_HOST_ALIASES="<spec>=<alias> ...": host keys of those specs are checked under <alias> (ssh HostKeyAlias),
-# so a machine keeps its key when its address changes (the cutover moves the static IP between hosts).
-SSH_HOST_ALIASES="${SSH_HOST_ALIASES:-}"
-
 # ssh_args <spec>: the ssh arguments (without the command) for a host spec.
 ssh_args() {
-  local spec="$1" pair alias=()
+  local spec="$1"
   # shellcheck disable=SC2206
   local opts=($SSH_OPTS)
-  for pair in $SSH_HOST_ALIASES; do
-    [[ "${pair%%=*}" == "$spec" ]] && alias=(-o "HostKeyAlias=${pair#*=}")
-  done
   printf '%s\n' -i "$SSH_KEY" -p "$(host_port "$spec")" -o BatchMode=yes -o ConnectTimeout=15 \
-    -o ServerAliveInterval=30 -o ServerAliveCountMax=6 "${opts[@]}" "${alias[@]}" "$REMOTE_USER@$(host_name "$spec")"
+    -o ServerAliveInterval=30 -o ServerAliveCountMax=6 "${opts[@]}" "$REMOTE_USER@$(host_name "$spec")"
 }
 
 # on_host <spec> <bash script...>: runs the script as root on the host; stdin is passed through.

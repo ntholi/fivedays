@@ -11,10 +11,7 @@
       "Bash(docker run * amazon/aws-cli*)"
     ],
     "ask": [
-      "Bash(just cutover*)",
-      "Bash(just deploy*)",
-      "Bash(just rehearse*)",
-      "Bash(just cutover-rollback*)"
+      "Bash(just deploy*)"
     ]
   }
 }

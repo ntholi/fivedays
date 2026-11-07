@@ -8,10 +8,6 @@ default:
 doctor:
     @bin/doctor
 
-# Read-only inventory of a prod host; saves precheck/<host>-<date>.md
-precheck host:
-    @bin/precheck "$1"
-
 # Write .env (local) or .env.prod (prod) and create local volumes; every answer is also a --flag=value
 init target *flags:
     @bin/init "$@"
@@ -44,11 +40,7 @@ phpunit tag="local" *args:
 test tag="local":
     @bin/test "$1"
 
-# Compare old MariaDB and new Postgres: row counts, schema, filedir hashes, FiveDays tokens
-verify old new:
-    @bin/verify "$@"
-
-# Nightly backup now (or --status: last backup and restore test) on a host
+# Nightly backup now on a host (or --status: last backup and restore test)
 backup *args:
     @bin/backup "$@"
 
@@ -75,18 +67,6 @@ rollback host:
 # Raise pinned versions within their series (--major for major jumps), test and commit
 update *args:
     @bin/update "$@"
-
-# Full dress rehearsal of the cutover on the new host with last night's prod dump
-rehearse *args:
-    @bin/rehearse "$@"
-
-# The cutover (one window): --resume continues after the last passed phase; --unattended per D29; --token reruns phase 8 after cutover.done
-cutover *args:
-    @bin/cutover "$@"
-
-# Undo the cutover before phase 10: static IP back, old token back, old host running again
-cutover-rollback *args:
-    @bin/cutover-rollback "$@"
 
 # Build, test and push sha-<short> images to ghcr.io (D25); --patch rebuilds with fresh OS packages
 release *args:

@@ -4,8 +4,8 @@
 #      non-empty and pg_restore --list reads it; then it replaces nightly/moodle.dump (only one is kept).
 #   2. restic snapshot of the dump (tag pgdump) and of moodledata without filedir (in the bucket), cache,
 #      localcache, temp, sessions and trashdir (tag moodledata), to the R2 repo. restic host = project name.
-#   3. Retention: 14 daily + 8 weekly per kind for this host, then prune. Other hosts' snapshots (the old
-#      host's offsite copies) are never touched.
+#   3. Retention: 14 daily + 8 weekly per kind for this host, then prune. Other hosts' snapshots are never
+#      touched.
 #   4. backup.status: last_backup_ok, or last_backup_failed with the step that failed.
 # FIVEDAYS_DIR (default /opt/fivedays) lets a local test point it at a throwaway stack.
 set -euo pipefail

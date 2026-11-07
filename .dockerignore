@@ -4,6 +4,5 @@
 .env
 .env.*
 logs
-precheck
 bin
 *.zip

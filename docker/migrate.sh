@@ -21,7 +21,7 @@ changed=0
 
 if [[ "$installed" == "0" ]]; then
   [[ "${MOODLE_ALLOW_INSTALL:-0}" == "1" ]] ||
-    fail "Database is empty; refusing to install on prod. Did the data transfer run?"
+    fail "Database is empty; refusing to install on prod (MOODLE_ALLOW_INSTALL is not 1). Restore a dump first."
   log "empty database, installing Moodle (MOODLE_ALLOW_INSTALL=1)"
   php admin/cli/install_database.php --agree-license --lang=en \
     --adminuser=admin --adminpass="$MOODLE_ADMIN_PASSWORD" --adminemail="$MOODLE_ADMIN_EMAIL" \

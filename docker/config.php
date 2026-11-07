@@ -1,6 +1,6 @@
 <?php
 // Moodle config for the Docker stack. Every value comes from the environment (compose.yaml), so the
-// same image runs locally, in rehearsals and on prod. Settings that must never drift are plain $CFG
+// same image runs locally and on prod. Settings that must never drift are plain $CFG
 // lines: Moodle shows them greyed out in the admin UI and ignores the DB value.
 
 unset($CFG);
@@ -18,9 +18,7 @@ $env = static function (string $name, ?string $default = null): string {
     return $value;
 };
 
-// Only the one-off `transfer` container sets MOODLE_DB_TYPE=mariadb: dbtransfer reads the old MariaDB
-// through this config and writes the new Postgres named on its command line.
-$CFG->dbtype = $env('MOODLE_DB_TYPE', 'pgsql');
+$CFG->dbtype = 'pgsql';
 $CFG->dblibrary = 'native';
 $CFG->dbhost = $env('MOODLE_DB_HOST', 'db');
 $CFG->dbname = $env('MOODLE_DB_NAME', 'moodle');
@@ -29,12 +27,9 @@ $CFG->dbpass = $env('MOODLE_DB_PASSWORD');
 $CFG->prefix = 'mdl_';
 $CFG->dboptions = [
     'dbpersist' => 0,
-    'dbport' => (int) $env('MOODLE_DB_PORT', $CFG->dbtype === 'pgsql' ? '5432' : '3306'),
+    'dbport' => 5432,
     'dbsocket' => '',
 ];
-if ($CFG->dbtype === 'mariadb') {
-    $CFG->dboptions['dbcollation'] = 'utf8mb4_unicode_ci';
-}
 
 $CFG->wwwroot = $env('MOODLE_WWWROOT');
 $CFG->dataroot = '/var/moodledata';
@@ -73,7 +68,7 @@ if (!defined('PHPUNIT_TEST')) {
     $CFG->session_redis_acquire_lock_timeout = 120;
     $CFG->session_redis_lock_expire = 7200;
 
-    // Blocks email and push (message_output_airnotifier::send_message checks it). Local and rehearsals only.
+    // Blocks email and push (message_output_airnotifier::send_message checks it). Local only.
     if ($env('MOODLE_NOEMAIL', '0') === '1') {
         $CFG->noemailever = true;
     }

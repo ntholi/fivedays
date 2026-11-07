@@ -2,6 +2,11 @@
 
 Entries before 2026-10-22 are for `local_activity_utils`, which became `local_fivedays`.
 
+## 2026-11-07
+
+### Removed
+- Stack: the one-time cutover tooling, now that the old MariaDB host is deleted. Gone: `just precheck`, `just verify`, `just rehearse`, `just cutover` and `just cutover-rollback` (with `bin/cutover-lib.sh`, `host/cutover-*`, `test/dry-run`, the `test/hosts/` stand-ins and the `precheck/` reports); the `transfer` image target, so `just build`, `just release` and `just deploy` no longer make or require `-transfer` tags, and the app image drops `mysqli`; `config.php`'s MariaDB branch (always `pgsql`); the old-host mode and `--offsite-today` of `just backup`; `just update`'s hold on the Moodle and objectfs pins; the rehearsal-bucket and cutover IAM questions in `just init prod`; `just provision`'s old-host guard and its rsync/ssh client packages; the `MARIADB_VERSION` and `AWSCLI_VERSION` pins. No plugin change.
+
 ## 2026-11-04 (2)
 
 ### Changed

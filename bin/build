@@ -21,6 +21,5 @@ build_args+=(--build-arg "POSTGRES_MAJOR=${POSTGRES_VERSION%%.*}")
 log "building $image:$tag (Moodle $MOODLE_COMMIT)"
 docker build "${build_args[@]}" --target app -t "$image:$tag" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
 docker build "${build_args[@]}" --target web -t "$image:$tag-web" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
-docker build "${build_args[@]}" --target transfer -t "$image:$tag-transfer" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
 docker build "${build_args[@]}" --target test -t "$image:$tag-test" -f "$FIVEDAYS_ROOT/docker/Dockerfile" "$FIVEDAYS_ROOT"
-ok "built $image:$tag and its -web, -transfer and -test images"
+ok "built $image:$tag and its -web and -test images"

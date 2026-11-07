@@ -114,7 +114,7 @@ foreach ($only === '' ? array_diff($servicefunctions, array_keys($covered)) : []
     $failed++;
 }
 
-// CONTRACT_CLEANUP=1 (bin/cutover on prod, bin/rehearse): delete the fixture courses, the CONTRACT category
+// CONTRACT_CLEANUP=1 (a run against a live site): delete the fixture courses, the CONTRACT category
 // and the users the cases created, so nothing stays visible to students or lecturers.
 if (getenv('CONTRACT_CLEANUP') === '1') {
     require_once(__DIR__ . '/cleanup-lib.php');

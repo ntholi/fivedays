@@ -3,7 +3,7 @@
 # Prepares a bare Ubuntu 24.04 Lightsail host for the stack. Safe to rerun: every item prints "ok"
 # (already right, nothing touched) or "changed" (fixed now), so a second run prints only "ok".
 #
-# Items: OS check, old-prod guard, Docker Engine + compose plugin (Docker's apt repo), Docker log
+# Items: OS check, Docker Engine + compose plugin (Docker's apt repo), Docker log
 # defaults, ufw (SSH, 80, 443), unattended-upgrades, swap + swappiness (D22, 4 GB host), /opt/fivedays, the
 # external volumes, FPM_MAX_CHILDREN (stored in /opt/fivedays/provision.env for bin/deploy), and the
 # marker /opt/fivedays/.provisioned (written last, so a failed run leaves no marker).
@@ -18,9 +18,9 @@ DOCKER_PACKAGES=(docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 # Docker's release signing key (https://docs.docker.com/engine/install/ubuntu/).
 DOCKER_KEY_FINGERPRINT=9DC858229FC7DD38854AE2D88D81803C0EBFCD88
 SWAP_FILE=/swapfile
-# D22: 4 GB RAM. 2 GB of swap absorbs a burst of large PHP requests or the one-off MariaDB of the
-# transfer/rehearsal instead of the OOM killer picking Postgres; swappiness 10 keeps the working set in
-# RAM until it is really needed.
+# D22: 4 GB RAM. 2 GB of swap absorbs a burst of large PHP requests or the one-off backup and restore-test
+# containers instead of the OOM killer picking Postgres; swappiness 10 keeps the working set in RAM until
+# it is really needed.
 SWAP_MB=2048
 SWAPPINESS=10
 
@@ -64,31 +64,23 @@ apt_install() {
   return 0
 }
 
-# Kernel-wide settings (swap, vm.*) belong to the machine. In the test stand-in (a privileged container)
-# they would change the laptop's kernel, so they are written to disk but not applied there.
+# Kernel-wide settings (swap, vm.*) belong to the machine. In a (privileged) container they would change
+# the machine's kernel, so they are written to disk but not applied there.
 in_container=0
 if systemd-detect-virt --container --quiet 2>/dev/null; then in_container=1; fi
 
-# ---- 1. OS and old-prod guard ----
+# ---- 1. OS ----
 # shellcheck disable=SC1091
 source /etc/os-release
 [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "24.04" ]] ||
   fail "This host runs ${PRETTY_NAME:-an unknown OS}, not Ubuntu 24.04" "Create the Lightsail instance from the Ubuntu 24.04 image (D22)."
 ok "os: $PRETTY_NAME"
-# The old prod host is Ubuntu 24.04 too, but runs Moodle on MariaDB + nginx outside Docker. Provisioning it
-# would enable a firewall and install Docker under live prod, so refuse.
-for p in mariadb-server mysql-server nginx apache2; do
-  ! installed "$p" || fail "$p is installed: this looks like the old prod host, not a new bare host" \
-    "Provision only the new Lightsail instance (D22). The old host is changed only by just cutover."
-done
-ok "not the old prod host (no MariaDB/MySQL/nginx/Apache packages)"
 
 # ---- 2. Docker Engine + compose plugin from Docker's apt repo ----
 for p in docker.io docker-compose podman-docker containerd runc; do
   ! installed "$p" || fail "Ubuntu's $p package is installed; it conflicts with Docker's packages" "Remove it (apt-get remove $p) and rerun."
 done
-# rsync and the ssh client: the cutover pulls moodledata and tunnels to the old MariaDB from this host.
-if apt_install ca-certificates curl gnupg rsync openssh-client; then changed "packages: ca-certificates curl gnupg rsync openssh-client"; else ok "packages: ca-certificates curl gnupg rsync openssh-client"; fi
+if apt_install ca-certificates curl gnupg; then changed "packages: ca-certificates curl gnupg"; else ok "packages: ca-certificates curl gnupg"; fi
 
 key=/etc/apt/keyrings/docker.asc
 if [[ -s "$key" ]]; then
@@ -230,13 +222,13 @@ for v in "${VOLUMES[@]}"; do
 done
 
 # ---- 7. FPM_MAX_CHILDREN for this host's RAM ----
-# fpm_children <MemTotal MB>. The new host is a 4 GB Lightsail instance (D22, 2 vCPU). Reserved first, in MB:
+# fpm_children <MemTotal MB>. The host is a 4 GB Lightsail instance (D22, 2 vCPU). Reserved first, in MB:
 #   OS, sshd, dockerd/containerd  384
 #   Postgres                      768  (shared_buffers 128 MB + ~10 MB per connection: one per worker + cron)
 #   Redis                         288  (maxmemory 256 MB in compose.yaml + overhead)
 #   Caddy                         128
 #   cron (one PHP CLI process)    192
-#   one-off MariaDB (transfer and rehearsal only) 160; it runs while the site is idle, swap covers the rest
+#   backup/restore-test runs     160  (one-off containers at night; swap covers the rest)
 #   total                        1920
 # Each php-fpm worker averages ~80 MB with Moodle (docker/php-fpm.conf); a rare 256 MB request
 # (memory_limit) is absorbed by the 2 GB swap. 4 GB host: MemTotal ~3,900 MB → (3900 - 1920) / 80 = 24,

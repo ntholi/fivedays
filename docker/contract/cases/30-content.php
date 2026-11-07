@@ -391,7 +391,7 @@ return [
 
     [
         'fn' => 'local_fivedays_ensure_google_login',
-        // On a site that already has the Google issuer (prod, during the cutover) pass its own credentials, so
+        // On a site that already has the Google issuer (prod) pass its own credentials, so
         // the call changes nothing; dummy credentials only where there is no issuer yet.
         'params' => function () {
             $issuer = \local_fivedays\provision_helper::find_google_issuer();

@@ -5,9 +5,9 @@
 # unattended-upgrades, a 2 GB swap file with swappiness 10, /opt/fivedays (root, 700), the external
 # volumes fivedays_{moodledata,pgdata,caddydata,backups}, FPM_MAX_CHILDREN in
 # /opt/fivedays/provision.env (read by bin/deploy) and the marker /opt/fivedays/.provisioned.
-# It refuses a host that isn't Ubuntu 24.04 or that runs MariaDB/MySQL/nginx/Apache (the old prod host).
+# It refuses a host that isn't Ubuntu 24.04.
 #
-# Host spec: <host> or <host>:<port>. Test stand-ins: see test/hosts/standin (SSH_KEY / SSH_OPTS).
+# Host spec: <host> or <host>:<port> (SSH_KEY / SSH_OPTS / REMOTE_USER override the defaults in lib.sh).
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 

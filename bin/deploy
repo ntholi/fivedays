@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # just deploy <host> <tag>: ships an image tag to a provisioned host and health-checks it.
-#   1. Preconditions: the host has /opt/fivedays/.provisioned (just provision; the old prod host has no
-#      marker, so this also refuses it); <tag>, <tag>-web and <tag>-transfer exist in the registry; the env
-#      file is mode 600 and complete.
+#   1. Preconditions: the host has /opt/fivedays/.provisioned (just provision); <tag> and <tag>-web exist
+#      in the registry; the env file is mode 600 and complete.
 #   2. Copies compose.yaml, versions.env and host/ to /opt/fivedays; installs host/cron.d-fivedays as
 #      /etc/cron.d/fivedays (644) when it exists.
 #   3. Writes /opt/fivedays/.env (600) from the laptop's env file (ENV_FILE, default .env.prod) without
-#      any CUTOVER_*, REHEARSAL_* or BACKUP_READ_* key, plus IMAGE_TAG=<tag>, PREVIOUS_IMAGE_TAG=<the tag
+#      any BACKUP_READ_* key, plus IMAGE_TAG=<tag>, PREVIOUS_IMAGE_TAG=<the tag
 #      live before> and FPM_MAX_CHILDREN from /opt/fivedays/provision.env.
 #   4. compose pull, up -d; waits for migrate (exit 0, else its last 40 lines and "just rollback <host>").
 #   5. Health check from the host itself through the internal listener 127.0.0.1:8080: /caddy-health,
@@ -14,17 +13,16 @@
 #   6. Plugin check (host/plugin-versions.php): every plugin's version.php in the image equals its
 #      config_plugins version, else it fails with "just rollback <host>".
 #
-# Modes (for bin/cutover and tests):
+# Modes:
 #   bin/deploy <host> <tag>                 all of the above
 #   bin/deploy --files-only <host> <tag>    steps 1–3 only: files and host .env, the stack is not started
 #   bin/deploy --health-only <host>         step 5 only, against whatever runs on the host
 # Sourcing it (`source bin/deploy`) only defines the functions, for scripts that run the steps themselves:
 #   deploy_check_host <host>                    marker present; prints nothing else
-#   deploy_check_images <image> <tag>           <tag>, <tag>-web, <tag>-transfer exist (docker manifest inspect)
-#   deploy_write_files <host> <tag>             steps 2–3 (needs ENV_FILE; DEPLOY_HOST_CRON=0 leaves out cron.d)
+#   deploy_check_images <image> <tag>           <tag> and <tag>-web exist (docker manifest inspect)
+#   deploy_write_files <host> <tag>             steps 2–3 (needs ENV_FILE)
 #   deploy_install_host_cron <host>             installs host/cron.d-fivedays as /etc/cron.d/fivedays
-#   deploy_start <host> [up args...]            step 4 (pull, up -d, migrate exit 0); extra args go to
-#                                               `up -d`, e.g. --scale cron=0 (rehearsals run without cron)
+#   deploy_start <host> [up args...]            step 4 (pull, up -d, migrate exit 0); extra args go to `up -d`
 #   deploy_health <host>                        step 5
 #   deploy_check_plugins <host>                 step 6
 #   host_env_get <host> <KEY>                   one non-secret value from the host .env (tags only)
@@ -36,8 +34,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 ENV_FILE="${ENV_FILE:-$FIVEDAYS_ROOT/.env.prod}"
 DEFAULT_IMAGE=ghcr.io/ntholi/fivedays-moodle
-# Keys that stay on the laptop: cutover IAM keys, rehearsal bucket keys, read-only backup keys.
-LAPTOP_ONLY_KEYS='CUTOVER_|REHEARSAL_|BACKUP_READ_'
+# Keys that stay on the laptop: the read-only backup keys.
+LAPTOP_ONLY_KEYS='BACKUP_READ_'
 # Keys deploy sets itself.
 DEPLOY_KEYS='IMAGE_TAG|PREVIOUS_IMAGE_TAG|FPM_MAX_CHILDREN'
 
@@ -57,8 +55,7 @@ deploy_check_host() {
   on_host "$host" true || die "Cannot run sudo on $host over SSH as $REMOTE_USER" \
     "Check the instance is running and $SSH_KEY is its key; then rerun."
   on_host "$host" "test -f $HOST_DIR/.provisioned" ||
-    die "$host has no $HOST_DIR/.provisioned: it was never provisioned (or it is the old prod host)" \
-      "For the new host run: just provision $host. Never deploy to the old prod host."
+    die "$host has no $HOST_DIR/.provisioned: it was never provisioned" "Run: just provision $host"
   ok "$host is provisioned ($(on_host "$host" "head -n 1 $HOST_DIR/.provisioned"))"
 }
 
@@ -68,11 +65,11 @@ deploy_check_images() {
   # A loopback registry is the test stand-in's (plain http). dockerd trusts loopback registries by default,
   # but `docker manifest` needs --insecure for them. Real registries (ghcr.io) are always checked over https.
   if [[ "$image" =~ ^(localhost|127\.[0-9.]+)(:[0-9]+)?/ ]]; then flags=(--insecure); fi
-  for suffix in "" -web -transfer; do
+  for suffix in "" -web; do
     docker manifest inspect "${flags[@]}" "$image:$tag$suffix" >/dev/null 2>&1 ||
       die "Image $image:$tag$suffix is not in the registry" "Release it first (just release), or pick an existing tag."
   done
-  ok "images $image:$tag, -web, -transfer exist in the registry"
+  ok "images $image:$tag and -web exist in the registry"
 }
 
 # The host .env content: the env file minus laptop-only and deploy-owned keys, plus deploy's keys.
@@ -115,14 +112,7 @@ deploy_write_files() {
   tar -C "$FIVEDAYS_ROOT" -cf - compose.yaml versions.env host |
     on_host "$host" "tar -C $HOST_DIR --no-same-owner -xf - && chown -R root:root $HOST_DIR/compose.yaml $HOST_DIR/versions.env $HOST_DIR/host && chmod -R go-w $HOST_DIR/host"
   ok "files in $HOST_DIR"
-  # DEPLOY_HOST_CRON=0 (bin/rehearse, bin/cutover before phase 10): the nightly backup must not start mid-window
-  # (a half-transferred database, restic's lock during the final copy); bin/cutover installs it in phase 10.
-  if [[ "${DEPLOY_HOST_CRON:-1}" == 1 ]]; then
-    deploy_install_host_cron "$host"
-  else
-    on_host "$host" "rm -f /etc/cron.d/fivedays"
-    ok "/etc/cron.d/fivedays not installed (DEPLOY_HOST_CRON=0)"
-  fi
+  deploy_install_host_cron "$host"
 
   copy_to_host "$host" <(build_host_env "$tag" "$previous" "$children") "$HOST_DIR/.env" 600
   ok "wrote $HOST_DIR/.env (600): IMAGE_TAG=$tag PREVIOUS_IMAGE_TAG=${previous:-(none)} FPM_MAX_CHILDREN=$children"
@@ -148,13 +138,13 @@ deploy_start() {
   code="$(on_host "$host" "docker wait $id")"
   if [[ "$code" != "0" ]]; then
     host_compose "$host" logs --no-log-prefix --tail 40 migrate 2>&1 |
-      sed -E 's/(shown once\): ).*/\1(hidden; bin\/cutover reads it from the database)/' || true
+      sed -E 's/(shown once\): ).*/\1(hidden)/' || true
     die "migrate exited $code on $host (last 40 lines above)" "just rollback $host"
   fi
   ok "migrate exited 0"
   # setup.php prints a new fivedays_ws token once; it stays in the container log, never in this script's log.
   host_compose "$host" logs --no-log-prefix migrate 2>/dev/null | grep -E '^\[migrate|^(ok|changed|WARN|FAIL) ' |
-    sed -E 's/(shown once\): ).*/\1(hidden; bin\/cutover reads it from the database)/' || true
+    sed -E 's/(shown once\): ).*/\1(hidden)/' || true
 }
 
 deploy_health() {

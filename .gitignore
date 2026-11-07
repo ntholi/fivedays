@@ -4,9 +4,6 @@
 /logs
 /.env
 /.env.*
-/cutover.state
-/cutover.done
-/rehearsal.ok
 *.zip
 .idea/
 .vscode/
@@ -14,4 +11,3 @@
 .DS_Store
 Thumbs.db
 node_modules/
-/precheck/*.tmp

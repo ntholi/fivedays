@@ -1,9 +1,8 @@
 <?php
-// Removes what the contract test (and bin/cutover's upload QA) created, through Moodle's own APIs, so nothing
-// stays visible to students or lecturers on a live site (cutover phases 6 and 9). Used by run.php under
-// CONTRACT_CLEANUP=1 and by cleanup.php. What stays: deleted-user rows (Moodle keeps them with deleted = 1,
-// lib/moodlelib.php delete_user), log, event and grade-history rows, and the fivedays_ws draft files (draft
-// areas are emptied by cron).
+// Removes what the contract test created, through Moodle's own APIs, so nothing stays visible to students
+// or lecturers on a live site. Used by run.php under CONTRACT_CLEANUP=1 and by cleanup.php. What stays:
+// deleted-user rows (Moodle keeps them with deleted = 1, lib/moodlelib.php delete_user), log, event and
+// grade-history rows, and the fivedays_ws draft files (draft areas are emptied by cron).
 
 /**
  * Deletes the given courses, then the category named CONTRACT if it is now empty, then the given users.

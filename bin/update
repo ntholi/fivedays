@@ -5,8 +5,6 @@
 #   --major    also take newer series (Moodle stable branch, PHP minor, Redis minor, objectfs branch …).
 #              Postgres stays on its major: a new major cannot read the existing pgdata volume.
 #   --dry-run  print the table and stop.
-# Until cutover.done exists, MOODLE_COMMIT and OBJECTFS_COMMIT are held: the cutover's dbtransfer needs
-# the image's schema to equal prod's exactly (lib/dtl/database_exporter.php:137).
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -201,7 +199,6 @@ for key in "${pin_order[@]}"; do
       ;;
     REDIS_VERSION) list="$(hub_versions library/redis -bookworm -bookworm)"; pick "$key" 2 1 "" "$list" ;;
     CADDY_VERSION) list="$(hub_versions library/caddy -alpine -alpine)"; pick "$key" 1 1 "" "$list" ;;
-    AWSCLI_VERSION) list="$(hub_versions amazon/aws-cli "" "")"; pick "$key" 1 1 "" "$list" ;;
     SEAWEEDFS_VERSION) list="$(released_on_hub seaweedfs/seaweedfs chrislusf/seaweedfs "${pins[$key]}")"; pick "$key" 1 1 "" "$list" ;;
     RESTIC_VERSION) list="$(hub_versions restic/restic "" "")"; pick "$key" 1 1 "" "$list" ;;
     *)
@@ -211,20 +208,6 @@ for key in "${pin_order[@]}"; do
       ;;
   esac
 done
-
-# Guard: the cutover's dbtransfer refuses unless the image's schema equals prod's (plan, Learned 1).
-held=0
-if [[ ! -f "$FIVEDAYS_ROOT/cutover.done" ]]; then
-  for key in MOODLE_COMMIT OBJECTFS_COMMIT OBJECTFS_BRANCH; do
-    if [[ -n "${new[$key]:-}" && "${new[$key]}" != "${pins[$key]:-}" ]]; then
-      new[$key]="${pins[$key]:-}"
-      held=1
-    fi
-  done
-  for key in MOODLE_COMMIT OBJECTFS_COMMIT; do
-    if [[ -n "${avail[$key]:-}" && "${avail[$key]}" != "${pins[$key]}" ]]; then note[$key]+="; held until cutover.done"; fi
-  done
-fi
 
 short() { [[ "$1" =~ ^[0-9a-f]{40}$ ]] && printf '%s' "${1:0:12}" || printf '%s' "$1"; }
 
@@ -242,10 +225,6 @@ for key in "${pin_order[@]}"; do
     "${note[$key]:+  (${note[$key]})}"
 done
 printf '\n'
-if [[ $held == 1 ]]; then
-  warn "MOODLE_COMMIT and OBJECTFS_COMMIT stay pinned until $FIVEDAYS_ROOT/cutover.done exists: the cutover copies"
-  warn "prod's MariaDB with dbtransfer, which refuses unless the image's schema equals prod's exactly."
-fi
 if [[ -n "${new[OBJECTFS_BRANCH]:-}" && "${new[OBJECTFS_BRANCH]}" != "${pins[OBJECTFS_BRANCH]:-}" ]]; then
   changes+=(OBJECTFS_BRANCH)
 fi

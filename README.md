@@ -35,40 +35,35 @@ Moodle runs as one Docker image: the pinned Moodle core plus these plugins. The 
 
 | Command | What you should see |
 | --- | --- |
-| `just release` | Refuses a dirty tree, an unpushed HEAD, or a plugin changed after its last `version.php` bump (README and `tests/` changes are fine). Builds, runs `just test` and `just phpunit`, then pushes `sha-<short>`, `-web` and `-transfer` to `ghcr.io/ntholi/fivedays-moodle`. Tags are never overwritten. |
+| `just release` | Refuses a dirty tree, an unpushed HEAD, or a plugin changed after its last `version.php` bump (README and `tests/` changes are fine). Builds, runs `just test` and `just phpunit`, then pushes `sha-<short>` and `-web` to `ghcr.io/ntholi/fivedays-moodle`. Tags are never overwritten. |
 | `just release --patch` | The same commit rebuilt with fresh OS packages as `sha-<short>-<yyyymmdd>`. |
-| `just deploy luct.click sha-<short>` | `migrate exited 0`, `caddy-health 200`, `login page 200`, then `ok local_fivedays <version>` per plugin (the database runs the image's `version.php` versions). `pnpm deploy:prod` in luct runs this for you after the cutover. |
+| `just deploy luct.click sha-<short>` | `migrate exited 0`, `caddy-health 200`, `login page 200`, then `ok local_fivedays <version>` per plugin (the database runs the image's `version.php` versions). `pnpm deploy:prod` in luct runs this for you. |
 | `just rollback luct.click` | Back on the previous tag. After a Moodle or plugin version bump it refuses and prints the `just restore … --tag=…` command instead. |
-| `just update [--dry-run] [--major]` | An `old → new` table of pinned versions; type `update` to build, test and commit. Moodle and objectfs pins are held until the cutover is done. |
+| `just update [--dry-run] [--major]` | An `old → new` table of pinned versions; type `update` to build, test and commit. |
 
 ### Backups
 
 | Command | What you should see |
 | --- | --- |
 | (nightly, 01:30 UTC on the host) | A `pg_dump` plus moodledata (without `filedir`, which is in the bucket) to the R2 backup bucket. 14 daily and 8 weekly kept. A restore test runs on the 3rd of each month. |
-| `just backup luct.click` | A backup now. Run against the old prod host, it makes the offsite safety copy (mysqldump + moodledata) and proves the dump loads. |
+| `just backup luct.click` | A backup now (the nightly `host/backup.sh`), ending in `backup on luct.click done`. |
 | `just backup --status luct.click` | The time of the last good backup and the last restore test. There is no alert, so check this now and then. |
 | `just restore luct.click <file> [--tag=<tag>]` | Type the hostname to replace a non-empty database. A pre-restore dump is taken first. |
 
-### New host and cutover (one time)
+### New host
 
 Console steps a script can't do:
 
-1. Lightsail (eu-central-1): a 4 GB Ubuntu 24.04 instance with ports 22/80/443 open, the default SSH key and no static IP. The bucket `fivedays-moodle-files` ($3 plan, versioning on) and `fivedays-moodle-rehearsal` ($1 plan), each with its own access key (bucket → Permissions → Create access key).
+1. Lightsail (eu-central-1): a 4 GB Ubuntu 24.04 instance with ports 22/80/443 open and the default SSH key. The bucket `fivedays-moodle-files` ($3 plan, versioning on) with its own access key (bucket → Permissions → Create access key).
 2. Cloudflare R2: a bucket for Moodle backups (not the luct bucket), with a write token (host) and a read-only token (laptops).
-3. AWS IAM: the user `fivedays-cutover` with only the Lightsail static-IP policy from the plan, and an access key. Delete it on day 14.
-4. Google Cloud: the Moodle OAuth client ID and secret.
-5. `just init prod`, which asks for all of the above and writes `.env.prod` (mode 600). Paste it into the password manager.
+3. Google Cloud: the Moodle OAuth client ID and secret.
+4. `just init prod`, which asks for all of the above and writes `.env.prod` (mode 600). Paste it into the password manager.
 
-Then:
-
-| Command | What you should see |
-| --- | --- |
-| `just provision <new-ip>` | Every line `ok` or `changed`; a second run is all `ok`. |
-| `just rehearse <new-ip> <tag> [--unattended]` | A full dress rehearsal on last night's prod dump, then the new host is wiped. Run it twice; `rehearsal.ok` records both passes and their timings. |
-| `just cutover luct.click <new-ip> [--unattended]` | The phases from the plan, each `ok`, ending in `cutover.done`. `--resume` continues after the last passed phase. luct's LMS sync is held from phase 7 (the switch) until phase 9 passes (D37; from phase 1 if the rehearsal window was over 2.5 h, D34), then turned back on; the report says so. |
-| `just cutover-rollback` | Only before `cutover.done`: the static IP and the old token go back, and the old host serves Moodle again. |
-
-The window notice to students and lecturers gives the date and says: lecturers please don't add or change course content in luct until we send the all-clear (sync with Moodle is held during the switch). Send the all-clear once `cutover.done` exists and the report shows LMS sync running.
+Then `just provision <ip>` (every line `ok` or `changed`; a second run is all `ok`), then `just deploy <ip> sha-<short>`.
 
 See `CHANGELOG.md` for changes and each plugin's `README.md` for its API.
+
+## History
+
+- 2026-10-26: luct.click moved from the old Lightsail host (Moodle on MariaDB, no Docker) to this stack with the one-time `just cutover`: a 3 h 24 m window, 16:33–19:59 SAST, then the luct token swap at 20:30.
+- 2026-11-07: the old host, its snapshots, the rehearsal bucket and the cutover IAM user were deleted, and the migration tooling (`precheck`, `rehearse`, `cutover`, `cutover-rollback`, `verify`, the `-transfer` image and the old-host backup mode) was removed. To read it, check out the commit before "chore: remove the one-time cutover/migration tooling".

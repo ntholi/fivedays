@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# One build, four targets: `app` (php-fpm, also used by migrate and cron), `web` (Caddy), `transfer`
-# (cutover only) and `test` (PHPUnit). `core` holds everything except our plugins and config, so a
-# plugin edit rebuilds only the last layers. Build args come from versions.env via bin/build.
+# One build, three targets: `app` (php-fpm, also used by migrate and cron), `web` (Caddy) and `test`
+# (PHPUnit). `core` holds everything except our plugins and config, so a plugin edit rebuilds only the
+# last layers. Build args come from versions.env via bin/build.
 ARG PHP_VERSION
 ARG CADDY_VERSION
 ARG COMPOSER_VERSION
@@ -24,7 +24,7 @@ RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends "postgresql-client-${POSTGRES_MAJOR}"; \
   docker-php-ext-configure gd --with-freetype --with-jpeg; \
-  docker-php-ext-install -j"$(nproc)" pgsql mysqli intl zip gd soap exif opcache; \
+  docker-php-ext-install -j"$(nproc)" pgsql intl zip gd soap exif opcache; \
   pecl install "redis-${PHPREDIS_VERSION}"; \
   docker-php-ext-enable redis; \
   rm -rf /var/lib/apt/lists/* /tmp/pear
@@ -91,14 +91,6 @@ LABEL org.opencontainers.image.source="https://github.com/ntholi/fivedays" \
 
 USER www-data
 CMD ["php-fpm"]
-
-# One-off MariaDB → Postgres transfer at cutover (and rehearsals). dbtransfer refuses unless the code's
-# schema equals the source's (lib/dtl/database_exporter.php), so this is `app` without the plugins prod
-# doesn't have yet; migrate installs them after the transfer.
-FROM app AS transfer
-USER root
-RUN rm -rf public/admin/tool/objectfs
-USER www-data
 
 # CI and `just test`: plugin PHPUnit tests against Postgres. Adds Moodle's dev dependencies.
 FROM app AS test

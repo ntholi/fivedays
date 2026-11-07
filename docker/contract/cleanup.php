@@ -1,6 +1,6 @@
 <?php
-// php /contract/cleanup.php --courses=<id,...> [--users=<id,...>]: contract_cleanup() for courses that
-// bin/cutover's upload QA created through the web service. Exit 1 on any problem.
+// php /contract/cleanup.php --courses=<id,...> [--users=<id,...>]: contract_cleanup() for courses and
+// users created through the web service on a live site. Exit 1 on any problem.
 
 define('CLI_SCRIPT', true);
 require('/var/www/moodle/config.php');

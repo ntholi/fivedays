@@ -22,8 +22,8 @@
 	file_server
 }
 
-# Internal listener, published only on the host's 127.0.0.1. Health checks, deploys and cutover smoke
-# tests use it before the new host has a certificate; HTTPS=on makes Moodle treat it as https wwwroot.
+# Internal listener, published only on the host's 127.0.0.1. Health checks and deploys use it, also
+# before a new host has a certificate; HTTPS=on makes Moodle treat it as https wwwroot.
 http://:8081 {
 	respond /caddy-health 200
 	import moodle
