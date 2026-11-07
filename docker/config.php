@@ -76,7 +76,7 @@ if (!defined('PHPUNIT_TEST')) {
     // D15–D17: uploaded files in the Lightsail bucket, served through Moodle (no signed links).
     // Names and defaults: tool_objectfs classes/local/manager.php get_objectfs_config(). The defaults keep
     // files under 10 KB or younger than 7 days local only; both are 0 so every file reaches the bucket (D18).
-    // "Delete local objects" stays off until the day-14 check.
+    // "Delete local objects" is on since 2026-11-07: objectfs unlinks a local copy only once it is duplicated and verified in the bucket.
     if ($env('MOODLE_BUCKET', '-') !== '-') {
         $CFG->alternative_file_system_class = '\tool_objectfs\s3_file_system';
         $CFG->forced_plugin_settings['tool_objectfs'] = [
@@ -90,7 +90,7 @@ if (!defined('PHPUNIT_TEST')) {
             'sizethreshold' => 0,
             'minimumage' => 0,
             'enablepresignedurls' => 0,
-            'deletelocal' => 0,
+            'deletelocal' => 1,
         ];
         // `just test` only: a local S3 stand-in instead of Lightsail.
         if ($env('MOODLE_BUCKET_ENDPOINT', '-') !== '-') {
